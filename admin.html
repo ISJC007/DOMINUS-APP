@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>DOMINUS | Panel Master</title>
+    <link rel="stylesheet" href="CSS/Styles.css">
+</head>
+<body class="dark-mode">
+    <div class="card" style="margin: 20px;">
+        <h1>👑 Panel de Control Master</h1>
+        <p>Control de suscripciones y usuarios activos.</p>
+        
+        <table style="width:100%; text-align:left; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--accent);">
+                    <th>Usuario</th>
+                    <th>Nombre</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-usuarios">
+                </tbody>
+        </table>
+        <br>
+        <button onclick="window.location.href='login.html'" class="btn-pdf">Volver al Login</button>
+    </div>
+
+    <script src="JS/Offline.js"></script>
+    <script>
+        const usuarios = Persistencia.cargar('dom_users') || {};
+        const tabla = document.getElementById('tabla-usuarios');
+
+        function renderUsuarios() {
+            tabla.innerHTML = "";
+            Object.keys(usuarios).forEach(u => {
+                const user = usuarios[u];
+                tabla.innerHTML += `
+                    <tr style="border-bottom: 1px solid #334155; height: 50px;">
+                        <td>${u}</td>
+                        <td>${user.nombre}</td>
+                        <td style="color: ${user.pagado ? 'var(--accent)' : 'var(--danger)'}">
+                            ${user.pagado ? 'ACTIVO' : 'PENDIENTE'}
+                        </td>
+                        <td>
+                            <button onclick="activarUsuario('${u}')" class="btn-mini">
+                                ${user.pagado ? 'Suspender' : 'Activar'}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function activarUsuario(u) {
+            usuarios[u].pagado = !usuarios[u].pagado;
+            Persistencia.guardar('dom_users', usuarios);
+            renderUsuarios();
+        }
+
+        renderUsuarios();
+    </script>
+</body>
+</html>

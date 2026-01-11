@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dominus | Domina tu Negocio</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10b981">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" type="image/x-icon" href="IMG/favicon.png">
+
+    <link rel="stylesheet" href="CSS/Styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body class="dark-mode">
+
+    <header class="app-header">
+        <div class="welcome-box">
+            <img src="IMG/favicon.png" class="mini-logo" alt="Dominus Logo">
+            <div class="welcome-text">
+                <p class="slogan">"Dominus, domina tu negocio, domina tu vida"</p>
+                <h2 id="user-greet">Cargando sesión...</h2>
+            </div>
+        </div>
+        <button onclick="Auth.logout()" class="btn-logout">Salir</button>
+    </header>
+
+    <section class="tasa-float">
+        Tasa Hoy: <input type="number" id="tasa-input" value="600" onchange="Conversor.actualizarTasa(this.value)"> Bs
+    </section>
+
+    <main id="app-container">
+        
+        <section class="dashboard-grid">
+            <div class="card stat-card primary">
+                <small>EFECTIVO EN CAJA</small>
+                <h2 id="caja-bs">0.00 Bs</h2>
+            </div>
+            <div class="card stat-card accent">
+                <small>VALOR TOTAL EN $</small>
+                <h2 id="caja-usd">$0.00</h2>
+            </div>
+            <div class="card stat-card danger">
+                <small>CUENTAS POR COBRAR (FIAOS)</small>
+                <h2 id="deudas-pendientes">$0.00</h2>
+            </div>
+        </section>
+
+        <section id="controles">
+            <div class="tabs">
+                <button id="btn-ventas" class="tab-btn active" onclick="mostrarSeccion('ventas')">Registrar Venta</button>
+                <button id="btn-deudas" class="tab-btn" onclick="mostrarSeccion('deudas')">Ver Fiaos</button>
+            </div>
+            <div id="pantalla-dinamica" class="card">
+                </div>
+        </section>
+
+        <section class="reports-grid">
+            <button onclick="enviarCierreWhatsApp()" class="btn-whatsapp">WhatsApp</button>
+            <button onclick="generarPDF('semanal')" class="btn-pdf">PDF Semanal</button>
+        </section>
+
+        <section class="card">
+            <h3>Últimos Movimientos</h3>
+            <ul id="lista-movimientos" class="clean-list"></ul>
+        </section>
+    </main>
+
+    <script src="JS/Offline.js"></script>
+    <script src="JS/Auth.js"></script>
+    <script src="JS/Conversor.js"></script>
+    <script src="JS/Ventas.js"></script>
+    <script src="JS/Main.js"></script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Dominus PWA cargada con éxito', reg))
+                    .catch(err => console.warn('Error al registrar PWA', err));
+            });
+        }
+    </script>
+</body>
+</html>

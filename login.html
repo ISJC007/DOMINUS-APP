@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dominus | Acceso</title>
+    <link rel="stylesheet" href="CSS/Styles.css">
+</head>
+<body class="dark-mode auth-page">
+    <div class="auth-container card">
+        <img src="IMG/favicon.png" alt="Dominus Logo" class="main-logo-large">
+        <h1 class="brand-name">DOMINUS</h1>
+        
+        <div id="login-form">
+            <h2>Ingresar</h2>
+            <input type="text" id="l-user" placeholder="Nombre de usuario">
+            <input type="password" id="l-pass" placeholder="Contraseña">
+            <button onclick="Auth.procesarLogin()" class="btn-accion">Entrar</button>
+            <p>¿No tienes cuenta? <a href="#" onclick="toggleAuth()">Regístrate</a></p>
+        </div>
+
+        <div id="register-form" style="display:none;">
+            <h2>Crear Cuenta</h2>
+            <input type="text" id="r-name" placeholder="Nombre">
+            <input type="text" id="r-last" placeholder="Apellido">
+            <input type="email" id="r-email" placeholder="Correo electrónico">
+            <input type="tel" id="r-tel" placeholder="Teléfono">
+            <input type="text" id="r-user" placeholder="Nombre de usuario">
+            <input type="password" id="r-pass" placeholder="Contraseña">
+            <button onclick="Auth.procesarRegistro()" class="btn-accion">Registrarse</button>
+            <p>¿Ya tienes cuenta? <a href="#" onclick="toggleAuth()">Inicia Sesión</a></p>
+        </div>
+    </div>
+
+    <script src="JS/Offline.js"></script>
+    <script src="JS/Auth.js"></script>
+</body>
+</html>
