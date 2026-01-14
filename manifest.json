@@ -1,17 +1,11 @@
 {
-  "name": "Dominus Control de Negocio",
+  "name": "Dominus Control",
   "short_name": "Dominus",
-  "description": "Domina tu negocio, domina tu vida.",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#0b0f1a",
-  "theme_color": "#10b981",
+  "theme_color": "#3b82f6",
   "icons": [
-    {
-      "src": "IMG/logo.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
     {
       "src": "IMG/logo.png",
       "sizes": "512x512",

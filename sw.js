@@ -1,5 +1,6 @@
 const CACHE_NAME = 'dominus-v1';
 const assets = [
+  './',
   'index.html',
   'login.html',
   'CSS/Styles.css',
@@ -8,23 +9,14 @@ const assets = [
   'JS/Ventas.js',
   'JS/Conversor.js',
   'JS/Offline.js',
-  'IMG/logo.png'
+  'JS/Modulos.js',
+  'IMG/favicon.png'
 ];
 
-// Instalar el Service Worker
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(assets);
-    })
-  );
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(assets)));
 });
 
-// Responder desde la caché cuando no hay internet
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request);
-    })
-  );
+self.addEventListener('fetch', e => {
+  e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
 });

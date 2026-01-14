@@ -2,89 +2,194 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dominus | Domina tu Negocio</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#10b981">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="icon" type="image/x-icon" href="IMG/favicon.png">
-
-    <link rel="stylesheet" href="CSS/Styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dominus - Gestión de Negocio</title>
+    <link rel="stylesheet" href=CSS/Styles.css>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
-<body class="dark-mode">
+<body>
 
-    <header class="app-header">
-        <div class="welcome-box">
-            <img src="IMG/favicon.png" class="mini-logo" alt="Dominus Logo">
-            <div class="welcome-text">
-                <p class="slogan">"Dominus, domina tu negocio, domina tu vida"</p>
-                <h2 id="user-greet">Cargando sesión...</h2>
+    <div id="splash-screen" class="splash">
+    <div class="splash-content">
+        <h1 class="logo-anim">DOMINUS</h1>
+        <p class="slogan-anim">Domina tu negocio, Domina tu vida</p>
+        <div class="loader"></div>
+    </div>
+</div>
+
+    <header class="main-header glass">
+        <div class="header-top">
+            <h1 class="titulo-app">DOMINUS</h1>
+<p class="slogan">Domina tu negocio, Domina tu vida</p>
+            <div class="tasa-control">
+                <span>Tasa:</span>
+                <input type="number" id="tasa-global" onchange="Conversor.setTasa(this.value)" step="0.1">
+            </div>
+<button onclick="Controlador.toggleDarkMode()" class="btn-mini btn-nocturno">🌙 Modo Nocturno</button>
+        </div>
+        <div class="dashboard-cards">
+            <div class="card-mini">
+                <small>Caja (Neto)</small>
+                <b id="total-caja">0 Bs</b>
+                <span id="total-usd">$ 0.00</span>
+            </div>
+            <div class="card-mini">
+                <small>Por Cobrar</small>
+                <b id="total-fiaos" style="color: #ff9800;">0 Bs</b>
+            </div>
+            <div class="card-mini">
+                <small>Gastos</small>
+                <b id="total-gastos" style="color: #ff5252;">0 Bs</b>
             </div>
         </div>
-        <button onclick="Auth.logout()" class="btn-logout">Salir</button>
     </header>
 
-    <section class="tasa-float">
-        Tasa Hoy: <input type="number" id="tasa-input" value="600" onchange="Conversor.actualizarTasa(this.value)"> Bs
-    </section>
+    <nav class="bottom-nav glass">
+        <button onclick="Interfaz.show('dashboard')">🏠 Inicio</button>
+        <button onclick="Interfaz.show('ventas')">💰 Ventas</button>
+        <button onclick="Interfaz.show('gastos')">📉 Gastos</button>
+        <button onclick="Interfaz.show('fiaos-list')">🤝 Creditos</button>
+        <button onclick="Interfaz.show('inventario')">📦 Stock</button>
+    </nav>
 
-    <main id="app-container">
+    <main id="app-content">
         
-        <section class="dashboard-grid">
-            <div class="card stat-card primary">
-                <small>EFECTIVO EN CAJA</small>
-                <h2 id="caja-bs">0.00 Bs</h2>
-            </div>
-            <div class="card stat-card accent">
-                <small>VALOR TOTAL EN $</small>
-                <h2 id="caja-usd">$0.00</h2>
-            </div>
-            <div class="card stat-card danger">
-                <small>CUENTAS POR COBRAR (FIAOS)</small>
-                <h2 id="deudas-pendientes">$0.00</h2>
-            </div>
-        </section>
+        <section id="view-dashboard" class="app-section">
+            <div class="welcome-card glass">
+                <h2>Bienvenido, Papá</h2>
+                <p>Usa el menú inferior para registrar movimientos.</p>
 
-        <section id="controles">
-            <div class="tabs">
-                <button id="btn-ventas" class="tab-btn active" onclick="mostrarSeccion('ventas')">Registrar Venta</button>
-                <button id="btn-deudas" class="tab-btn" onclick="mostrarSeccion('deudas')">Ver Fiaos</button>
+                <button class="btn-main" 
+                style="margin-top: 20px; background: #2196F3; color: white;" 
+                onclick="Controlador.generarCierre()">
+            📊 Generar Cierre del Día
+        </button>
+
             </div>
-            <div id="pantalla-dinamica" class="card">
+            <div class="card-grafica">
+    <canvas id="graficaVentas"></canvas>
+</div>
+        </section>
+    
+        <section id="view-ventas" class="app-section hidden">
+            <div class="card glass">
+                <h3>Nueva Venta</h3>
+                  <button class="btn-mini" style="background: #ff9800; width: 100%; margin-bottom: 15px; padding: 10px; border-radius: 8px; color: black; font-weight: bold;" onclick="Controlador.calcularComision()">
+            🧮 Calcular Comisión (5%)
+        </button>
+             <input type="text" id="v-producto" list="sugerencias-ventas" placeholder="Producto (Ej: Pollo)">
+
+        <datalist id="sugerencias-ventas">
+    </datalist>
+                <div class="input-group">
+                    <input type="number" id="v-monto" placeholder="Monto">
+                    <select id="v-moneda">
+                        <option value="USD">$ USD</option>
+                        <option value="BS">Bs</option>
+                    </select>
                 </div>
+                <select id="v-metodo" onchange="Interfaz.toggleClienteField(this.value)">
+                    <option value="Efectivo $">Efectivo $</option>
+                    <option value="Pago Móvil">Pago Móvil</option>
+                    <option value="Punto de Venta">Punto de Venta</option>
+                    <option value="Fiao">Fiao (Deuda)</option>
+                </select>
+                <input type="text" id="v-cliente" class="hidden" placeholder="Nombre del Cliente">
+                <button class="btn-main" onclick="Controlador.ejecutarVenta()">Registrar Venta</button>
+            </div>
+
+            <h4>Últimas Ventas</h4>
+            <div id="lista-ventas-historial" class="listado-container"></div>
         </section>
 
-        <section class="reports-grid">
-            <button onclick="enviarCierreWhatsApp()" class="btn-whatsapp">WhatsApp</button>
-            <button onclick="generarPDF('semanal')" class="btn-pdf">PDF Semanal</button>
+        <section id="view-gastos" class="app-section hidden">
+            <div class="card glass">
+                <h3>Registrar Gasto</h3>
+                <input type="text" id="g-desc" placeholder="¿En qué gastaste?">
+                <div class="input-group">
+                    <input type="number" id="g-monto" placeholder="Monto">
+                    <select id="g-moneda">
+                        <option value="USD">$ USD</option>
+                        <option value="BS">Bs</option>
+                    </select>
+                </div>
+                <button class="btn-main btn-danger" onclick="Controlador.ejecutarGasto()">Guardar Gasto</button>
+            </div>
+            <h4>Historial de Gastos</h4>
+            <div id="lista-gastos-historial" class="listado-container"></div>
         </section>
 
-        <section class="card">
-            <h3>Últimos Movimientos</h3>
-            <ul id="lista-movimientos" class="clean-list"></ul>
+        <section id="view-fiaos-list" class="app-section hidden">
+            <h3>Cuentas por Cobrar (Bs)</h3>
+            <div id="lista-fiaos" class="listado-container"></div>
         </section>
+
+        <section id="view-inventario" class="app-section hidden">
+            <div class="card glass">
+                <h3>📦 Cargar Inventario</h3>
+                <input type="text" id="inv-nombre" placeholder="Producto">
+                <div class="input-group">
+                    <input type="number" id="inv-cant" placeholder="Cantidad">
+                    <input type="number" id="inv-precio" placeholder="Precio Bs">
+                </div>
+                <button class="btn-main" onclick="Controlador.guardarEnInventario()">Cargar Producto</button>
+            </div>
+
+            <div class="inventory-header glass">
+                <span>Descuento Automático</span>
+                <label class="switch">
+                    <input type="checkbox" id="check-inv" onchange="Controlador.toggleInv(this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <h4>Stock Actual</h4>
+            <div id="lista-inventario" class="listado-container"></div>
+        </section>
+
     </main>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="JS/Offline.js"></script>
-    <script src="JS/Auth.js"></script>
     <script src="JS/Conversor.js"></script>
+    <script src="JS/Inventario.js"></script>
     <script src="JS/Ventas.js"></script>
     <script src="JS/Main.js"></script>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('Dominus PWA cargada con éxito', reg))
-                    .catch(err => console.warn('Error al registrar PWA', err));
-            });
-        }
-    </script>
+   <div style="position: absolute; left: -9999px; top: -9999px;">
+    <div id="plantilla-pdf" style="width: 650px; padding: 40px; background: white; color: #333; line-height: 1.6;">
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #ffd700; padding-bottom: 10px; margin-bottom: 20px;">
+            <div>
+                <h1 style="margin: 0; color: #1a1a1a; letter-spacing: 2px;">DOMINUS</h1>
+                <p style="margin: 0; font-style: italic; color: #666;">Domina tu negocio, Domina tu vida</p>
+            </div>
+            <div style="text-align: right;">
+                <h3 style="margin: 0;">Reporte de Cierre</h3>
+                <p id="pdf-fecha" style="margin: 0; font-weight: bold;"></p>
+                <p id="pdf-tasa" style="margin: 0; font-size: 12px; color: #777;"></p>
+            </div>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+            <thead>
+                <tr style="background: #f8f8f8;">
+                    <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Descripción</th>
+                    <th style="padding: 12px; border: 1px solid #ddd; text-align: right;">Monto</th>
+                </tr>
+            </thead>
+            <tbody id="pdf-tabla-cuerpo"></tbody>
+        </table>
+
+        <div style="background: #1a1a1a; color: white; padding: 20px; border-radius: 8px; text-align: right;">
+            <span style="font-size: 14px; opacity: 0.8;">BALANCE NETO TOTAL</span>
+            <h2 id="pdf-total-neto" style="margin: 0; color: #ffd700; font-size: 28px;"></h2>
+        </div>
+
+        <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; text-align: center; font-size: 11px; color: #999;">
+            Documento generado automáticamente por el Sistema de Gestión Dominus.
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
-</html>
+</html>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
