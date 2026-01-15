@@ -1,15 +1,15 @@
 const Ventas = {
     historial: Persistencia.cargar('dom_ventas') || [],
     deudas: Persistencia.cargar('dom_fiaos') || [],
-    gastos: [],
+    gastos: Persistencia.cargar('dom_gastos') || [], // Agrega esto aquí arriba
 
     init() {
+        // Asegúrate de recargar los tres al iniciar
         this.historial = Persistencia.cargar('dom_ventas') || [];
         this.deudas = Persistencia.cargar('dom_fiaos') || [];
         this.gastos = Persistencia.cargar('dom_gastos') || [];
         if (typeof Inventario !== 'undefined') Inventario.init();
     },
-
   // Busca la función registrarVenta y reemplázala por esta:
 registrarVenta(p, m, mon, met, cli) {
     const tasa = Conversor.tasaActual;

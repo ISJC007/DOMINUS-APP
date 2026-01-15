@@ -148,27 +148,31 @@ const Interfaz = {
 };
 
 const Controlador = {
-    ejecutarVenta() {
+   ejecutarVenta() {
+        // 1. Capturamos los datos
         const p = document.getElementById('v-producto').value;
         const m = parseFloat(document.getElementById('v-monto').value);
         const mon = document.getElementById('v-moneda').value;
         const met = document.getElementById('v-metodo').value;
         const cli = document.getElementById('v-cliente').value;
+
+        // 2. VALIDACIÓN (Esto debe ir de primero para no procesar basura)
+        if(!p || isNaN(m)) return alert("Falta producto o monto");
+
+        // 3. DESCUENTO DE STOCK (Solo ocurre una vez)
         const stockOk = typeof Inventario !== 'undefined' ? Inventario.descontar(p, 1) : true;
 
-    if (stockOk) {
-        Ventas.registrarVenta(p, m, mon, met, cli);
-    }
-        if(!p || isNaN(m)) return alert("Falta producto o monto");
-        Ventas.registrarVenta(p, m, mon, met, cli);
-
-        if (typeof Inventario !== 'undefined') Inventario.descontar(p, 1);
-        
-        document.getElementById('v-producto').value = '';
-        document.getElementById('v-monto').value = '';
-        document.getElementById('v-cliente').value = '';
-        this.limpiarSeleccionVenta();
-        Interfaz.show('dashboard');
+        // 4. REGISTRO FINAL (Solo si el stock permitió la operación)
+        if (stockOk) {
+            Ventas.registrarVenta(p, m, mon, met, cli);
+            
+            // 5. LIMPIEZA Y CIERRE
+            document.getElementById('v-producto').value = '';
+            document.getElementById('v-monto').value = '';
+            document.getElementById('v-cliente').value = '';
+            this.limpiarSeleccionVenta();
+            Interfaz.show('dashboard');
+        }
     },
 
     ejecutarGasto() {
