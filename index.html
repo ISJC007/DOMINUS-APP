@@ -4,29 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dominus - Gestión de Negocio</title>
-    <link rel="stylesheet" href=CSS/Styles.css>
+    <link rel="stylesheet" href="CSS/Styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
     <div id="splash-screen" class="splash">
-    <div class="splash-content">
-        <h1 class="logo-anim">DOMINUS</h1>
-        <p class="slogan-anim">Domina tu negocio, Domina tu vida</p>
-        <div class="loader"></div>
+        <div class="splash-content">
+            <h1 class="logo-anim">DOMINUS</h1>
+            <p class="slogan-anim">Domina tu negocio, Domina tu vida</p>
+            <div class="loader"></div>
+        </div>
     </div>
-</div>
 
     <header class="main-header glass">
         <div class="header-top">
             <h1 class="titulo-app">DOMINUS</h1>
-<p class="slogan">Domina tu negocio, Domina tu vida</p>
+            <p class="slogan">Domina tu negocio, Domina tu vida</p>
+            
             <div class="tasa-control">
                 <span>Tasa:</span>
                 <input type="number" id="tasa-global" onchange="Conversor.setTasa(this.value)" step="0.1">
             </div>
-<button onclick="Controlador.toggleDarkMode()" class="btn-mini btn-nocturno">🌙 Modo Nocturno</button>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button onclick="Controlador.toggleDarkMode()" class="btn-mini btn-nocturno" style="flex: 1;">🌙 Modo Nocturno</button>
+                <button onclick="Interfaz.toggleAjustes()" class="btn-mini" style="flex: 1; background: #555;">⚙️ Ajustes</button>
+            </div>
         </div>
+
         <div class="dashboard-cards">
             <div class="card-mini">
                 <small>Caja (Neto)</small>
@@ -58,29 +64,48 @@
             <div class="welcome-card glass">
                 <h2>Bienvenido</h2>
                 <p>Usa el menú inferior para registrar movimientos.</p>
-
-                <button class="btn-main" 
-                style="margin-top: 20px; background: #2196F3; color: white;" 
-                onclick="Controlador.generarCierre()">
-            📊 Generar Cierre del Día
-        </button>
-
+                <button class="btn-main" style="margin-top: 20px; background: #2196F3; color: white;" onclick="Controlador.generarCierre()">
+                    📊 Generar Cierre del Día
+                </button>
             </div>
             <div class="card-grafica">
-    <canvas id="graficaVentas"></canvas>
-</div>
+                <canvas id="graficaVentas"></canvas>
+            </div>
         </section>
     
         <section id="view-ventas" class="app-section hidden">
+            <div class="search-container glass" style="padding: 10px; margin-bottom: 10px;">
+                <input type="text" id="busqueda-real-inv" class="glass" placeholder="🔍 Buscar para vender..." 
+                       style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--primary); color: white; background: rgba(255,255,255,0.05);">
+            </div>
+
             <div class="card glass">
                 <h3>Nueva Venta</h3>
-                  <button class="btn-mini" style="background: #ff9800; width: 100%; margin-bottom: 15px; padding: 10px; border-radius: 8px; color: black; font-weight: bold;" onclick="Controlador.calcularComision()">
-            🧮 Calcular Comisión (5%)
-        </button>
-             <input type="text" id="v-producto" list="sugerencias-ventas" placeholder="Producto (Ej: Pollo)">
 
-        <datalist id="sugerencias-ventas">
-    </datalist>
+                <input type="number" id="v-comision" placeholder="Comisión %">
+                <div class="comision-selector" style="display: flex; gap: 5px; margin-bottom: 10px;">
+                    <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=5">5%</button>
+                    <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=10">10%</button>
+                    <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=15">15%</button>
+                    <button type="button" class="btn-mini" style="background:#607d8b" onclick="document.getElementById('v-comision').value=0">0%</button>
+                </div>
+
+                <input type="text" id="v-producto" list="sugerencias-ventas" oninput="Interfaz.actualizarSelectorTallas(this.value)" placeholder="Producto (Ej: Pollo)">
+                <datalist id="sugerencias-ventas"></datalist>
+
+                <input type="number" id="v-cantidad" placeholder="Cantidad" value="1" style="margin-bottom: 10px;">
+               <div id="contenedor-talla" class="hidden" style="margin-bottom: 10px;">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        <label style="color: var(--primary); font-size: 0.9em;">Seleccione Talla/Peso:</label>
+        <span id="v-info-stock" style="color: #4caf50; font-weight: bold; font-size: 0.9em;"></span>
+    </div>
+    
+    <select id="v-talla" class="glass" 
+            style="width: 100%; padding: 10px; border-radius: 8px; background: #222; color: white; border: 1px solid var(--primary);"
+            onchange="Controlador.mostrarStockDisponible(this.value)"> 
+        <option value="">Seleccione Talla...</option>
+    </select>
+</div>
                 <div class="input-group">
                     <input type="number" id="v-monto" placeholder="Monto">
                     <select id="v-moneda">
@@ -88,12 +113,15 @@
                         <option value="BS">Bs</option>
                     </select>
                 </div>
+                
                 <select id="v-metodo" onchange="Interfaz.toggleClienteField(this.value)">
                     <option value="Efectivo $">Efectivo $</option>
                     <option value="Pago Móvil">Pago Móvil</option>
                     <option value="Punto de Venta">Punto de Venta</option>
                     <option value="Fiao">Fiao (Deuda)</option>
+                    <option value="Biopago">Biopago</option>
                 </select>
+                
                 <input type="text" id="v-cliente" class="hidden" placeholder="Nombre del Cliente">
                 <button class="btn-main" onclick="Controlador.ejecutarVenta()">Registrar Venta</button>
             </div>
@@ -130,66 +158,83 @@
                 <input type="text" id="inv-nombre" placeholder="Producto">
                 <div class="input-group">
                     <input type="number" id="inv-cant" placeholder="Cantidad">
+                    <button type="button" class="btn-mini" style="background:#444; margin-bottom:10px;" onclick="AbrirGestorTallas()">
+    👟 Desglosar por Tallas
+</button>
                     <input type="number" id="inv-precio" placeholder="Precio Bs">
                 </div>
+
+<select id="inv-unidad" class="glass" style="width: 100%; margin-bottom: 10px; padding: 10px; color: white; background: #222;">
+    <option value="Und">Unidad (Und)</option>
+    <option value="Paca">Paca (Paq)</option>
+    <option value="Kg">Kilogramos (Kg)</option>
+    <option value="Lts">Litros (Lts)</option>
+    <option value="Talla">Talla (Ropa/Calzado)</option>
+</select>
+
                 <button class="btn-main" onclick="Controlador.guardarEnInventario()">Cargar Producto</button>
             </div>
 
-            <div class="inventory-header glass">
-                <span>Descuento Automático</span>
-                <label class="switch">
-                    <input type="checkbox" id="check-inv" onchange="Controlador.toggleInv(this.checked)">
-                    <span class="slider"></span>
-                </label>
+            <h4 style="margin-top: 20px;">Stock Actual</h4>
+           <div id="lista-inventario" class="listado-container"></div>
+        </section>
+
+        <div id="panelAjustes" class="ajustes-sidebar">
+            <div class="ajustes-header">
+                <h3>Configuración</h3>
+                <button onclick="Interfaz.toggleAjustes()" class="btn-cerrar">×</button>
             </div>
 
-            <h4>Stock Actual</h4>
-            <div id="lista-inventario" class="listado-container"></div>
-        </section>
+            <div class="ajustes-body">
+                <div class="ajuste-item">
+                    <span>Modo Oscuro</span>
+                    <label class="switch-dominus">
+                        <input type="checkbox" id="checkDarkMode" onchange="Controlador.toggleDarkMode(this.checked)">
+                        <span class="slider-dominus"></span>
+                    </label>
+                </div>
+
+                <div class="ajuste-item">
+                    <span>Descuento Automático Stock</span>
+                    <label class="switch-dominus">
+                        <input type="checkbox" id="check-inv" onchange="Controlador.toggleInv(this.checked)">
+                        <span class="slider-dominus"></span>
+                    </label>
+                </div>
+
+                <div class="ajuste-item">
+                    <span>Notificaciones de Gastos</span>
+                    <label class="switch-dominus">
+                        <input type="checkbox" checked>
+                        <span class="slider-dominus"></span>
+                    </label>
+                </div>
+                
+                <div class="ajuste-item" style="margin-top: 20px;">
+                    <button class="btn-mini btn-danger" style="width: 100%;" onclick="DOMINUS.resetTotal()">🗑️ Borrar Todo (Reset)</button>
+                </div>
+            </div>
+        </div>
 
     </main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <script src="JS/Offline.js"></script>
     <script src="JS/Conversor.js"></script>
     <script src="JS/Inventario.js"></script>
     <script src="JS/Ventas.js"></script>
     <script src="JS/Main.js"></script>
 
-   <div style="position: absolute; left: -9999px; top: -9999px;">
-    <div id="plantilla-pdf" style="width: 650px; padding: 40px; background: white; color: #333; line-height: 1.6;">
-        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #ffd700; padding-bottom: 10px; margin-bottom: 20px;">
-            <div>
-                <h1 style="margin: 0; color: #1a1a1a; letter-spacing: 2px;">DOMINUS</h1>
-                <p style="margin: 0; font-style: italic; color: #666;">Domina tu negocio, Domina tu vida</p>
+    <div id="modal-gestor-tallas" class="modal-tallas">
+    <div class="modal-content-tallas glass">
+        <h3 style="color:var(--primary); margin-bottom:15px;">👟 Desglose de Tallas</h3>
+        <div id="contenedor-filas-tallas">
             </div>
-            <div style="text-align: right;">
-                <h3 style="margin: 0;">Reporte de Cierre</h3>
-                <p id="pdf-fecha" style="margin: 0; font-weight: bold;"></p>
-                <p id="pdf-tasa" style="margin: 0; font-size: 12px; color: #777;"></p>
-            </div>
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-            <thead>
-                <tr style="background: #f8f8f8;">
-                    <th style="padding: 12px; border: 1px solid #ddd; text-align: left;">Descripción</th>
-                    <th style="padding: 12px; border: 1px solid #ddd; text-align: right;">Monto</th>
-                </tr>
-            </thead>
-            <tbody id="pdf-tabla-cuerpo"></tbody>
-        </table>
-
-        <div style="background: #1a1a1a; color: white; padding: 20px; border-radius: 8px; text-align: right;">
-            <span style="font-size: 14px; opacity: 0.8;">BALANCE NETO TOTAL</span>
-            <h2 id="pdf-total-neto" style="margin: 0; color: #ffd700; font-size: 28px;"></h2>
-        </div>
-
-        <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; text-align: center; font-size: 11px; color: #999;">
-            Documento generado automáticamente por el Sistema de Gestión Dominus.
-        </div>
+        <button class="btn-main" style="margin-top:15px;" onclick="CerrarGestorTallas()">Confirmar Cantidades</button>
     </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </body>
-</html>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+</html>

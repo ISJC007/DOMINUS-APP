@@ -1,90 +1,139 @@
 const Ventas = {
-    historial: Persistencia.cargar('dom_ventas') || [],
-    deudas: Persistencia.cargar('dom_fiaos') || [],
-    gastos: Persistencia.cargar('dom_gastos') || [], // Agrega esto aquí arriba
+    historial: [], 
+    deudas: [],
+    gastos: [],
 
     init() {
-        // Asegúrate de recargar los tres al iniciar
+        // 1. Carga de datos (Tu lógica original)
         this.historial = Persistencia.cargar('dom_ventas') || [];
         this.deudas = Persistencia.cargar('dom_fiaos') || [];
         this.gastos = Persistencia.cargar('dom_gastos') || [];
         if (typeof Inventario !== 'undefined') Inventario.init();
+
+        // 2. Control de la animación (Punto 1 de tu lista)
+        // Usamos una función de flecha para no perder el contexto
+        setTimeout(() => {
+            const splash = document.getElementById('splash-screen');
+            if(splash) {
+                splash.classList.add('splash-fade-out');
+                // Quitamos el display después de la transición de 0.8s del CSS
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                }, 800);
+            }
+        }, 2000); // Mantiene el logo 2 segundos mientras todo carga
     },
-  // Busca la función registrarVenta y reemplázala por esta:
-registrarVenta(p, m, mon, met, cli) {
+    // ... resto de tus funciones
+    // Busca la función registrarVenta y reemplázala por esta:
+    // Agregamos 'com' como último parámetro para que si no se envía, valga 0
+ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1) { // <-- Agregamos cant
     const tasa = Conversor.tasaActual;
     const montoBs = (mon === 'USD') ? m * tasa : m;
-    
-    // EXTERMINADOR DE 1.66: 
-    // Si la moneda es BS, el montoUSD ES CERO. PUNTO. 
-    // No importa lo que diga el método o la tasa.
-    let montoUSD = 0;
-    if (mon === 'USD') {
-        montoUSD = Number(m);
-    }
+    let montoUSD = (mon === 'USD') ? Number(m) : 0;
 
-    console.log(`DEBUG DOMINUS: Moneda=${mon}, Monto=${m}, CalculadoUSD=${montoUSD}`);
+    const montoComision = (Number(montoBs) * (Number(com) / 100));
+    const montoAEntregar = esServicio ? (montoBs - montoComision) : 0;
 
-    const ahora = new Date();
     const datosVenta = {
-        id: ahora.getTime(),
-        fecha: ahora.toLocaleDateString('es-VE'),
-        hora: ahora.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
-        producto: p,
+        id: Date.now(),
+        fecha: new Date().toLocaleDateString('es-VE'),
+        hora: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
+        producto: esServicio ? `PUNTO: ${p}` : p,
+        cantidadVenta: cant, // <--- NUEVO: Guardamos cuánto se vendió
         montoBs: Number(montoBs),
-        montoUSD: Number(montoUSD), // Si aquí entra un 0, el PDF TIENE que mostrar 0
+        montoUSD: Number(montoUSD),
         moneda: mon,
-        metodo: met
+        metodo: met,
+        comision: montoComision,
+        aEntregar: montoAEntregar,
+        cliente: cli || "Anónimo",
+        esServicio: esServicio,
+        pagado: false, 
+        montoPagadoReal: 0 
     };
 
     if (met === 'Fiao') {
-        this.deudas.push({ ...datosVenta, cliente: cli || "Anónimo" });
+        this.deudas.push({ ...datosVenta });
         Persistencia.guardar('dom_fiaos', this.deudas);
     } else {
         this.historial.push(datosVenta);
         Persistencia.guardar('dom_ventas', this.historial);
     }
+
 },
-  registrarGasto(desc, m, mon) {
-    const ahora = new Date();
-    const montoBs = (mon === 'USD') ? m * Conversor.tasaActual : m;
-    this.gastos.push({
-        id: ahora.getTime(),
-        descripcion: desc,
-        montoBs: montoBs,
-        fecha: ahora.toLocaleDateString('es-VE'),
-        hora: ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-    Persistencia.guardar('dom_gastos', this.gastos);
+
+// DENTRO del objeto Ventas
+anularVenta: function(id) {
+    // 1. Buscamos la venta en el historial global
+    const v = Ventas.historial.find(item => item.id === Number(id));
+    
+    if (!v) return notificar("❌ Error: Venta no encontrada");
+
+    if (confirm(`¿Anular venta de "${v.producto}"? El stock regresará.`)) {
+        
+        // 2. Devolver al inventario (Solo si no es un servicio de punto)
+        if (!v.esServicio && typeof Inventario !== 'undefined') {
+            // Usamos los nombres exactos que guardamos: v.producto, v.cantidadVenta, v.tallaVenta
+            Inventario.devolver(v.producto, v.cantidadVenta, v.tallaVenta);
+        }
+
+        // 3. Eliminar del historial
+        Ventas.historial = Ventas.historial.filter(item => item.id !== Number(id));
+        
+        // 4. Persistir y Refrescar
+        Persistencia.guardar('dom_ventas', Ventas.historial);
+        Interfaz.actualizarDashboard();
+        
+        // Recargar el selector de ventas para que el stock se actualice visualmente
+        if (typeof Interfaz.actualizarSelectorTallas === 'function') {
+            Interfaz.actualizarSelectorTallas(document.getElementById('v-producto').value);
+        }
+
+        notificar("🗑️ Venta anulada y stock recuperado");
+    }
 },
-    abonarDeuda(id, monto, mon, metodoPago) {
-    const index = this.deudas.findIndex(d => d.id === Number(id));
-    if (index !== -1) {
+
+    registrarGasto(desc, m, mon) {
         const ahora = new Date();
-        const abonoBs = (mon === 'USD') ? monto * Conversor.tasaActual : monto;
-        
-        // Restamos de la deuda
-        this.deudas[index].montoBs -= abonoBs;
-        
-        // Registramos en el historial con fecha, hora y el método de pago elegido
-        this.historial.push({
+        const montoBs = (mon === 'USD') ? m * Conversor.tasaActual : m;
+        this.gastos.push({
             id: ahora.getTime(),
-            producto: `Abono: ${this.deudas[index].cliente}`,
-            montoBs: abonoBs,
-            metodo: metodoPago || `Abono ${mon}`, // Guardamos si fue Punto, Pago Móvil, etc.
+            descripcion: desc,
+            montoBs: montoBs,
             fecha: ahora.toLocaleDateString('es-VE'),
             hora: ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         });
+        Persistencia.guardar('dom_gastos', this.gastos);
+    },
 
-        // Si la deuda llega a cero, la eliminamos
-        if (this.deudas[index].montoBs <= 1) this.deudas.splice(index, 1);
-        
-        Persistencia.guardar('dom_fiaos', this.deudas);
-        Persistencia.guardar('dom_ventas', this.historial);
-        return true;
-    }
-    return false;
-},
+    abonarDeuda(id, monto, mon, metodoPago) {
+        const index = this.deudas.findIndex(d => d.id === Number(id));
+        if (index !== -1) {
+            const ahora = new Date();
+            const abonoBs = (mon === 'USD') ? monto * Conversor.tasaActual : monto;
+            
+            // Restamos de la deuda
+            this.deudas[index].montoBs -= abonoBs;
+            
+            // Registramos en el historial con fecha, hora y el método de pago elegido
+            this.historial.push({
+                id: ahora.getTime(),
+                producto: `Abono: ${this.deudas[index].cliente}`,
+                montoBs: abonoBs,
+                metodo: metodoPago || `Abono ${mon}`, // Guardamos si fue Punto, Pago Móvil, etc.
+                fecha: ahora.toLocaleDateString('es-VE'),
+                hora: ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            });
+
+            // Si la deuda llega a cero, la eliminamos
+            if (this.deudas[index].montoBs <= 1) this.deudas.splice(index, 1);
+            
+            Persistencia.guardar('dom_fiaos', this.deudas);
+            Persistencia.guardar('dom_ventas', this.historial);
+            return true;
+        }
+        return false;
+    },
 
     eliminarDeuda(id) {
         this.deudas = this.deudas.filter(d => d.id !== Number(id));
@@ -96,14 +145,14 @@ registrarVenta(p, m, mon, met, cli) {
         // Extraemos solo los nombres de los productos del historial
         const nombres = this.historial.map(v => v.producto);
         // También sumamos los nombres de los productos en el inventario
-        const nombresInv = Inventario.productos.map(p => p.nombre);
+        const nombresInv = (typeof Inventario !== 'undefined') ? Inventario.productos.map(p => p.nombre) : [];
         
         // Unimos ambos, eliminamos duplicados y ordenamos por los más frecuentes
         const unicos = [...new Set([...nombres, ...nombresInv])];
         return unicos.slice(0, 10); // Retornamos las 10 mejores sugerencias
     },
 
-finalizarJornada() {
+  finalizarJornada() {
         const ventas = Persistencia.cargar('dom_ventas') || [];
         const gastos = Persistencia.cargar('dom_gastos') || [];
         const hoy = new Date().toLocaleDateString('es-VE');
@@ -112,14 +161,28 @@ finalizarJornada() {
         let efecBS = 0;
         let efecUSD = 0;
         let digital = 0;
+        
+        let detalleMetodos = {
+            pagoMovil: 0,
+            biopago: 0,
+            punto: 0,
+            comisiones: 0
+        };
 
         vHoy.forEach(v => {
             const mBs = Number(v.montoBs) || 0;
             const mUsd = Number(v.montoUSD) || 0;
+            detalleMetodos.comisiones += (Number(v.comision) || 0);
+
             if (mUsd > 0) {
                 efecUSD += mUsd;
-            } else if (v.metodo.includes('Pago') || v.metodo.includes('Punto')) {
+            } else if (v.metodo.includes('Pago') || v.metodo.includes('Punto') || v.metodo.includes('Biopago')) {
                 digital += mBs;
+                
+                // Desglose para el PDF (Biopago integrado aquí)
+                if (v.metodo === 'Pago Móvil') detalleMetodos.pagoMovil += mBs;
+                if (v.metodo === 'Biopago') detalleMetodos.biopago += mBs;
+                if (v.metodo === 'Punto') detalleMetodos.punto += mBs;
             } else if (v.metodo !== 'Fiao') {
                 efecBS += mBs;
             }
@@ -132,7 +195,9 @@ finalizarJornada() {
             efectivoBS: efecBS,
             efectivoUSD: efecUSD,
             digital: digital,
-            gastos: totalGastos
+            gastos: totalGastos,
+            detalle: detalleMetodos, 
+            balanceNeto: (efecBS + digital) - totalGastos
         };
     },
 
