@@ -4,6 +4,10 @@ const Persistencia = {
     },
     cargar(clave) {
         const datos = localStorage.getItem(clave);
-        return datos ? JSON.parse(datos) : null;
+        // Filtramos si es null O si es el string "undefined" por error de guardado previo
+        if (!datos || datos === "undefined") {
+            return null;
+        }
+        return JSON.parse(datos);
     }
 };

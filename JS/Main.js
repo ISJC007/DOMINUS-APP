@@ -1,7 +1,29 @@
 let miGrafica = null; // Añade esto en la línea 1 de Main.js
 let tallasTemporales = {};
 
+const rangosTallas = {
+    'ninos-peq': [18,19,20,21,22,23,24,25],
+    'ninos-gra': [26,27,28,29,30,31,32],
+    'juvenil': [33,34,35,36,37,38,39],
+    'caballero': [40,41,42,43,44,45]
+};
+
 const Interfaz = {
+
+    cambiarSeccion: function(id) {
+        console.log("Cambiando a:", id);
+        // ... tu código actual aquí ...
+    }, // <-- IMPORTANTE: Esta coma separa las funciones
+
+    // Función 2: El Toggle de Ajustes (La que faltaba)
+   // Dentro de tu objeto Interfaz
+toggleAjustes: function() {
+    const panel = document.getElementById('panelAjustes');
+    if (panel) {
+        panel.classList.toggle('active');
+    }
+    }, // <-- OTRA COMA AQUÍ
+
     show(view) {
         document.querySelectorAll('.app-section').forEach(s => s.classList.add('hidden'));
         const target = document.getElementById(`view-${view}`);
@@ -18,9 +40,7 @@ const Interfaz = {
         if(view === 'inventario') this.renderInventario();
     },
 
-    toggleAjustes() {
-        document.getElementById('panelAjustes').classList.toggle('active');
-    },
+    // Busca esta función en tu código y reemplázala por esta
 
     cargarSugerencias() {
         const listaSugerencias = document.getElementById('sugerencias-ventas');
@@ -66,7 +86,9 @@ const Interfaz = {
         if(document.getElementById('tasa-global')) 
             document.getElementById('tasa-global').value = t;
 
-        Controlador.renderizarGrafica();
+        
+                if (typeof Controlador !== 'undefined') //esto puede ser borrado//
+                 Controlador.renderizarGrafica();
     },
 
     renderVentas() {
@@ -108,6 +130,29 @@ const Interfaz = {
             `;
         }
     },
+
+    alternarModoPunto() {
+    const btnPunto = document.getElementById('btn-modo-punto');
+    const wrapper = document.getElementById('wrapper-comision');
+    const btnVender = document.querySelector('.btn-main'); // Tu botón de registrar
+    
+    const activo = btnPunto.classList.toggle('activo-punto');
+    
+    if (activo) {
+        wrapper.classList.remove('hidden');
+        btnPunto.style.background = "var(--primary)";
+        btnPunto.style.color = "black";
+        btnPunto.innerText = "🏦 MODO SERVICIO ACTIVO";
+        if(btnVender) btnVender.innerText = "Registrar Servicio de Punto";
+    } else {
+        wrapper.classList.add('hidden');
+        btnPunto.style.background = "transparent";
+        btnPunto.style.color = "var(--primary)";
+        btnPunto.innerText = "🏦 ¿Es Servicio de Punto?";
+        if(btnVender) btnVender.innerText = "Registrar Venta";
+        document.getElementById('v-comision').value = 0;
+    }
+},
 
     generarFilaVenta(v) {
         let btnLiq = "";
@@ -237,7 +282,7 @@ const Interfaz = {
                         ${Object.entries(p.tallas)
                             .filter(([t, c]) => c > 0) // Solo mostramos las que tienen stock
                             .map(([t, c]) => `
-                                <span style="font-size: 10px; background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(76, 175, 80, 0.3); font-family: monospace;">
+                                <span style="font-size: 10px; background: rgba(76, 175, 80, 0.2); color: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(76, 175, 80, 0.3); font-family: monospace;">
                                     T${t}:<b>${c}</b>
                                 </span>
                             `).join('')}
@@ -282,35 +327,69 @@ const Interfaz = {
     }
 },
 
+// Dentro del objeto Interfaz en Main.js
+// Dentro del objeto Interfaz = { ... }
+filtrarTallasPorBloque(rango) {
+    const filas = document.querySelectorAll('.fila-talla');
+    const permitidas = rangosTallas[rango] || [];
+
+    filas.forEach(fila => {
+        const nroTalla = parseInt(fila.getAttribute('data-talla'));
+        
+        // Si no es un número (ej: talla "S"), siempre se muestra o se ignora el filtro
+        if (isNaN(nroTalla)) {
+            fila.style.display = 'flex';
+            return;
+        }
+
+        if (rango === 'todos' || permitidas.includes(nroTalla)) {
+            fila.style.display = 'flex';
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+},
+
 actualizarSelectorTallas(nombreProducto) {
     const contenedor = document.getElementById('contenedor-talla');
     const select = document.getElementById('v-talla');
-    const inputMonto = document.getElementById('v-monto'); // +++ CAPTURA PRECIO
+    const inputMonto = document.getElementById('v-monto');
+    
     if (!contenedor || !select) return;
 
-    const p = Inventario.productos.find(prod => prod.nombre.toLowerCase() === nombreProducto.toLowerCase());
+    // Usamos trim() para evitar errores por espacios accidentales
+    const p = Inventario.productos.find(prod => prod.nombre.toLowerCase() === nombreProducto.trim().toLowerCase());
 
     if (p) {
-        // +++ AUTO-PRECIO: Si el producto existe, ponemos su precio en el input +++
+        // AUTO-PRECIO
         if (inputMonto && p.precio) {
             inputMonto.value = p.precio;
         }
 
-        // Lógica de tallas original intacta
-        if (p.tallas) {
+       if (p.tallas && Object.keys(p.tallas).length > 0) {
             contenedor.classList.remove('hidden');
-            select.innerHTML = '<option value="">Elegir Talla...</option>';
+            select.innerHTML = '<option value="">Elegir Talla/Peso...</option>';
+
             Object.entries(p.tallas).forEach(([talla, cant]) => {
-                if (cant > 0) {
-                    select.innerHTML += `<option value="${talla}">Talla ${talla} (${cant} disp.)</option>`;
+                // Forzamos que 'cant' sea número para comparar bien
+                if (Number(cant) > 0) {
+                    // MEJORA: Si la talla se llama 'Manual', usamos la unidad del producto
+                    let etiqueta = (talla === 'Manual') ? `${p.unidad || 'Cant.'}` : `Talla ${talla}`;
+                    select.innerHTML += `<option value="${talla}">${etiqueta} (${cant} disp.)</option>`;
                 }
             });
+
+            // Si después de filtrar no quedó ninguna talla con stock, ocultamos
+            if (select.options.length <= 1) {
+                contenedor.classList.add('hidden');
+            }
         } else {
-            contenedor.classList.remove('hidden'); // Lo dejamos visible por si quieres elegir algo
+            // Si el producto no tiene el objeto tallas definido
             contenedor.classList.add('hidden');
             select.innerHTML = '';
         }
     } else {
+        // Si el producto no existe en el inventario
         contenedor.classList.add('hidden');
         select.innerHTML = '';
     }
@@ -334,10 +413,22 @@ function AbrirGestorTallas() {
             <button onclick="GenerarInputsDinamicos('liquido')" class="btn-mini" style="background:#333; color:white;">💧 Líquidos</button>
             <button onclick="GenerarInputsDinamicos('pacas')" class="btn-mini" style="background:#333; color:white;">📦 Pacas</button>
         </div>
+
+        <div id="bloque-filtro-contenedor" style="margin-bottom: 15px; display:none;">
+            <select id="inv-bloque-rango" class="glass" 
+                    style="width:100%; padding:10px; border:1px solid var(--primary); background:#111; color:white; border-radius:8px;"
+                    onchange="Interfaz.filtrarTallasPorBloque(this.value)">
+                <option value="todos">-- Mostrar Todas las Tallas --</option>
+                <option value="ninos-peq">Niños (18-25)</option>
+                <option value="ninos-gra">Niños Grandes (26-32)</option>
+                <option value="juvenil">Juvenil/Damas (33-39)</option>
+                <option value="caballero">Caballeros (40-45)</option>
+            </select>
+        </div>
+
         <div id="lista-tallas-dinamica" style="max-height: 350px; overflow-y: auto;"></div>
     `;
     
-    // Auto-selección lógica según el select de unidad
     if(unidadPrincipal === 'Kg') GenerarInputsDinamicos('peso');
     else if(unidadPrincipal === 'Lts') GenerarInputsDinamicos('liquido');
     else if(unidadPrincipal === 'Talla') GenerarInputsDinamicos('ropa');
@@ -349,22 +440,48 @@ function AbrirGestorTallas() {
 // FUNCIÓN AUXILIAR DE GENERACIÓN
 function GenerarInputsDinamicos(tipo) {
     const lista = document.getElementById('lista-tallas-dinamica');
+    const filtroContenedor = document.getElementById('bloque-filtro-contenedor');
+    if(!lista) return;
     lista.innerHTML = '';
-    let opciones = [];
 
-    if(tipo === 'calzado') { for(let i=35; i<=45; i++) opciones.push(i); }
-    else if(tipo === 'ropa') { opciones = ['SS', 'S', 'M', 'L', 'XL', 'XXL', 'Única']; }
-    else if(tipo === 'peso') { opciones = ['100g', '250g', '500g', '1Kg', 'Otr']; }
-    else if(tipo === 'liquido') { opciones = ['250ml', '500ml', '1L', '2L', 'Otr']; }
+    // Mostrar filtro solo si es calzado
+    if(filtroContenedor) {
+        filtroContenedor.style.display = (tipo === 'calzado') ? 'block' : 'none';
+    }
 
-    opciones.forEach(op => {
-        const valor = tallasTemporales[op] || 0;
-        lista.innerHTML += `
-            <div class="fila-talla">
-                <span style="color:white; font-size:14px;">${op}</span>
-                <input type="number" value="${valor}" step="any"
-                       onchange="tallasTemporales['${op}'] = parseFloat(this.value) || 0">
-            </div>`;
+    let configuracion = [];
+    if(tipo === 'calzado') {
+        for(let i=18; i<=45; i++) configuracion.push(i);
+    } else if(tipo === 'ropa') {
+        configuracion = ['S', 'M', 'L', 'XL', '2XL', '3XL', 'Única'];
+    } else if(tipo === 'peso') {
+        configuracion = ['100g', '250g', '500g', '1Kg', 'Manual'];
+    } else if(tipo === 'liquido') { 
+        configuracion = ['250ml', '500ml', '1L', '2L', 'Manual']; 
+    } else if(tipo === 'pacas') {
+        configuracion = ['Paca Small', 'Paca Grande', 'Manual'];
+    }
+
+    configuracion.forEach(talla => {
+        const div = document.createElement('div');
+        div.className = 'fila-talla'; 
+        div.setAttribute('data-talla', talla); 
+        
+        // Creamos un ID único para cada input basado en la talla/peso
+        const inputId = `input-dinamico-${talla.toString().replace(/\s+/g, '-')}`;
+
+        div.innerHTML = `
+            <label for="${inputId}">${isNaN(talla) ? talla : 'Talla ' + talla}</label>
+            <input type="number" 
+                    id="${inputId}"
+                    name="${inputId}"
+                    value="${tallasTemporales[talla] || 0}" 
+                    oninput="tallasTemporales['${talla}'] = parseFloat(this.value) || 0"
+                    min="0"
+                    class="glass"
+                    style="width: 70px; background: #222; color: var(--primary); border: 1px solid #444; text-align: center; border-radius: 5px;">
+        `;
+        lista.appendChild(div);
     });
 }
 
@@ -387,18 +504,27 @@ function actualizarStockEnVenta(nombreProducto) {
 
 function CerrarGestorTallas() {
     document.getElementById('modal-gestor-tallas').style.display = 'none';
+    
+    // Limpieza: eliminamos tallas con valor 0 para ahorrar espacio
+    Object.keys(tallasTemporales).forEach(key => {
+        if (tallasTemporales[key] === 0) delete tallasTemporales[key];
+    });
+
     const total = Object.values(tallasTemporales).reduce((a, b) => a + b, 0);
+    const inputCant = document.getElementById('inv-cant');
+    
+    if(inputCant) {
+        inputCant.value = total;
+    }
+
     if(total > 0) {
-        document.getElementById('inv-cant').value = total;
-        // Aquí se usa tu función notificar original
         notificar(`✅ ${total} unidades desglosadas`);
     }
 }
-
 // --- FUNCIÓN GLOBAL DE NOTIFICACIÓN ---
 // Ponla fuera de cualquier llave { } al final del archivo
 
-const notificar = (msj) => {
+notificar = (msj) => {
     // Creamos el elemento del mensaje
     const toast = document.createElement('div');
     toast.className = 'toast-exito'; // Asegúrate de tener esta clase en tu CSS
@@ -433,76 +559,65 @@ const notificar = (msj) => {
 
 const Controlador = {
  ejecutarVenta() {
+    // 1. Captura de datos (Tus variables intactas)
     const p = document.getElementById('v-producto').value;
     const m = parseFloat(document.getElementById('v-monto').value);
     const mon = document.getElementById('v-moneda').value;
     const met = document.getElementById('v-metodo').value;
     const cli = document.getElementById('v-cliente').value;
-    
-    // CAPTURAMOS LA CANTIDAD (Error 2)
     const cantInput = document.getElementById('v-cantidad');
     const cantidad = cantInput ? parseFloat(cantInput.value) : 1;
-
-    // +++ INTEGRACIÓN: CAPTURA DE TALLA +++
+    
     const selectTalla = document.getElementById('v-talla');
-    const divTalla = document.getElementById('contenedor-talla'); // Asumo que este ID existe en tu HTML
-    // Solo tomamos el valor si el contenedor no está oculto
-
-    const tallaElegida = (selectTalla && selectTalla.value) ? selectTalla.value : null;    // +++ FIN INTEGRACIÓN +++
+    const divTalla = document.getElementById('contenedor-talla'); 
+    const tallaElegida = (selectTalla && selectTalla.value) ? selectTalla.value : null;
 
     const inputCom = document.getElementById('v-comision');
-    const comisionValor = inputCom ? parseFloat(inputCom.value) : 0;
-    const comFinal = isNaN(comisionValor) ? 0 : comisionValor;
+    const comFinal = inputCom ? (parseFloat(inputCom.value) || 0) : 0;
 
+    // 2. Validaciones básicas
     if(!p || isNaN(m)) return alert("Falta producto o monto");
 
-    // TU LÓGICA DE SERVICIO (INTACTA)
-    const esServicio = confirm(`¿Este cobro de "${p}" es un SERVICIO DE PUNTO?`);
-
-    let stockOk = true;
-    if (!esServicio) {
-
-        if (typeof Inventario !== 'undefined') {
-
-        Inventario.descontar(p, cantidad, tallaElegida);
-        
-        // +++ VALIDACIÓN: Si requiere talla y no la puso, frenamos antes de descontar +++
-        if (divTalla && !divTalla.classList.contains('hidden') && !tallaElegida) {
+    if (divTalla && !divTalla.classList.contains('hidden')) {
+        if (!tallaElegida || tallaElegida === "") {
             return alert("⚠️ Debes seleccionar una talla para este producto.");
         }
-
-        // AHORA PASAMOS LA 'cantidad' REAL Y LA TALLA (INTEGRACIÓN)
-        stockOk = typeof Inventario !== 'undefined' ? Inventario.descontar(p, cantidad, tallaElegida) : true;
     }
 
-}
+    // [INTEGRACIÓN] Cambiamos confirm por la lectura del botón
+    const btnPunto = document.getElementById('btn-modo-punto');
+    const esServicio = btnPunto ? btnPunto.classList.contains('activo-punto') : false;
+    
+    let stockOk = true;
 
+    // 3. Lógica de Descuento
+    if (!esServicio && typeof Inventario !== 'undefined') {
+        stockOk = Inventario.descontar(p, cantidad, tallaElegida);
+    }
+
+    // 4. Registro y Limpieza
     if (stockOk) {
-        // Tu función Ventas.registrarVenta (le paso cant que te faltaba en el código original que me mostraste arriba, pero respeto tu orden)
         Ventas.registrarVenta(p, m, mon, met, cli, comFinal, esServicio, cantidad);
         
-        Interfaz.actualizarDashboard(); 
+        Interfaz.actualizarDashboard();
+        Interfaz.renderInventario(); 
+        Interfaz.actualizarSelectorTallas(p); 
+
         notificar("✅ Venta registrada con éxito");
 
-        // para que lea el inventario actualizado. 
-    if(typeof cargarProductosVenta === 'function') {
-        cargarProductosVenta(); 
-    }
-        
-        // Limpieza
+        // Limpieza de campos
         document.getElementById('v-producto').value = '';
         document.getElementById('v-monto').value = '';
         document.getElementById('v-cliente').value = '';
-        if(cantInput) cantInput.value = '1'; // Reset a 1
-        if(inputCom) inputCom.value = ''; 
+        if(cantInput) cantInput.value = '1';
+        if(inputCom) inputCom.value = '';
         
-        // Respetando tu función propia
-        this.limpiarSeleccionVenta();
-        
-        // Respetando tu comentario de Interfaz vs this
-        Interfaz.actualizarDashboard();
+        // [INTEGRACIÓN] Si estaba en modo punto, lo apagamos para la próxima venta
+        if (esServicio) Interfaz.alternarModoPunto();
 
-        console.log("Venta registrada con éxito");
+        this.limpiarSeleccionVenta();
+
+console.log("Venta registrada con éxito y stock refrescado");
     }
 },
 
@@ -958,12 +1073,24 @@ document.addEventListener('DOMContentLoaded', () => {
         if (checkDark) checkDark.checked = true;
     }
 
-    // 2. RECUPERAR ESTADO DEL INVENTARIO
-    const invActivo = localStorage.getItem('dom_inv_activo') === 'true'; 
-    if(typeof Inventario !== 'undefined') Inventario.activo = invActivo;
-    const checkInv = document.getElementById('check-inv-ajustes') || document.getElementById('check-inv');
-    if (checkInv) checkInv.checked = invActivo;
+    // // 2. RECUPERAR ESTADO DEL INVENTARIO (CORREGIDO)
+const configGuardada = localStorage.getItem('dom_config');
+let invActivo;
 
+if (configGuardada === null) {
+    // Si no hay configuración, forzamos que sea TRUE la primera vez
+    invActivo = true; 
+    // Guardamos para que la próxima vez ya exista
+    localStorage.setItem('dom_config', JSON.stringify({ invActivo: true }));
+} else {
+    // Si ya existe, leemos el valor real que dejó el usuario
+    invActivo = JSON.parse(configGuardada).invActivo;
+}
+
+if(typeof Inventario !== 'undefined') Inventario.activo = invActivo;
+
+const checkInv = document.getElementById('check-inv-ajustes') || document.getElementById('check-inv');
+if (checkInv) checkInv.checked = invActivo;
     try {
         console.log("🚀 Dominus iniciando...");
         Ventas.init();
@@ -1008,6 +1135,12 @@ const DOMINUS = {
         }
     }
 };
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log("Dominus PWA: Lista"))
+        .catch(err => console.log("Error en SW:", err));
+}
 
 window.DOMINUS = DOMINUS;
 
