@@ -162,12 +162,17 @@ select option {
 
 .dashboard-cards {
     display: grid; 
-    grid-template-columns: 1fr 1fr 1fr;
+    /* Cambiamos el 1fr fijo por auto-fit */
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 10px; 
-    margin-top: 10px;
+    margin: 10px 15px; /* Añadimos margen lateral para que no toque los bordes del tlf */
 }
 
-.card-mini { text-align: center; font-size: 0.8rem; }
+.card-mini { 
+    text-align: center; 
+    font-size: 0.8rem; 
+    min-width: 0; /* Evita que el contenido desborde el cuadro */
+}
 .card-mini b { display: block; font-size: 1.1rem; }
 
 /* --- 4. BOTONES --- */
@@ -240,8 +245,21 @@ select option {
     font-size: 1.4rem; /* Los emojis o iconos se verán más grandes */
 }
 
-.app-section { padding-top: 10px; }
-.card { margin: 15px; display: flex; flex-direction: column; gap: 10px; }
+.app-section { 
+    padding-top: 10px; 
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Ajuste para que las tarjetas no se salgan en móviles */
+.card { 
+    margin: 15px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 10px; 
+    max-width: calc(100% - 30px); /* Restamos los márgenes del ancho total */
+}
+
 .card-grafica {
     margin: 15px;
     padding: 15px;
@@ -249,6 +267,7 @@ select option {
     border-radius: 15px;
     height: 200px;
     position: relative;
+    max-width: calc(100% - 30px);
 }
 
 .hidden { display: none !important; }
@@ -264,6 +283,27 @@ select option {
     padding: 10px;
     background: rgba(255,255,255,0.05);
     border-radius: 8px;
+    
+    /* --- ESTO ES LO QUE LO ARREGLA --- */
+    box-sizing: border-box; /* Incluye el padding en el ancho */
+    max-width: calc(100% - 30px); /* El 100% de la pantalla menos los márgenes (15+15) */
+    overflow: hidden; /* Corta cualquier cosa que intente asomarse */
+}
+
+/* Para asegurar que lo que está adentro no empuje las paredes */
+.item-lista span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ESTO ASEGURA QUE EL PRECIO NUNCA SE MUEVA DE SU SITIO */
+.item-lista span:last-child {
+    flex-shrink: 0; 
+    white-space: nowrap;
+    font-weight: bold;
+    color: var(--primary);
 }
 
 .border-fiao { border-left: 5px solid var(--primary); }
