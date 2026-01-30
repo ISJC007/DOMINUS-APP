@@ -203,20 +203,41 @@ select option {
     position: fixed; 
     bottom: 0; 
     width: 100%;
+    height: 75px; /* Aumentamos el tamaño para el dedo */
     display: flex; 
     justify-content: space-around;
-    padding: 10px 0; 
-    border-radius: 15px 15px 0 0;
+    align-items: center; /* Centra los iconos verticalmente */
+    padding: 0; 
+    border-radius: 20px 20px 0 0;
     z-index: 1000;
-    background: #000;
+    background: rgba(10, 10, 10, 0.95); /* Más oscuro y elegante */
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 215, 0, 0.2);
 }
 
 .bottom-nav button {
     background: none; 
     border: none; 
-    color: white; 
-    font-size: 0.7rem;
+    color: #666; /* Color apagado por defecto */
+    font-size: 0.75rem;
+    font-weight: 600;
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+    flex: 1;
+}
+
+.bottom-nav button.active {
+    color: var(--primary);
+    transform: translateY(-5px); /* Se levanta un poco */
+}
+
+/* Estilo para los iconos dentro del botón (puedes añadir iconos más grandes luego) */
+.bottom-nav button i, .bottom-nav button span {
+    font-size: 1.4rem; /* Los emojis o iconos se verán más grandes */
 }
 
 .app-section { padding-top: 10px; }
@@ -374,16 +395,27 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 
 .toast-exito {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #28a745;
-    color: white;
-    padding: 12px 25px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    z-index: 9999;
-    font-weight: bold;
-    animation: slideIn 0.3s ease-out;
+    top: 25px; /* Ahora aparecen arriba, es más moderno en móviles */
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px); /* Empieza fuera de pantalla */
+    background: var(--primary); /* Dorado Dominus */
+    color: #000 !important; /* Texto negro para que resalte en el dorado */
+    padding: 14px 28px;
+    border-radius: 50px; /* Forma de píldora */
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    z-index: 10001;
+    font-weight: 800;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+    white-space: nowrap;
+}
+
+/* Clase para activar la animación */
+.toast-exito.show {
+    transform: translateX(-50%) translateY(0);
 }
 
 @keyframes slideIn {
@@ -441,3 +473,54 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     bottom: auto !important;
     transform: none !important;
 }
+
+.toast-gasto { background: #ff5252 !important; color: white !important; }
+.toast-stock { background: #2196f3 !important; color: white !important; }
+.toast-fiao { background: #ff9800 !important; color: white !important; }
+.toast-error { background: #b71c1c !important; color: white !important; }
+/* MODAL DE ELECCIÓN MEJORADO */
+.modal-eleccion {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85); /* Fondo oscuro transparente */
+    backdrop-filter: blur(10px);
+    display: none; /* Se activa con .active */
+    justify-content: center;
+    align-items: center; /* Centrado total en pantalla */
+    z-index: 99999; /* El número más alto para que esté por encima de todo */
+}
+
+.modal-eleccion.active {
+    display: flex;
+}
+
+.eleccion-content {
+    background: #1a1a1a;
+    width: 90%;
+    max-width: 400px;
+    padding: 30px;
+    border-radius: 25px; /* Bordes redondeados modernos */
+    border: 1px solid var(--primary);
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    animation: aparecerModal 0.3s ease-out;
+}
+
+@keyframes aparecerModal {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.btns-eleccion {
+    display: flex;
+    flex-direction: column; /* Botones uno sobre otro en móviles es mejor */
+    gap: 12px;
+    margin-top: 25px;
+}
+
+.btn-whatsapp { background: #25d366 !important; color: white !important; font-weight: 800; padding: 15px; border-radius: 12px; border: none; }
+.btn-pdf { background: #f44336 !important; color: white !important; font-weight: 800; padding: 15px; border-radius: 12px; border: none; }
+.btn-no { background: #333 !important; color: #fff !important; padding: 12px; border-radius: 12px; border: none; }

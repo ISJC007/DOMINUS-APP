@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dominus - Gestión de Negocio</title>
     <link rel="stylesheet" href="CSS/Styles.css">
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ffd700">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -17,37 +22,68 @@
         </div>
     </div>
 
-    <header class="main-header glass">
-    <div class="header-top" style="position: relative; text-align: center; padding: 25px 10px;">
-        
-        <button onclick="Interfaz.toggleAjustes()" class="btn-ajustes-top">⚙️</button>
+    <div id="panelAjustes" class="ajustes-sidebar">
+        <div class="ajustes-header">
+            <span>Configuración DOMINUS</span>
+            <button onclick="Interfaz.toggleAjustes()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">×</button>
+        </div>
+        <div class="panel-body" style="padding: 20px;">
+            <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <span style="color: white; font-weight: 600;">🌙 Modo Oscuro</span>
+                <label class="switch">
+                    <input type="checkbox" id="checkDarkMode" onchange="Controlador.toggleDarkMode(this.checked)">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <span style="color: white; font-weight: 600;">📦 Control Stock</span>
+                <label class="switch">
+                    <input type="checkbox" id="check-inv" onchange="Controlador.toggleInv(this.checked)">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #333; margin: 20px 0;">
+            <button type="button" class="btn-main" style="background: #ff4444; width: 100%;" onclick="DOMINUS.resetTotal()">
+                🗑️ Limpiar Toda la App
+            </button>
+        </div>
+    </div>
 
-        <h1 class="titulo-app" style="margin-bottom: 5px;">DOMINUS</h1>
-        <p class="slogan">Domina tu negocio, Domina tu vida</p>
-        
-        <div class="tasa-control" style="margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+    <header class="main-header glass">
+        <div class="header-top" style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px;">
+            <div style="width: 40px;">
+                <button onclick="Interfaz.toggleAjustes()" class="btn-ajustes-top" style="background: none; border: none; font-size: 24px; cursor: pointer; color: white;">⚙️</button>
+            </div>
+            
+            <div style="flex-grow: 1; text-align: center;">
+                <h1 class="titulo-app" style="margin: 0; font-size: 1.8rem;">DOMINUS</h1>
+                <p class="slogan" style="margin: 0; font-size: 0.7rem; opacity: 0.8;">Domina tu negocio, Domina tu vida</p>
+            </div>
+            <div style="width: 40px;"></div> 
+        </div>
+
+        <div class="tasa-control" style="margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 10px; padding-bottom: 10px;">
             <span style="font-size: 0.9em; opacity: 0.8;">Tasa:</span>
             <input type="number" id="tasa-global" onchange="Conversor.setTasa(this.value)" step="0.1" 
                    style="width: 70px; background: rgba(255,255,255,0.05); border: 1px solid var(--primary); color: white; border-radius: 5px; text-align: center;">
         </div>
-    </div>
 
-    <div class="dashboard-cards">
-        <div class="card-mini">
-            <small>Caja (Neto)</small>
-            <b id="total-caja">0 Bs</b>
-            <span id="total-usd">$ 0.00</span>
+        <div class="dashboard-cards">
+            <div class="card-mini">
+                <small>Caja (Neto)</small>
+                <b id="total-caja">0 Bs</b>
+                <span id="total-usd">$ 0.00</span>
+            </div>
+            <div class="card-mini">
+                <small>Por Cobrar</small>
+                <b id="total-fiaos" style="color: #ff9800;">0 Bs</b>
+            </div>
+            <div class="card-mini">
+                <small>Gastos</small>
+                <b id="total-gastos" style="color: #ff5252;">0 Bs</b>
+            </div>
         </div>
-        <div class="card-mini">
-            <small>Por Cobrar</small>
-            <b id="total-fiaos" style="color: #ff9800;">0 Bs</b>
-        </div>
-        <div class="card-mini">
-            <small>Gastos</small>
-            <b id="total-gastos" style="color: #ff5252;">0 Bs</b>
-        </div>
-    </div>
-</header>
+    </header>
 
     <nav class="bottom-nav glass">
         <button type="button" onclick="Interfaz.show('dashboard')">🏠 Inicio</button>
@@ -71,14 +107,8 @@
                 <canvas id="graficaVentas"></canvas>
             </div>
         </section>
-    
-        <section id="view-ventas" class="app-section hidden">
-            <div class="search-container glass" style="padding: 10px; margin-bottom: 10px;">
-                <label for="busqueda-real-inv" class="hidden-label" style="display:none;">Buscar</label>
-                <input type="text" id="busqueda-real-inv" name="busqueda-real-inv" class="glass" placeholder="🔍 Buscar para vender..." 
-                       style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--primary); color: white; background: rgba(255,255,255,0.05);">
-            </div>
 
+        <section id="view-ventas" class="app-section hidden">
             <div class="card glass">
                 <h3>Nueva Venta</h3>
 
@@ -219,30 +249,6 @@
             <div id="lista-inventario" class="listado-container"></div>
         </section>
 
-
-            <div class="ajustes-body">
-                <div class="ajuste-item">
-                    <span>Modo Oscuro</span>
-                    <label class="switch-dominus">
-                        <input type="checkbox" id="checkDarkMode" onchange="Controlador.toggleDarkMode(this.checked)">
-                        <span class="slider-dominus"></span>
-                    </label>
-                </div>
-
-                <div class="ajuste-item">
-                    <span>Descuento Automático Stock</span>
-                    <label class="switch-dominus">
-                        <input type="checkbox" id="check-inv" onchange="Controlador.toggleInv(this.checked)">
-                        <span class="slider-dominus"></span>
-                    </label>
-                </div>
-
-                <div class="ajuste-item">
-                    <button type="button" class="btn-mini btn-danger" style="width: 100%;" onclick="DOMINUS.resetTotal()">🗑️ Borrar Todo (Reset)</button>
-                </div>
-            </div>
-        </div>
-
     </main>
 
     <div id="modal-gestor-tallas" class="modal-tallas">
@@ -262,23 +268,11 @@
                 </select>
             </div>
 
-            <div id="contenedor-filas-tallas">
-                </div>
+            <div id="contenedor-filas-tallas"></div>
             
             <button type="button" class="btn-main" style="margin-top:15px;" onclick="CerrarGestorTallas()">Confirmar Cantidades</button>
         </div>
     </div>
-
-    <div id="panelAjustes" class="ajustes-sidebar">
-    <div class="ajustes-header">
-        <span>Configuración</span>
-        <button onclick="Interfaz.toggleAjustes()">×</button>
-    </div>
-    <div class="ajuste-item">
-        </div>
-</div>
-
-<script src="JS/Main.js"></script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -290,13 +284,10 @@
     <script src="JS/Main.js"></script>
 
     <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js');
-  }
-</script>
-
-
-
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js');
+        }
+    </script>
 
 </body>
 </html>

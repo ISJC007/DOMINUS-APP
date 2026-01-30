@@ -523,38 +523,76 @@ function CerrarGestorTallas() {
 }
 // --- FUNCIÓN GLOBAL DE NOTIFICACIÓN ---
 // Ponla fuera de cualquier llave { } al final del archivo
+// --- NOTIFICACIÓN UNIFICADA ---
+const notificar = (msj, tipo = 'exito') => {
+    const viejo = document.querySelector('.toast-exito');
+    if(viejo) viejo.remove();
 
-notificar = (msj) => {
-    // Creamos el elemento del mensaje
     const toast = document.createElement('div');
-    toast.className = 'toast-exito'; // Asegúrate de tener esta clase en tu CSS
-    toast.innerText = msj;
+    toast.className = `toast-exito toast-${tipo}`;
     
-    // Estilos rápidos por si el CSS no carga
-    Object.assign(toast.style, {
-        position: 'fixed',
-        bottom: '20px',
-        right: '20px',
-        background: '#4caf50',
-        color: 'white',
-        padding: '12px 20px',
-        borderRadius: '8px',
-        zIndex: '10000',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-        transition: 'all 0.5s ease'
-    });
+    // Iconos según el tipo de acción
+    const iconos = {
+        exito: '✨',
+        gasto: '📉',
+        stock: '📦',
+        fiao: '🤝',
+        error: '⚠️'
+    };
 
+    toast.innerHTML = `<span>${iconos[tipo] || '✅'}</span> ${msj}`;
     document.body.appendChild(toast);
     
-    // Desaparecer después de 2 segundos
+    setTimeout(() => toast.classList.add('show'), 10);
     setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(20px)';
-        setTimeout(() => toast.remove(), 500);
-    }, 2000);
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }, 2500);
 };
 
+// --- EL NUEVO MODAL DE ELECCIÓN (PARA CIERRE Y ABONOS) ---
+// UBICACIÓN: Pon esto al principio de tu Main.js o justo antes del Controlador
+const modalEleccion = {
+    abrir: function(config) {
+        // Si ya hay uno abierto, lo borramos para no duplicar
+        this.cerrar();
 
+        const html = `
+            <div id="modal-dinamico" class="modal-eleccion active">
+                <div class="eleccion-content">
+                    <h3 style="color:var(--primary); margin-bottom:10px;">${config.titulo}</h3>
+                    <p style="color:white; opacity:0.8; margin-bottom:20px;">${config.mensaje}</p>
+                    <div id="contenedor-inputs-modal"></div>
+                    <div id="btns-dinamicos" class="btns-eleccion">
+                        </div>
+                    <button class="btn-no" onclick="modalEleccion.cerrar()" style="margin-top:15px; width:100%;">Cancelar</button>
+                </div>
+            </div>`;
+        
+        document.body.insertAdjacentHTML('beforeend', html);
+        
+        // Inyectar botones (WhatsApp, PDF, etc)
+        config.botones.forEach(btn => {
+            const b = document.createElement('button');
+            // Si no trae clase, usa 'btn-si' (dorado) por defecto
+            b.className = btn.clase || 'btn-si';
+            b.innerHTML = btn.texto;
+            b.onclick = () => { 
+                btn.accion(); 
+                if(!btn.mantener) modalEleccion.cerrar(); 
+            };
+            document.getElementById('btns-dinamicos').appendChild(b);
+        });
+    },
+    cerrar: () => {
+        const m = document.getElementById('modal-dinamico');
+        if(m) {
+            // Animación de salida
+            m.style.opacity = '0';
+            setTimeout(() => m.remove(), 300);
+        }
+    }
+};
 
 
 const Controlador = {
@@ -834,35 +872,61 @@ mostrarStockDisponible: function(talla) {
         if(met) met.value = 'Efectivo $';
         Interfaz.toggleClienteField('Efectivo $');
     },
+generarCierre: function() {
+        // 1. Verificamos si ya hay un modal abierto para no duplicar
+        if (document.getElementById('modal-dinamico')) return;
 
-    generarCierre() {
         const r = Ventas.finalizarJornada();
         const hoy = new Date().toLocaleDateString('es-VE');
-        
-        // 1. Texto resumido para WhatsApp
         const texto = `📊 *CIERRE DOMINUS - ${hoy}*\n\n` +
-                      `💵 Efectivo: ${r.efectivoBS.toLocaleString('es-VE')} Bs / ${r.efectivoUSD} $\n` +
-                      `📱 Digital: ${r.digital.toLocaleString('es-VE')} Bs\n` +
+                      `💵 Efec: ${r.efectivoBS.toLocaleString('es-VE')} Bs / ${r.efectivoUSD} $\n` +
+                      `📱 Dig: ${r.digital.toLocaleString('es-VE')} Bs\n` +
                       `📉 Gastos: ${r.gastos.toLocaleString('es-VE')} Bs\n\n` +
                       `✅ *Total Neto:* ${r.balanceNeto.toLocaleString('es-VE')} Bs`;
 
-        const opcion = prompt("¿Cómo deseas el cierre?\n1. Mensaje de WhatsApp (Rápido)\n2. Documento PDF (Detallado/Excel)", "2");
-
-        if (opcion === "1") {
-            window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
-            
-            // Opcional: ¿Quieres que también pregunte para limpiar después del WhatsApp?
-            setTimeout(() => {
-                if(confirm("¿Deseas cerrar la jornada y limpiar los datos ahora?")) {
-                    Ventas.limpiarJornada();
-                    location.reload();
+        modalEleccion.abrir({
+            titulo: "📊 Finalizar Día",
+            mensaje: "¿Cómo deseas exportar el reporte?",
+            botones: [
+                { 
+                    texto: "📱 Enviar a WhatsApp", 
+                    clase: "btn-whatsapp",
+                    accion: () => {
+                        window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
+                        setTimeout(() => { this.preguntarLimpieza(); }, 1500);
+                    }
+                },
+                { 
+                    texto: "📄 Generar PDF", 
+                    clase: "btn-pdf",
+                    accion: () => { 
+                        this.generarPDF(); 
+                    } 
                 }
-            }, 1000);
+            ]
+        });
+    },
 
-        } else if (opcion === "2") {
-            // AQUÍ ESTÁ EL CAMBIO CLAVE: Llamamos a la nueva función detallada
-            this.generarPDF(); 
-        }
+    preguntarLimpieza: function() {
+        modalEleccion.abrir({
+            titulo: "🗑️ ¿Borrar Datos?",
+            mensaje: "Se limpiarán ventas y gastos. El inventario NO se borra.",
+            botones: [
+                { 
+                    texto: "SÍ, REINICIAR TODO", 
+                    clase: "btn-pdf", // Color rojo para advertir
+                    accion: () => { 
+                        Ventas.limpiarJornada(); 
+                        location.reload(); 
+                    } 
+                },
+                { 
+                    texto: "MANTENER DATOS", 
+                    clase: "btn-no", 
+                    accion: () => { notificar("Datos guardados", "exito"); } 
+                }
+            ]
+        });
     },
 
    generarPDF() {
@@ -1008,15 +1072,15 @@ if (serviciosPendientes.length > 0) {
             jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
         };
 
+       // --- Al final de generarPDF ---
+       // --- BUSCA EL FINAL DE TU FUNCIÓN generarPDF ---
         html2pdf().set(opciones).from(contenidoHTML).save().then(() => {
             setTimeout(() => {
-                if (confirm("¿Cerrar jornada y limpiar datos?")) {
-                    Ventas.limpiarJornada();
-                    location.reload();
-                }
+                // Llamamos a la función que ya tiene los botones configurados
+                this.preguntarLimpieza(); 
             }, 1500);
         });
-    },
+    }, // Aquí termina generarPDF
 
     renderizarGrafica() {
         const canvas = document.getElementById('graficaVentas');
@@ -1060,7 +1124,7 @@ if (serviciosPendientes.length > 0) {
             }
         });
     }
-};
+}
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -1114,6 +1178,7 @@ if (checkInv) checkInv.checked = invActivo;
     }
 });
 
+
 const DOMINUS = {
     debug() {
         console.group("🔍 Auditoría de Salud Dominus");
@@ -1142,6 +1207,7 @@ if ('serviceWorker' in navigator) {
         .catch(err => console.log("Error en SW:", err));
 }
 
+
+
 window.DOMINUS = DOMINUS;
 
-    

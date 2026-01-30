@@ -206,5 +206,44 @@ anularVenta: function(id) {
         Persistencia.guardar('dom_ventas', []);
         Persistencia.guardar('dom_gastos', []);
         console.log("DOMINUS: Jornada limpiada.");
-    }
+    },
+
+    abrirProcesoAbono: function(clienteId) {
+    modalEleccion.abrir({
+        titulo: "🤝 Registrar Abono",
+        mensaje: "Ingrese los detalles del pago del cliente:",
+        botones: [
+            { 
+                texto: "Confirmar Pago", 
+                accion: () => {
+                    const monto = document.getElementById('monto-abono').value;
+                    const moneda = document.getElementById('moneda-abono').value;
+                    const metodo = document.getElementById('metodo-abono').value;
+                    
+                    if(!monto) return notificar("Ingrese un monto válido", "error");
+                    
+                    // Aquí conectas con tu lógica de deudas que ya tienes
+                    this.registrarAbonoReal(clienteId, monto, moneda, metodo); 
+                }
+            }
+        ]
+    });
+
+    // Inyectamos los campos de entrada en el cuerpo del modal
+    document.getElementById('contenedor-inputs-modal').innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+            <input type="number" id="monto-abono" placeholder="Monto a pagar" class="glass" style="padding:12px;">
+            <select id="moneda-abono" class="glass" style="padding:12px;">
+                <option value="USD">$ Dólares</option>
+                <option value="BS">Bs Bolívares</option>
+            </select>
+            <select id="metodo-abono" class="glass" style="padding:12px;">
+                <option value="Efectivo">Efectivo</option>
+                <option value="Pago Móvil">Pago Móvil</option>
+                <option value="Punto">Punto de Venta</option>
+            </select>
+        </div>
+    `;
+}
+
 };
