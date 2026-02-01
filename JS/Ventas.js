@@ -26,10 +26,51 @@ const Ventas = {
     // ... resto de tus funciones
     // Busca la función registrarVenta y reemplázala por esta:
     // Agregamos 'com' como último parámetro para que si no se envía, valga 0
- registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1) { // <-- Agregamos cant
-    const tasa = Conversor.tasaActual;
-    const montoBs = (mon === 'USD') ? m * tasa : m;
-    let montoUSD = (mon === 'USD') ? Number(m) : 0;
+registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, tallaEscogida = null) {
+    const tasa = Conversor.tasaActual; 
+    const precioBase = Number(m);
+    const cantidadVendida = Number(cant);
+    
+    // --- SECCIÓN 1: LÓGICA DE STOCK (DOBLE IMPACTO) ---
+    const inv = Inventario.productos.find(i => i.nombre === p);
+    
+    if (inv && !esServicio) {
+        let cantidadARestarGlobal = cantidadVendida;
+
+        // A. Conversión matemática para el Stock Global
+        if ((inv.unidad === 'Kg' || inv.unidad === 'Lts') && tallaEscogida) {
+            const medida = tallaEscogida.toLowerCase();
+            if (medida.includes('g') || medida.includes('ml')) {
+                // "500g" -> 0.5 unidades de Kg
+                cantidadARestarGlobal = (parseFloat(medida) / 1000) * cantidadVendida;
+            } else if (medida.includes('kg') || medida.includes('l')) {
+                cantidadARestarGlobal = parseFloat(medida) * cantidadVendida;
+            }
+        }
+        
+        // B. RESTA DEL STOCK GLOBAL (El total que se ve afuera)
+        inv.cantidad -= cantidadARestarGlobal;
+
+        // C. RESTA DEL STOCK INDIVIDUAL (La talla/peso dentro del modal)
+        if (inv.tallas && tallaEscogida && inv.tallas[tallaEscogida] !== undefined) {
+            inv.tallas[tallaEscogida] -= cantidadVendida;
+            
+            // Limpieza: Si la talla se agota, la borramos para mantener el orden
+            if (inv.tallas[tallaEscogida] <= 0) {
+                delete inv.tallas[tallaEscogida];
+            }
+        }
+        
+        // Guardamos los cambios físicos en LocalStorage
+        Inventario.sincronizar();
+
+    } else if (!esServicio) {
+        console.warn(`⚠️ DOMINUS: El producto "${p}" no existe.`);
+    }
+
+    // --- SECCIÓN 2: CÁLCULOS FINANCIEROS ---
+    const montoUSD = (mon === 'USD') ? (precioBase * cantidadVendida) : (precioBase * cantidadVendida) / tasa;
+    const montoBs = (mon === 'BS') ? (precioBase * cantidadVendida) : (precioBase * cantidadVendida) * tasa;
 
     const montoComision = (Number(montoBs) * (Number(com) / 100));
     const montoAEntregar = esServicio ? (montoBs - montoComision) : 0;
@@ -38,11 +79,12 @@ const Ventas = {
         id: Date.now(),
         fecha: new Date().toLocaleDateString('es-VE'),
         hora: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
-        producto: esServicio ? `PUNTO: ${p}` : p,
-        cantidadVenta: cant, // <--- NUEVO: Guardamos cuánto se vendió
-        montoBs: Number(montoBs),
-        montoUSD: Number(montoUSD),
-        moneda: mon,
+        producto: esServicio ? `PUNTO: ${p}` : (tallaEscogida ? `${p} (${tallaEscogida})` : p),
+        cantidadVenta: cantidadVendida,
+        montoBs: Number(montoBs.toFixed(2)),
+        montoUSD: Number(montoUSD.toFixed(2)),
+        tasaHistorica: tasa,
+        monedaOriginal: mon,
         metodo: met,
         comision: montoComision,
         aEntregar: montoAEntregar,
@@ -52,6 +94,7 @@ const Ventas = {
         montoPagadoReal: 0 
     };
 
+    // --- SECCIÓN 3: PERSISTENCIA ---
     if (met === 'Fiao') {
         this.deudas.push({ ...datosVenta });
         Persistencia.guardar('dom_fiaos', this.deudas);
@@ -59,7 +102,6 @@ const Ventas = {
         this.historial.push(datosVenta);
         Persistencia.guardar('dom_ventas', this.historial);
     }
-
 },
 
 // DENTRO del objeto Ventas
@@ -208,42 +250,72 @@ anularVenta: function(id) {
         console.log("DOMINUS: Jornada limpiada.");
     },
 
-    abrirProcesoAbono: function(clienteId) {
-    modalEleccion.abrir({
-        titulo: "🤝 Registrar Abono",
-        mensaje: "Ingrese los detalles del pago del cliente:",
-        botones: [
-            { 
-                texto: "Confirmar Pago", 
-                accion: () => {
-                    const monto = document.getElementById('monto-abono').value;
-                    const moneda = document.getElementById('moneda-abono').value;
-                    const metodo = document.getElementById('metodo-abono').value;
-                    
-                    if(!monto) return notificar("Ingrese un monto válido", "error");
-                    
-                    // Aquí conectas con tu lógica de deudas que ya tienes
-                    this.registrarAbonoReal(clienteId, monto, moneda, metodo); 
-                }
-            }
-        ]
-    });
+   abrirProcesoAbono(clienteId) {
+    // 1. Buscamos los datos de la deuda para mostrarlos en el modal
+    const deuda = Ventas.deudas.find(d => d.id === Number(clienteId));
+    if (!deuda) return notificar("No se encontró la deuda", "error");
 
-    // Inyectamos los campos de entrada en el cuerpo del modal
-    document.getElementById('contenedor-inputs-modal').innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
-            <input type="number" id="monto-abono" placeholder="Monto a pagar" class="glass" style="padding:12px;">
-            <select id="moneda-abono" class="glass" style="padding:12px;">
-                <option value="USD">$ Dólares</option>
-                <option value="BS">Bs Bolívares</option>
-            </select>
-            <select id="metodo-abono" class="glass" style="padding:12px;">
-                <option value="Efectivo">Efectivo</option>
-                <option value="Pago Móvil">Pago Móvil</option>
-                <option value="Punto">Punto de Venta</option>
-            </select>
+    // 2. Creamos el Modal Estético
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
+
+    overlay.innerHTML = `
+        <div class="card glass" style="max-width:380px; width:100%; border:1px solid var(--primary); padding:25px; border-radius:20px; text-align:center;">
+            <h3 style="color:var(--primary); margin-bottom:5px;">🤝 Abonar Deuda</h3>
+            <p style="font-size:0.9em; opacity:0.8; margin-bottom:15px;">Cliente: <strong>${deuda.cliente}</strong></p>
+            
+            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+                <input type="number" id="monto-abono" placeholder="¿Cuánto paga?" 
+                       style="width:100%; padding:12px; border-radius:10px; border:1px solid var(--primary); background:rgba(0,0,0,0.2); color:white; font-size:1.1em; text-align:center;">
+                
+                <select id="moneda-abono" style="width:100%; padding:10px; border-radius:10px; background:#222; color:white; border:1px solid #444;">
+                    <option value="BS">Bs Bolívares</option>
+                    <option value="USD">$ Dólares</option>
+                </select>
+
+                <select id="metodo-abono" style="width:100%; padding:10px; border-radius:10px; background:#222; color:white; border:1px solid #444;">
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Pago Móvil">Pago Móvil</option>
+                    <option value="Punto">Punto de Venta</option>
+                </select>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button id="btn-cerrar-abono" class="btn-main" style="background:#444; flex:1">Cerrar</button>
+                <button id="btn-guardar-abono" class="btn-main" style="flex:1">Confirmar</button>
+            </div>
         </div>
     `;
-}
 
-};
+    document.body.appendChild(overlay);
+    document.getElementById('monto-abono').focus();
+
+    // 3. Lógica de los botones
+    document.getElementById('btn-cerrar-abono').onclick = () => overlay.remove();
+
+    document.getElementById('btn-guardar-abono').onclick = () => {
+        const monto = parseFloat(document.getElementById('monto-abono').value);
+        const mon = document.getElementById('moneda-abono').value;
+        const met = document.getElementById('metodo-abono').value;
+
+        if (isNaN(monto) || monto <= 0) {
+            return notificar("Ingrese un monto válido", "error");
+        }
+
+        // Llamamos a tu lógica real de deudas
+        const exito = Ventas.abonarDeuda(clienteId, monto, mon, met);
+
+        if (exito) {
+            overlay.remove();
+            notificar("Abono registrado con éxito", "fiao");
+            // Refrescamos la interfaz (ajusta el nombre si es distinto en tu código)
+            if (typeof Interfaz !== 'undefined') {
+                Interfaz.actualizarDashboard();
+                if (Interfaz.renderCreditos) Interfaz.renderCreditos(); 
+                else if (Interfaz.mostrarSeccion) Interfaz.mostrarSeccion('creditos'); 
+                }
+            }
+         };
+    }
+}

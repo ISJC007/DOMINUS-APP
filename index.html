@@ -141,7 +141,6 @@
                 <div id="contenedor-talla" class="hidden" style="margin-bottom: 10px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                         <label for="v-talla" style="color: var(--primary); font-size: 0.9em;">Seleccione Talla/Peso:</label>
-                        <span id="v-info-stock" style="color: #4caf50; font-weight: bold; font-size: 0.9em;"></span>
                     </div>
                     <select id="v-talla" name="v-talla" class="glass" 
                             style="width: 100%; padding: 10px; border-radius: 8px; background: #222; color: white; border: 1px solid var(--primary);"
@@ -247,8 +246,19 @@
                 <button type="button" class="btn-main" onclick="Controlador.guardarEnInventario()">Cargar Producto</button>
             </div>
 
-            <h4 style="margin-top: 20px;">Stock Actual</h4>
-            <div id="lista-inventario" class="listado-container"></div>
+           <div style="margin-top: 25px;">
+    <h4 style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+        Stock Actual 
+        <small id="contador-productos" style="font-size: 0.6em; opacity: 0.6;">Cargando...</small>
+    </h4>
+    
+    <div class="search-box glass" style="margin-bottom: 15px; position: sticky; top: 0; z-index: 5;">
+        <input type="text" id="busqueda-real-inv" placeholder="🔍 Buscar producto..." 
+               style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--primary); background: rgba(0,0,0,0.3); color: white; font-size: 1em;">
+    </div>
+
+    <div id="lista-inventario" class="listado-container"></div>
+</div>
         </section>
 
     </main>

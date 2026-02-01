@@ -564,3 +564,25 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 .btn-whatsapp { background: #25d366 !important; color: white !important; font-weight: 800; padding: 15px; border-radius: 12px; border: none; }
 .btn-pdf { background: #f44336 !important; color: white !important; font-weight: 800; padding: 15px; border-radius: 12px; border: none; }
 .btn-no { background: #333 !important; color: #fff !important; padding: 12px; border-radius: 12px; border: none; }
+
+.toast-dominus {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    color: var(--primary);
+    padding: 12px 25px;
+    border-radius: 25px;
+    border: 1px solid var(--primary);
+    z-index: 10000;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+    animation: fadeInUp 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; bottom: 50px; }
+    to { opacity: 1; bottom: 80px; }
+}
