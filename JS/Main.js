@@ -1,17 +1,16 @@
-let miGrafica = null; // Añade esto en la línea 1 de Main.js
+let miGrafica = null; 
 let tallasTemporales = {};
 
-const rangosTallas = {
+const rangosTallas = { //aqui se definen que numeros pertenecen a cada categoria-se conecta con filtrar tallas
     'ninos-peq': [18,19,20,21,22,23,24,25],
     'ninos-gra': [26,27,28,29,30,31,32],
     'juvenil': [33,34,35,36,37,38,39],
     'caballero': [40,41,42,43,44,45]
 };
 
-const Interfaz = {
+const Interfaz = { //muestra todo en pantalla lo que se clickea//
 
-    // Agrega esto a tu objeto Interfaz
-confirmarAccion(titulo, mensaje, onConfirmar) {
+confirmarAccion(titulo, mensaje, onConfirmar) { //crea un modal de alerta mas bonito-se conecta al .glass y se inyecta en el body
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px;";
@@ -39,19 +38,17 @@ confirmarAccion(titulo, mensaje, onConfirmar) {
 
     cambiarSeccion: function(id) {
         console.log("Cambiando a:", id);
-        // ... tu código actual aquí ...
-    }, // <-- IMPORTANTE: Esta coma separa las funciones
+    }, 
 
-    // Función 2: El Toggle de Ajustes (La que faltaba)
-   // Dentro de tu objeto Interfaz
-toggleAjustes: function() {
+toggleAjustes: function() { //abre y cierra el panel de ajustes//
+
     const panel = document.getElementById('panelAjustes');
     if (panel) {
         panel.classList.toggle('active');
     }
-    }, // <-- OTRA COMA AQUÍ
+    }, 
 
-    show(view) {
+    show(view) { //esta hace los cambios visibles para cada seccion de la app-.app-section
         document.querySelectorAll('.app-section').forEach(s => s.classList.add('hidden'));
         const target = document.getElementById(`view-${view}`);
         if(target) target.classList.remove('hidden');
@@ -67,8 +64,6 @@ toggleAjustes: function() {
         if(view === 'inventario') this.renderInventario();
     },
 
-    // Busca esta función en tu código y reemplázala por esta
-
     cargarSugerencias() {
         const listaSugerencias = document.getElementById('sugerencias-ventas');
         if (!listaSugerencias) return;
@@ -76,18 +71,17 @@ toggleAjustes: function() {
         listaSugerencias.innerHTML = productos.map(p => `<option value="${p}">`).join('');
     },
 
-    toggleClienteField(metodo) {
-    // Apuntamos al contenedor, no solo al input
+    toggleClienteField(metodo) { //Si selecciono "Fiao", esta función muestra el campo para poner el nombre del cliente//
     const wrapper = document.getElementById('wrapper-cliente'); 
     const input = document.getElementById('v-cliente');
 
     if (wrapper) {
         if (metodo === 'Fiao') {
             wrapper.classList.remove('hidden');
-            if (input) input.focus(); // Enfoca el campo para escribir de una vez
+            if (input) input.focus(); 
         } else {
             wrapper.classList.add('hidden');
-            if (input) input.value = ''; // Limpia el nombre si cambias de opinión
+            if (input) input.value = ''; 
         }
     }
 },
@@ -123,13 +117,13 @@ toggleAjustes: function() {
             document.getElementById('tasa-global').value = t;
 
         
-                if (typeof Controlador !== 'undefined') //esto puede ser borrado//
+                if (typeof Controlador !== 'undefined') 
                  Controlador.renderizarGrafica();
     },
 
     renderVentas() {
         const datos = Persistencia.cargar('dom_ventas') || [];
-        const lista = document.getElementById('lista-ventas-historial');
+        const lista = document.getElementById('lista-ventas-historial'); //aqui se guardan los datos del historial de ventas
         if(!lista) return;
 
         const ventasInvertidas = datos.slice().reverse();
@@ -167,10 +161,10 @@ toggleAjustes: function() {
         }
     },
 
-    alternarModoPunto() {
+    alternarModoPunto() { //aqui se activa el modo punto de mi papa//
     const btnPunto = document.getElementById('btn-modo-punto');
     const wrapper = document.getElementById('wrapper-comision');
-    const btnVender = document.querySelector('.btn-main'); // Tu botón de registrar
+    const btnVender = document.querySelector('.btn-main'); //botón de registrar
     
     const activo = btnPunto.classList.toggle('activo-punto');
     
@@ -198,9 +192,7 @@ toggleAjustes: function() {
         btnLiq = `<span style="color:#4caf50; font-size:10px; margin-left:5px; font-weight:bold;">✔ PAGADO</span>`;
     }
 
-    // INTEGRACIÓN: Mostramos la cantidad al lado del producto y el monto en USD
-    // Usamos v.montoBs y v.montoUSD que ya vienen calculados de registrarVenta
-    const cantidadStr = v.cantidadVenta > 1 ? `<span style="color:var(--primary)">x${v.cantidadVenta}</span>` : "";
+     const cantidadStr = v.cantidadVenta > 1 ? `<span style="color:var(--primary)">x${v.cantidadVenta}</span>` : "";
     const montoUSD = v.montoUSD ? `<br><small style="opacity:0.6">$ ${Number(v.montoUSD).toFixed(2)}</small>` : "";
 
     return `
@@ -263,7 +255,7 @@ toggleAjustes: function() {
         const lista = document.getElementById('lista-fiaos');
         if(!lista) return;
         if(datos.length === 0) {
-            lista.innerHTML = '<p style="text-align:center; opacity:0.5; padding:20px;">Sin fiaos.</p>';
+            lista.innerHTML = '<p style="text-align:center; opacity:0.5; padding:20px;">Sin créditos.</p>';
             return;
         }
         const fiaosInvertidos = datos.slice().reverse();
@@ -293,12 +285,9 @@ toggleAjustes: function() {
     },
 
    generarFilaFiao(f) {
-    // 1. INTEGRACIÓN: Usamos el montoBs ya calculado y añadimos referencia en USD
-    // f.montoBs ya viene multiplicado por la cantidad desde registrarVenta
     const montoDisplay = Number(f.montoBs).toLocaleString('es-VE');
     const montoUSD = f.montoUSD ? `($${Number(f.montoUSD).toFixed(2)})` : '';
 
-    // 2. Mensaje de WhatsApp mejorado con el nombre del negocio (Dominus) y la cantidad
     const mensaje = `Hola ${f.cliente}, te escribo de DOMINUS para recordarte el pago pendiente de ${montoDisplay} Bs por: ${f.producto} (x${f.cantidadVenta || 1}). ¡Feliz día!`;
     const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
 
@@ -323,12 +312,11 @@ toggleAjustes: function() {
 
  renderInventario() {
     if (typeof Inventario === 'undefined' || !Inventario.productos) return;
-    const lista = document.getElementById('lista-inventario');
+    const lista = document.getElementById('lista-inventario'); //aqui se guarda los datos de la lista de inventario
     if (!lista) return;
 
     const generarHTMLItem = (p) => {
         const unidad = p.unidad || 'Und';
-        // CALCULAMOS LA REFERENCIA EN DÓLARES AQUÍ MISMO
         const precioUSD = (p.precio / Conversor.tasaActual).toFixed(2);
         
         let htmlTallas = "";
@@ -375,13 +363,10 @@ toggleAjustes: function() {
         lista.innerHTML = prods.map(p => generarHTMLItem(p)).join('');
     };
 
-    // Renderizado inicial
     dibujarItems(Inventario.productos);
 
-    // Activación del buscador (Con limpieza de espacios)
     const buscador = document.getElementById('busqueda-real-inv');
     if(buscador) {
-        // Quitamos el evento viejo si existía para no duplicar
         buscador.oninput = (e) => {
             const t = e.target.value.toLowerCase().trim();
             const filtrados = Inventario.productos.filter(prod => 
@@ -392,16 +377,13 @@ toggleAjustes: function() {
     }
 },
 
-// Dentro del objeto Interfaz en Main.js
-// Dentro del objeto Interfaz = { ... }
-filtrarTallasPorBloque(rango) {
+filtrarTallasPorBloque(rango) { //aqui filtra las tallas para que no sea una lista larga//
     const filas = document.querySelectorAll('.fila-talla');
     const permitidas = rangosTallas[rango] || [];
 
     filas.forEach(fila => {
         const nroTalla = parseInt(fila.getAttribute('data-talla'));
         
-        // Si no es un número (ej: talla "S"), siempre se muestra o se ignora el filtro
         if (isNaN(nroTalla)) {
             fila.style.display = 'flex';
             return;
@@ -415,18 +397,16 @@ filtrarTallasPorBloque(rango) {
     });
 },
 
-actualizarSelectorTallas(nombreProducto) {
+actualizarSelectorTallas(nombreProducto) { //cuando escribo un producto, busca si hay tallas para mostrar en el selector//
     const contenedor = document.getElementById('contenedor-talla');
     const select = document.getElementById('v-talla');
     const inputMonto = document.getElementById('v-monto');
     
     if (!contenedor || !select) return;
 
-    // Usamos trim() para evitar errores por espacios accidentales
     const p = Inventario.productos.find(prod => prod.nombre.toLowerCase() === nombreProducto.trim().toLowerCase());
 
     if (p) {
-        // AUTO-PRECIO
         if (inputMonto && p.precio) {
             inputMonto.value = p.precio;
         }
@@ -436,40 +416,31 @@ actualizarSelectorTallas(nombreProducto) {
             select.innerHTML = '<option value="">Elegir Talla/Peso...</option>';
 
             Object.entries(p.tallas).forEach(([talla, cant]) => {
-                // Forzamos que 'cant' sea número para comparar bien
                 if (Number(cant) > 0) {
-                    // MEJORA: Si la talla se llama 'Manual', usamos la unidad del producto
                     let etiqueta = (talla === 'Manual') ? `${p.unidad || 'Cant.'}` : `Talla ${talla}`;
                     select.innerHTML += `<option value="${talla}">${etiqueta} (${cant} disp.)</option>`;
                 }
             });
 
-            // Si después de filtrar no quedó ninguna talla con stock, ocultamos
             if (select.options.length <= 1) {
                 contenedor.classList.add('hidden');
             }
         } else {
-            // Si el producto no tiene el objeto tallas definido
             contenedor.classList.add('hidden');
             select.innerHTML = '';
         }
     } else {
-        // Si el producto no existe en el inventario
         contenedor.classList.add('hidden');
         select.innerHTML = '';
     }
   },
 };
 
-// --- PEGAR ESTO AL FINAL DEL ARCHIVO, FUERA DE TODO OBJETO ---
-
-// SUSTITUIR ESTA FUNCIÓN EN TU ARCHIVO (Es la que llama el botón 👟)
-function AbrirGestorTallas() {
+function AbrirGestorTallas() { //Abre el modal para desglosar productos por número-modifica el display del ID #modal-gestor-tallas 
     const contenedor = document.getElementById('contenedor-filas-tallas');
     const unidadPrincipal = document.getElementById('inv-unidad').value;
     if(!contenedor) return;
     
-    // Preparamos la estructura del modal con tus botones
     contenedor.innerHTML = `
         <div id="selector-categoria-tallas" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:15px;">
             <button onclick="GenerarInputsDinamicos('Tallas')" class="btn-mini" style="background:#333; color:white; padding:10px; border-radius:5px;">👟 Calzado</button>
@@ -494,7 +465,6 @@ function AbrirGestorTallas() {
         <div id="lista-tallas-dinamica" style="max-height: 350px; overflow-y: auto; padding: 5px;"></div>
     `;
     
-    // Detección inteligente según la unidad principal
     if(unidadPrincipal === 'Kg') GenerarInputsDinamicos('peso');
     else if(unidadPrincipal === 'Lts') GenerarInputsDinamicos('liquido');
     else if(unidadPrincipal === 'Talla') GenerarInputsDinamicos('calzado');
@@ -504,14 +474,12 @@ function AbrirGestorTallas() {
     document.getElementById('modal-gestor-tallas').style.display = 'flex';
 }
 
-// FUNCIÓN AUXILIAR DE GENERACIÓN
 function GenerarInputsDinamicos(tipo) {
     const lista = document.getElementById('lista-tallas-dinamica');
     const filtroContenedor = document.getElementById('bloque-filtro-contenedor');
     if(!lista) return;
     lista.innerHTML = '';
 
-    // Mostrar filtro solo si es calzado
     if(filtroContenedor) {
         filtroContenedor.style.display = (tipo === 'calzado') ? 'block' : 'none';
     }
@@ -536,7 +504,6 @@ function GenerarInputsDinamicos(tipo) {
         
         const inputId = `input-dinamico-${talla.toString().replace(/\s+/g, '-')}`;
 
-        // LÓGICA ESPECIAL PARA EL CAMPO MANUAL
         if (talla === 'Manual') {
             const unidadPrincipal = document.getElementById('inv-unidad').value;
             const sufijoSug = (unidadPrincipal === 'Kg') ? 'g' : (unidadPrincipal === 'Lts' ? 'ml' : '');
@@ -554,7 +521,6 @@ function GenerarInputsDinamicos(tipo) {
                     </div>
                 </div>`;
         } else {
-            // LÓGICA NORMAL (Botones fijos)
             div.innerHTML = `
                 <label for="${inputId}" style="color:white; font-weight:600;">${isNaN(talla) ? talla : 'Talla ' + talla}</label>
                 <input type="number" 
@@ -571,7 +537,6 @@ function GenerarInputsDinamicos(tipo) {
     });
 }
 
-// En tu main.js, añade esta función para que el papá vea el stock al vender
 function actualizarStockEnVenta(nombreProducto) {
     const p = Inventario.productos.find(prod => prod.nombre === nombreProducto);
     const selectTalla = document.getElementById('v-talla');
@@ -587,8 +552,7 @@ function actualizarStockEnVenta(nombreProducto) {
     }
 }
 
-function CerrarGestorTallas() {
-    // 1. Capturar el nombre manual antes de cerrar
+function CerrarGestorTallas() { //confirma las tallas para cerrar el modal-//Cierra el modal para desglosar productos por número-modifica el display del ID #modal-gestor-tallas 
     const nombreManualInput = document.getElementById('manual-nombre-din');
     const valorManual = nombreManualInput ? nombreManualInput.value : '';
     
@@ -596,17 +560,14 @@ function CerrarGestorTallas() {
         const unidad = document.getElementById('inv-unidad').value;
         const sufijo = (unidad === 'Kg') ? 'g' : (unidad === 'Lts' ? 'ml' : '');
         
-        // Creamos la etiqueta real (ej: "750g") y le pasamos la cantidad
         tallasTemporales[valorManual + sufijo] = tallasTemporales['Manual'];
-        delete tallasTemporales['Manual']; // Borramos el genérico
+        delete tallasTemporales['Manual']; 
     }
 
-    // 2. Limpieza de ceros
     Object.keys(tallasTemporales).forEach(key => {
         if (tallasTemporales[key] === 0) delete tallasTemporales[key];
     });
 
-    // 3. Calcular total de piezas/paquetes para el input principal
     const total = Object.values(tallasTemporales).reduce((a, b) => a + b, 0);
     const inputCant = document.getElementById('inv-cant');
     if(inputCant) inputCant.value = total;
@@ -615,9 +576,6 @@ function CerrarGestorTallas() {
     if(total > 0) notificar(`✅ ${total} unidades desglosadas`);
 }
 
-// --- FUNCIÓN GLOBAL DE NOTIFICACIÓN ---
-// Ponla fuera de cualquier llave { } al final del archivo
-// --- NOTIFICACIÓN UNIFICADA ---
 const notificar = (msj, tipo = 'exito') => {
     const viejo = document.querySelector('.toast-exito');
     if(viejo) viejo.remove();
@@ -625,7 +583,6 @@ const notificar = (msj, tipo = 'exito') => {
     const toast = document.createElement('div');
     toast.className = `toast-exito toast-${tipo}`;
     
-    // Iconos según el tipo de acción
     const iconos = {
         exito: '✨',
         gasto: '📉',
@@ -644,11 +601,8 @@ const notificar = (msj, tipo = 'exito') => {
     }, 2500);
 };
 
-// --- EL NUEVO MODAL DE ELECCIÓN (PARA CIERRE Y ABONOS) ---
-// UBICACIÓN: Pon esto al principio de tu Main.js o justo antes del Controlador
 const modalEleccion = {
     abrir: function(config) {
-        // Si ya hay uno abierto, lo borramos para no duplicar
         this.cerrar();
 
         const html = `
@@ -665,10 +619,8 @@ const modalEleccion = {
         
         document.body.insertAdjacentHTML('beforeend', html);
         
-        // Inyectar botones (WhatsApp, PDF, etc)
         config.botones.forEach(btn => {
             const b = document.createElement('button');
-            // Si no trae clase, usa 'btn-si' (dorado) por defecto
             b.className = btn.clase || 'btn-si';
             b.innerHTML = btn.texto;
             b.onclick = () => { 
@@ -681,7 +633,6 @@ const modalEleccion = {
     cerrar: () => {
         const m = document.getElementById('modal-dinamico');
         if(m) {
-            // Animación de salida
             m.style.opacity = '0';
             setTimeout(() => m.remove(), 300);
         }
@@ -691,7 +642,6 @@ const modalEleccion = {
 
 const Controlador = {
  ejecutarVenta() {
-    // 1. Captura de datos
     const p = document.getElementById('v-producto').value;
     const m = parseFloat(document.getElementById('v-monto').value);
     const mon = document.getElementById('v-moneda').value;
@@ -707,7 +657,6 @@ const Controlador = {
     const inputCom = document.getElementById('v-comision');
     const comFinal = inputCom ? (parseFloat(inputCom.value) || 0) : 0;
 
-    // 2. Validaciones
     if(!p || isNaN(m)) {
         return notificar("Falta producto o monto", "error");
     }
@@ -724,23 +673,15 @@ const Controlador = {
 
     const btnPunto = document.getElementById('btn-modo-punto');
     const esServicio = btnPunto ? btnPunto.classList.contains('activo-punto') : false;
-    
-    // --- SECCIÓN 3: CAMBIO CLAVE ---
-    // Ya no llamamos a Inventario.descontar() aquí porque registrarVenta() 
-    // ahora se encarga de descontar con la lógica inteligente de unidades.
-    
-    // 4. Registro y Limpieza
-    // Pasamos tallaElegida como último parámetro para que se descuente correctamente
+        
     Ventas.registrarVenta(p, m, mon, met, cli, comFinal, esServicio, cantidad, tallaElegida);
     
-    // Actualizamos todo
     Interfaz.actualizarDashboard();
     Interfaz.renderInventario(); 
     Interfaz.actualizarSelectorTallas(p); 
 
     notificar("Venta registrada con éxito", "exito");
 
-    // Limpieza de campos
     document.getElementById('v-producto').value = '';
     document.getElementById('v-monto').value = '';
     document.getElementById('v-cliente').value = '';
@@ -757,13 +698,11 @@ const Controlador = {
 },
 
   liquidarServicioManual(idVenta) {
-    // 1. Buscamos la venta
     const venta = Ventas.historial.find(v => v.id === idVenta);
     if (!venta) return;
 
     const montoEstimado = venta.aEntregar;
 
-    // 2. Creamos el Modal Estético (UI Blindada)
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style = `
@@ -794,11 +733,9 @@ const Controlador = {
 
     document.body.appendChild(overlay);
     
-    // Enfocar el input automáticamente
     const inputMonto = document.getElementById('liq-monto-final');
     inputMonto.select();
 
-    // 3. Lógica de los botones
     document.getElementById('btn-cancelar-liq').onclick = () => overlay.remove();
 
     document.getElementById('btn-confirmar-liq').onclick = () => {
@@ -808,7 +745,6 @@ const Controlador = {
             return notificar("Ingrese un monto válido", "error");
         }
 
-        // --- PROCESO DE REGISTRO ---
         const nuevoGasto = {
             id: Date.now(),
             descripcion: `LIQ. PUNTO: ${venta.producto}`,
@@ -822,12 +758,10 @@ const Controlador = {
         gastosActuales.push(nuevoGasto);
         Persistencia.guardar('dom_gastos', gastosActuales);
 
-        // Actualizamos la venta
         venta.pagado = true;
         venta.montoPagadoReal = montoFinal;
         Persistencia.guardar('dom_ventas', Ventas.historial);
 
-        // Limpieza y Notificación Final (Bello)
         overlay.remove();
         notificar("¡Liquidación exitosa! Registrado en Gastos.", "exito");
         
@@ -849,54 +783,42 @@ const Controlador = {
 Interfaz.actualizarDashboard();
     },
 
-guardarEnInventario() {
+guardarEnInventario() { //guarda el producto en el almacen//
     const n = document.getElementById('inv-nombre').value;
     const c = document.getElementById('inv-cant').value;
     const p = document.getElementById('inv-precio').value;
     
-    // --- Mantenemos tu captura de unidad original ---
     const unidadElemento = document.getElementById('inv-unidad');
     const u = unidadElemento ? unidadElemento.value : 'Und';
 
     if(!n || !c) return alert("Falta nombre o cantidad");
 
-    // --- INYECCIÓN DE TALLAS ---
-    // Verificamos si hay algo en la memoria temporal de tallas
     const tieneTallas = Object.keys(tallasTemporales).length > 0;
     const tallasParaGuardar = tieneTallas ? {...tallasTemporales} : null;
 
-    // +++ INTEGRACIÓN: VALIDACIÓN DE SUMA EXACTA (Lo único nuevo aquí) +++
     if (tieneTallas) {
         const sumaTallas = Object.values(tallasTemporales).reduce((a, b) => a + b, 0);
         if (sumaTallas !== parseFloat(c)) {
             return alert(`❌ Error: El stock total es ${c}, pero las tallas suman ${sumaTallas}. Deben ser iguales.`);
         }
     }
-    // +++ FIN INTEGRACIÓN +++
 
-    // --- TU LLAMADO ORIGINAL EXTENDIDO ---
-    // Agregamos el 5to parámetro que definimos en el objeto Inventario
     Inventario.guardar(n, c, p || 0, u, tallasParaGuardar); 
 
-    // --- TU LÓGICA DE LIMPIEZA ORIGINAL ---
     document.getElementById('inv-nombre').value = '';
     document.getElementById('inv-cant').value = '';
     document.getElementById('inv-precio').value = '';
     
     if(unidadElemento) unidadElemento.value = 'Und';
 
-    // --- LIMPIEZA DE SEGURIDAD ---
-    // Vaciamos la memoria de tallas para que el próximo producto empiece de cero
     tallasTemporales = {};
 
-    // --- TU RENDER ORIGINAL ---
     Interfaz.renderInventario();
     
     notificar("📦 Producto cargado correctamente");
 },
 
-// Dentro del objeto Controlador en tu Main.js
-mostrarStockDisponible: function(talla) {
+mostrarStockDisponible: function(talla) { //informa al usuario cuanto queda de esa talla antes de vender//
     const nombreProd = document.getElementById('v-producto').value;
     const infoStock = document.getElementById('v-info-stock');
     
@@ -905,7 +827,6 @@ mostrarStockDisponible: function(talla) {
         return;
     }
 
-    // Buscamos en el inventario global
     const p = Inventario.productos.find(prod => prod.nombre.toLowerCase() === nombreProd.trim().toLowerCase());
     
     if (p && p.tallas) {
@@ -920,27 +841,21 @@ mostrarStockDisponible: function(talla) {
 },
 
     editarPrecioRapido(id, nuevoPrecio) {
-    // 1. Buscamos el producto en la memoria
     const producto = Inventario.productos.find(p => p.id == id);
     
     if (producto) {
-        // 2. Actualizamos el precio (si está vacío ponemos 0)
         producto.precio = nuevoPrecio === "" ? 0 : parseFloat(nuevoPrecio);
         
-        // 3. Guardamos en LocalStorage inmediatamente
         Persistencia.guardar('dom_inventario', Inventario.productos);
         
-        // 4. Log para confirmar en consola (opcional)
         console.log(`Precio de ${producto.nombre} actualizado a: ${producto.precio} Bs`);
     }
 },
     
   abonar(id) {
-    // 1. Buscamos la deuda para saber quién es el cliente
     const deuda = Ventas.deudas.find(d => d.id === Number(id));
     if (!deuda) return notificar("No se encontró la deuda", "error");
 
-    // 2. Creamos el Modal Estético (Igual al de la Tasa)
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
@@ -977,10 +892,8 @@ mostrarStockDisponible: function(talla) {
 
     document.body.appendChild(overlay);
     
-    // Auto-focus al input de monto para que tu papá no tenga que hacer clic
     setTimeout(() => document.getElementById('monto-abono').focus(), 100);
 
-    // 3. Lógica de los botones
     document.getElementById('btn-cerrar-abono').onclick = () => overlay.remove();
 
     document.getElementById('btn-guardar-abono').onclick = () => {
@@ -992,12 +905,10 @@ mostrarStockDisponible: function(talla) {
             return notificar("Ingrese un monto válido", "error");
         }
 
-        // Ejecutamos tu lógica de Ventas
         if (Ventas.abonarDeuda(id, parseFloat(montoVal), mon, met)) {
             overlay.remove();
             notificar("Abono registrado con éxito", "fiao");
             
-            // Refrescamos la interfaz usando tu función original
             if (typeof Interfaz !== 'undefined') {
                 Interfaz.show('fiaos-list');
                 Interfaz.actualizarDashboard();
@@ -1037,8 +948,8 @@ eliminarInv(id) {
         }
     },
 
-    toggleInv(activo) {
-        Inventario.activo = activo; // Cambia el estado en el objeto Inventario
+    toggleInv(activo) { //activa y descativa el inventario//
+        Inventario.activo = activo; 
         
         const label = document.getElementById('estadoInv');
         if(label) {
@@ -1046,20 +957,17 @@ eliminarInv(id) {
             label.style.color = activo ? "#2e7d32" : "#d32f2f";
         }
         
-        // Guardamos para que no se pierda al recargar la página
         localStorage.setItem('dom_inv_activo', activo);
         console.log("Inventario está ahora:", activo);
     },
 
-    toggleDarkMode(activo) {
-        // 1. Aplicamos o quitamos la clase según el switch
+    toggleDarkMode(activo) { //para cambiar de claro a oscuro//
         if (activo) {
             document.body.classList.add('dark-mode');
         } else {
             document.body.classList.remove('dark-mode');
         }
         
-        // 2. Guardamos el estado booleano (true/false)
         Persistencia.guardar('dom_dark_mode', activo);
         
         console.log("Modo oscuro:", activo);
@@ -1070,8 +978,8 @@ eliminarInv(id) {
         if(met) met.value = 'Efectivo $';
         Interfaz.toggleClienteField('Efectivo $');
     },
-generarCierre: function() {
-        // 1. Verificamos si ya hay un modal abierto para no duplicar
+
+generarCierre: function() { //llama para hacer el cierre del dia//
         if (document.getElementById('modal-dinamico')) return;
 
         const r = Ventas.finalizarJornada();
@@ -1112,7 +1020,7 @@ generarCierre: function() {
             botones: [
                 { 
                     texto: "SÍ, REINICIAR TODO", 
-                    clase: "btn-pdf", // Color rojo para advertir
+                    clase: "btn-pdf", 
                     accion: () => { 
                         Ventas.limpiarJornada(); 
                         location.reload(); 
@@ -1128,7 +1036,6 @@ generarCierre: function() {
     },
 
    generarPDF() {
-        // --- 1. CAPTURA DE DATOS ORIGINALES ---
         const r = Ventas.finalizarJornada(); 
         const ahora = new Date();
         const hoy = ahora.toLocaleDateString('es-VE');
@@ -1141,12 +1048,10 @@ generarCierre: function() {
 
         const totalConConvertido = r.efectivoBS + r.digital - r.gastos + (r.efectivoUSD * Conversor.tasaActual);
 
-        // --- NUEVA LÓGICA: TABLA DE LIQUIDACIÓN PARA TU PAPÁ ---
       const serviciosPendientes = ventasHoy.filter(v => v.esServicio && !v.pagado);
 
 let tablaServiciosHTML = '';
 
-// Ahora usamos 'serviciosPendientes' en lugar de 'serviciosHoy'
 if (serviciosPendientes.length > 0) {
     const filasServicios = serviciosPendientes.map(s => `
         <tr style="border-bottom: 1px dotted #ccc;">
@@ -1178,7 +1083,6 @@ if (serviciosPendientes.length > 0) {
     `;
 }
 
-        // --- 2. CONSTRUCCIÓN DE LA TABLA DE DETALLE ---
         const filasVentas = ventasHoy.map(v => {
             const esDolar = v.metodo.includes('$') || v.moneda === 'USD';
             const montoTexto = esDolar 
@@ -1199,7 +1103,6 @@ if (serviciosPendientes.length > 0) {
             `;
         }).join('');
 
-        // --- 3. DISEÑO FINAL DEL PDF ---
         const contenidoHTML = `
             <div style="font-family: Arial, sans-serif; padding: 40px; color: #333; background: white;">
                 
@@ -1262,7 +1165,6 @@ if (serviciosPendientes.length > 0) {
             </div>
         `;
 
-        // --- 4. GENERACIÓN DEL ARCHIVO ---
         const opciones = {
             margin: 0,
             filename: nombreArchivo,
@@ -1270,15 +1172,12 @@ if (serviciosPendientes.length > 0) {
             jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
         };
 
-       // --- Al final de generarPDF ---
-       // --- BUSCA EL FINAL DE TU FUNCIÓN generarPDF ---
         html2pdf().set(opciones).from(contenidoHTML).save().then(() => {
             setTimeout(() => {
-                // Llamamos a la función que ya tiene los botones configurados
                 this.preguntarLimpieza(); 
             }, 1500);
         });
-    }, // Aquí termina generarPDF
+    }, 
 
     renderizarGrafica() {
         const canvas = document.getElementById('graficaVentas');
@@ -1324,28 +1223,22 @@ if (serviciosPendientes.length > 0) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => { //Es el que enciende el carro, espera 2.5 segundos (para que se vea el Splash), verifica que el Controlador y el Inventario existan, y muestra el Dashboard- apaga el splash-sreen y llama a interfaz show
 
-    // 1. RECUPERAR MODO OSCURO
     const isDark = Persistencia.cargar('dom_dark_mode');
     if (isDark) {
         document.body.classList.add('dark-mode');
-        // Sincronizamos el switch visualmente
         const checkDark = document.getElementById('checkDarkMode');
         if (checkDark) checkDark.checked = true;
     }
 
-    // // 2. RECUPERAR ESTADO DEL INVENTARIO (CORREGIDO)
 const configGuardada = localStorage.getItem('dom_config');
 let invActivo;
 
 if (configGuardada === null) {
-    // Si no hay configuración, forzamos que sea TRUE la primera vez
     invActivo = true; 
-    // Guardamos para que la próxima vez ya exista
     localStorage.setItem('dom_config', JSON.stringify({ invActivo: true }));
 } else {
-    // Si ya existe, leemos el valor real que dejó el usuario
     invActivo = JSON.parse(configGuardada).invActivo;
 }
 
@@ -1357,8 +1250,7 @@ if (checkInv) checkInv.checked = invActivo;
         console.log("🚀 Dominus iniciando...");
         Ventas.init();
         
-        // Forzamos el cierre del splash tras 2.5s
-        setTimeout(() => {
+        setTimeout(() => { //aqui se quita la pantalla de carga
             const splash = document.getElementById('splash-screen');
             if(splash) {
                 splash.style.opacity = '0';
@@ -1377,7 +1269,7 @@ if (checkInv) checkInv.checked = invActivo;
 });
 
 
-const DOMINUS = {
+const DOMINUS = { //herramienta de diagnostico-revisa si los archivos cargaron bien
     debug() {
         console.group("🔍 Auditoría de Salud Dominus");
         const modulos = {
@@ -1391,7 +1283,7 @@ const DOMINUS = {
         console.groupEnd();
     },
     
-    resetTotal() {
+    resetTotal() { //esto borra todo lo que esta en el local storage, aunque por un momento no sera necesario//
         if(confirm("⚠️ ¿BORRAR TODO? Esto eliminará ventas, gastos y fiaos permanentemente.")) {
             localStorage.clear();
             location.reload();

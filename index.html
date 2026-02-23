@@ -91,7 +91,7 @@
         <button type="button" onclick="Interfaz.show('dashboard')">🏠 Inicio</button>
         <button type="button" onclick="Interfaz.show('ventas')">💰 Ventas</button>
         <button type="button" onclick="Interfaz.show('gastos')">📉 Gastos</button>
-        <button type="button" onclick="Interfaz.show('fiaos-list')">🤝 Creditos</button>
+        <button type="button" onclick="Interfaz.show('fiaos-list')">🤝 Créditos</button>
         <button type="button" onclick="Interfaz.show('inventario')">📦 Stock</button>
     </nav>
 
@@ -132,7 +132,7 @@
                 </div>
 
                 <label for="v-producto">Producto:</label>
-                <input type="text" id="v-producto" name="v-producto" list="sugerencias-ventas" oninput="Interfaz.actualizarSelectorTallas(this.value)" placeholder="Producto (Ej: Pollo)">
+                <input type="text" id="v-producto" name="v-producto" list="sugerencias-ventas" oninput="Interfaz.actualizarSelectorTallas(this.value)" placeholder="(Ej: Pollo)">
                 <datalist id="sugerencias-ventas"></datalist>
 
                 <label for="v-cantidad">Cantidad:</label>
@@ -213,53 +213,51 @@
             <div id="lista-fiaos" class="listado-container"></div>
         </section>
 
-        <section id="view-inventario" class="app-section hidden">
-            <div class="card glass">
-                <h3>📦 Cargar Inventario</h3>
-                <label for="inv-nombre">Producto:</label>
-                <input type="text" id="inv-nombre" name="inv-nombre" placeholder="Producto">
-                
-                <div class="input-group">
-                    <div style="flex:1">
-                        <label for="inv-cant">Cantidad:</label>
-                        <input type="number" id="inv-cant" name="inv-cant" placeholder="Cantidad">
-                    </div>
-                    <div style="flex:1">
-                        <label for="inv-precio">Precio:</label>
-                        <input type="number" id="inv-precio" name="inv-precio" placeholder="Precio">
-                    </div>
-                </div>
-
-                <button type="button" class="btn-mini" style="background:#444; margin-bottom:10px; width:100%;" onclick="AbrirGestorTallas()">
-                     Desglosar por Tipo
-                </button>
-
-                <label for="inv-unidad">Unidad de Medida:</label>
-                <select id="inv-unidad" name="inv-unidad" class="glass" style="width: 100%; margin-bottom: 10px; padding: 10px; color: white; background: #222;">
-                    <option value="Und">Unidad (Und)</option>
-                    <option value="Paca">Paca (Paq)</option>
-                    <option value="Kg">Kilogramos (Kg)</option>
-                    <option value="Lts">Litros (Lts)</option>
-                    <option value="Talla">Talla (Ropa/Calzado)</option>
-                </select>
-
-                <button type="button" class="btn-main" onclick="Controlador.guardarEnInventario()">Cargar Producto</button>
+        <section id="view-inventario" class="app-section hidden" style="overflow-x: hidden;">
+    <div class="card glass">
+        <h3>📦 Cargar Inventario</h3>
+        <label for="inv-nombre">Producto:</label>
+        <input type="text" id="inv-nombre" name="inv-nombre" placeholder="Producto" style="width: 100%; box-sizing: border-box;">
+        
+        <div class="input-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; box-sizing: border-box;">
+            <div style="min-width: 0;"> 
+                <label for="inv-cant">Cantidad:</label>
+                <input type="number" id="inv-cant" name="inv-cant" placeholder="Cantidad" style="width: 100%; box-sizing: border-box;">
             </div>
+            <div style="min-width: 0;">
+                <label for="inv-precio">Precio:</label>
+                <input type="number" id="inv-precio" name="inv-precio" placeholder="Precio" style="width: 100%; box-sizing: border-box;">
+            </div>
+        </div>
 
-           <div style="margin-top: 25px;">
-    <h4 style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-        Stock Actual 
-        <small id="contador-productos" style="font-size: 0.6em; opacity: 0.6;">Cargando...</small>
-    </h4>
-    
-    <div class="search-box glass" style="margin-bottom: 15px; position: sticky; top: 0; z-index: 5;">
-        <input type="text" id="busqueda-real-inv" placeholder="🔍 Buscar producto..." 
-               style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--primary); background: rgba(0,0,0,0.3); color: white; font-size: 1em;">
+        <button type="button" class="btn-mini" style="background:#444; margin: 10px 0; width:100%;" onclick="AbrirGestorTallas()">
+             Desglosar por Tipo
+        </button>
+
+        <label for="inv-unidad">Unidad de Medida:</label>
+        <select id="inv-unidad" name="inv-unidad" class="glass" style="width: 100%; margin-bottom: 10px; padding: 10px; color: white; background: #222; box-sizing: border-box;">
+            <option value="Und">Unidad (Und)</option>
+            <option value="Paca">Paca (Paq)</option>
+            <option value="Kg">Kilogramos (Kg)</option>
+            <option value="Lts">Litros (Lts)</option>
+            <option value="Talla">Talla (Ropa/Calzado)</option>
+        </select>
+
+        <button type="button" class="btn-main" onclick="Controlador.guardarEnInventario()">Cargar Producto</button>
     </div>
 
-    <div id="lista-inventario" class="listado-container"></div>
-</div>
-        </section>
+    <div style="margin: 25px 15px 0 15px;"> <h4 style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            Stock Actual 
+        </h4>
+        
+        <div class="search-box glass" style="margin-bottom: 15px; position: sticky; top: 0; z-index: 5; box-sizing: border-box;">
+            <input type="text" id="busqueda-real-inv" placeholder="🔍 Buscar producto..." 
+                   style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--primary); background: rgba(0,0,0,0.3); color: white; font-size: 1em; box-sizing: border-box;">
+        </div>
+
+        <div id="lista-inventario" class="listado-container" style="width: 100%; overflow-x: hidden;"></div>
+    </div>
+</section>
 
     </main>
 

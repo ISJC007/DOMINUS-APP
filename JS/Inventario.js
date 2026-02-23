@@ -13,8 +13,7 @@ const Inventario = {
         }
     },
 
-   // Úsala para crear o editar productos desde el formulario
-guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null) {
+guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null) { //recibe los datos del formulario
     if (!nombre) return; 
     
     const nombreMin = nombre.trim().toLowerCase();
@@ -23,12 +22,10 @@ guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null) {
     const nuevaCant = parseFloat(cantidad) || 0;
 
     if (index !== -1) {
-        // MODO RECARGA: Sumamos lo nuevo a lo que ya había
         this.productos[index].cantidad += nuevaCant;
-        this.productos[index].precio = precioFinal; // Actualizamos precio por si el proveedor cambió el costo
+        this.productos[index].precio = precioFinal;
         this.productos[index].unidad = unidad;
         
-        // Sumar tallas nuevas a las existentes si vienen en el desglose
         if (tallas) {
             if (!this.productos[index].tallas) this.productos[index].tallas = {};
             Object.keys(tallas).forEach(t => {
@@ -38,7 +35,6 @@ guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null) {
         }
         notificar(`📦 Stock recargado: +${nuevaCant} ${unidad}`, "stock");
     } else {
-        // PRODUCTO NUEVO: Registro desde cero
         this.productos.push({
             id: Date.now(),
             nombre: nombre.trim(),
@@ -54,12 +50,9 @@ guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null) {
 },
 
 sincronizar() {
-    // 1. Limpieza de datos corruptos
     this.productos = this.productos.filter(p => p && p.nombre);
 
-    // 2. Sistema de Alertas de Bajo Stock
     this.productos.forEach(p => {
-        // Definimos un umbral: 2 para unidades fijas, 1.5 para Kg/Lts
         const umbral = (p.unidad === 'Kg' || p.unidad === 'Lts') ? 1.5 : 2;
         
         if (p.cantidad <= 0) {
@@ -69,16 +62,17 @@ sincronizar() {
         }
     });
 
-    // 3. Persistencia física
     Persistencia.guardar('dom_inventario', this.productos);
 
-    // 4. Refrescar UI si el render existe
     if (typeof Interfaz !== 'undefined' && Interfaz.renderInventario) {
         Interfaz.renderInventario();
     }
 },
 
-    descontar(nombre, cant, tallaElegida = null) {
+    descontar(nombre, cant, tallaElegida = null) { //Es el guardián de las ventas. Cuando vendes algo, esta función busca el producto y baja el número. Si es calzado, busca la talla específica y le resta a ese número.
+        //Conexión: * Ventas.js: Es llamada cada vez que se registra una venta.
+
+//Función notificar(): Si intentas vender más de lo que hay, dispara el error "Stock insuficiente".
         if (!this.activo) return true; 
 
         const cantidadARestar = Number(cant);
@@ -88,7 +82,6 @@ sincronizar() {
             if (p.tallas && tallaElegida) {
                 if (p.tallas['Manual'] !== undefined) {
                     if (Number(p.tallas['Manual']) < cantidadARestar) {
-                        // CAMBIO: Notificación en lugar de alert
                         notificar(`⚠️ Cantidad insuficiente: ${p.tallas['Manual']} ${p.unidad}`, "error");
                         return false;
                     }
@@ -96,7 +89,6 @@ sincronizar() {
                 } 
                 else {
                     if (!p.tallas[tallaElegida] || Number(p.tallas[tallaElegida]) < cantidadARestar) {
-                        // CAMBIO: Notificación en lugar de alert
                         notificar(`⚠️ No hay stock de Talla ${tallaElegida}`, "error");
                         return false;
                     }
@@ -105,7 +97,6 @@ sincronizar() {
             }
             
             if (Number(p.cantidad) < cantidadARestar) {
-                // CAMBIO: Notificación en lugar de alert
                 notificar(`⚠️ Stock insuficiente de "${p.nombre}"`, "error");
                 return false; 
             }

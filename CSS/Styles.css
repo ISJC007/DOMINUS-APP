@@ -1,4 +1,3 @@
-/* --- 1. VARIABLES Y ESTADOS GLOBALES --- */
 :root {
     --primary: #ffd700;
     --bg: #121212;
@@ -9,7 +8,7 @@
     --header-height: 180px;
 }
 
-/* Modo Nocturno */
+/*modo oscuro hay que hacerle unas cositas*/
 body.dark-mode {
     --bg: #050505; 
     --card-bg: rgba(255, 255, 255, 0.03);
@@ -18,7 +17,7 @@ body.dark-mode {
 }
 
 html, body {
-    overflow-x: hidden; /* EVITA QUE SE ASOME EL PANEL DE AJUSTES */
+    overflow-x: hidden; 
     width: 100%;
     position: relative;
 }
@@ -35,22 +34,20 @@ body {
 }
 
 .ajustes-sidebar {
-    position: fixed !important; /* Lo saca del flujo de la página */
-    top: 80px;                 /* Ajusta esto para que quede debajo de tu header */
-    right: 20px;               /* Separación de la derecha */
-    width: 200px;              /* Ancho pequeño de bloquecito */
+    position: fixed !important; 
+    top: 80px;                 
+    right: 20px;               
+    width: 200px;              
     background: #1a1a1a;
     border: 1px solid var(--primary);
     border-radius: 12px;
     padding: 10px;
-    z-index: 10000;            /* Por encima de TODO */
+    z-index: 10000;            
     box-shadow: 0 5px 20px rgba(0,0,0,0.8);
     
-    /* Para que empiece oculto */
     display: none;
 }
 
-/* Esta clase es la que el JS pone y quita */
 .ajustes-sidebar.active {
     display: block !important;
 }
@@ -66,7 +63,6 @@ body {
     font-size: 0.8rem;
 }
 
-/* --- 2. COMPONENTES BASE --- */
 .glass {
     background: var(--card-bg);
     backdrop-filter: blur(12px);
@@ -101,7 +97,6 @@ select option {
     gap: 10px; 
 }
 
-/* --- 3. HEADER Y DASHBOARD (AJUSTADO) --- */
 .main-header {
     position: sticky; 
     top: 0; 
@@ -109,18 +104,17 @@ select option {
     padding: 15px; 
     border-radius: 0 0 20px 20px;
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-    background: var(--bg); /* Asegura que no sea transparente al hacer scroll */
+    background: var(--bg); 
 }
 
 .header-top { 
-    position: relative; /* FUNDAMENTAL PARA EL BOTÓN */
+    position: relative;
     display: flex; 
     flex-direction: column; 
     align-items: center; 
     text-align: center;
 }
 
-/* BOTÓN DE AJUSTES A TU DERECHA */
 .btn-ajustes-top {
     position: absolute;
     right: 0;
@@ -132,8 +126,8 @@ select option {
     padding: 8px;
     border-radius: 50%;
     color: white;
-   z-index: 101 !important; /* Un número mayor al z-index del header */
-    pointer-events: auto;     /* Asegura que sea cliqueable */
+   z-index: 101 !important; 
+    pointer-events: auto;     
 }
 
 .titulo-app { margin: 0; font-size: 1.8rem; letter-spacing: 2px; }
@@ -143,7 +137,7 @@ select option {
     font-size: 0.75rem;
     color: var(--primary);
     opacity: 0.8;
-    text-align: center; /* Centrado debajo del título */
+    text-align: center; 
     margin-bottom: 15px;
     margin-top: 5px;
 }
@@ -162,20 +156,18 @@ select option {
 
 .dashboard-cards {
     display: grid; 
-    /* Cambiamos el 1fr fijo por auto-fit */
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 10px; 
-    margin: 10px 15px; /* Añadimos margen lateral para que no toque los bordes del tlf */
+    margin: 10px 15px; 
 }
 
 .card-mini { 
     text-align: center; 
     font-size: 0.8rem; 
-    min-width: 0; /* Evita que el contenido desborde el cuadro */
+    min-width: 0; 
 }
 .card-mini b { display: block; font-size: 1.1rem; }
 
-/* --- 4. BOTONES --- */
 .btn-main {
     background: var(--primary); 
     color: black; 
@@ -203,19 +195,18 @@ select option {
     transition: 0.3s;
 }
 
-/* --- 5. NAVEGACIÓN Y VISTAS --- */
 .bottom-nav {
     position: fixed; 
     bottom: 0; 
     width: 100%;
-    height: 75px; /* Aumentamos el tamaño para el dedo */
+    height: 75px; 
     display: flex; 
     justify-content: space-around;
-    align-items: center; /* Centra los iconos verticalmente */
+    align-items: center; 
     padding: 0; 
     border-radius: 20px 20px 0 0;
     z-index: 1000;
-    background: rgba(10, 10, 10, 0.95); /* Más oscuro y elegante */
+    background: rgba(10, 10, 10, 0.95); 
     backdrop-filter: blur(10px);
     border-top: 1px solid rgba(255, 215, 0, 0.2);
 }
@@ -223,7 +214,7 @@ select option {
 .bottom-nav button {
     background: none; 
     border: none; 
-    color: #666; /* Color apagado por defecto */
+    color: #666; 
     font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
@@ -237,12 +228,11 @@ select option {
 
 .bottom-nav button.active {
     color: var(--primary);
-    transform: translateY(-5px); /* Se levanta un poco */
+    transform: translateY(-5px); 
 }
 
-/* Estilo para los iconos dentro del botón (puedes añadir iconos más grandes luego) */
 .bottom-nav button i, .bottom-nav button span {
-    font-size: 1.4rem; /* Los emojis o iconos se verán más grandes */
+    font-size: 1.4rem;
 }
 
 .app-section { 
@@ -251,13 +241,12 @@ select option {
     box-sizing: border-box;
 }
 
-/* Ajuste para que las tarjetas no se salgan en móviles */
 .card { 
     margin: 15px; 
     display: flex; 
     flex-direction: column; 
     gap: 10px; 
-    max-width: calc(100% - 30px); /* Restamos los márgenes del ancho total */
+    max-width: calc(100% - 30px); 
 }
 
 .card-grafica {
@@ -272,7 +261,6 @@ select option {
 
 .hidden { display: none !important; }
 
-/* --- 6. LISTADOS Y ITEMS --- */
 .listado-container { padding-bottom: 20px; }
 
 .item-lista {
@@ -284,13 +272,11 @@ select option {
     background: rgba(255,255,255,0.05);
     border-radius: 8px;
     
-    /* --- ESTO ES LO QUE LO ARREGLA --- */
-    box-sizing: border-box; /* Incluye el padding en el ancho */
-    max-width: calc(100% - 30px); /* El 100% de la pantalla menos los márgenes (15+15) */
-    overflow: hidden; /* Corta cualquier cosa que intente asomarse */
+    box-sizing: border-box;
+    max-width: calc(100% - 30px); 
+    overflow: hidden; 
 }
 
-/* Para asegurar que lo que está adentro no empuje las paredes */
 .item-lista span {
     display: block;
     overflow: hidden;
@@ -298,7 +284,6 @@ select option {
     white-space: nowrap;
 }
 
-/* ESTO ASEGURA QUE EL PRECIO NUNCA SE MUEVA DE SU SITIO */
 .item-lista span:last-child {
     flex-shrink: 0; 
     white-space: nowrap;
@@ -315,11 +300,10 @@ select option {
     margin-top: 2px;
 }
 
-/* --- 7. SIDEBAR DE AJUSTES (CORREGIDO) --- */
 .ajustes-sidebar {
     position: fixed;
     top: 0;
-    right: -105%; /* MÁS AFUERA PARA QUE NO SE ASOME */
+    right: -105%; 
     width: 300px;
     height: 100%;
     background: #1a1a1a;
@@ -351,7 +335,6 @@ select option {
     border-bottom: 1px solid #333;
 }
 
-/* --- 8. SWITCHES (TOGGLES) --- */
 .switch-dominus {
     position: relative;
     display: inline-block;
@@ -383,7 +366,6 @@ select option {
 input:checked + .slider-dominus { background-color: var(--primary); }
 input:checked + .slider-dominus:before { transform: translateX(24px); }
 
-/* Switch secundario */
 .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider {
@@ -397,7 +379,6 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 }
 .switch input:checked + .slider:before { transform: translateX(20px); }
 
-/* --- 9. SPLASH SCREEN & ANIMACIONES --- */
 .splash {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -435,13 +416,13 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 
 .toast-exito {
     position: fixed;
-    top: 25px; /* Ahora aparecen arriba, es más moderno en móviles */
+    top: 25px; 
     left: 50%;
-    transform: translateX(-50%) translateY(-100px); /* Empieza fuera de pantalla */
-    background: var(--primary); /* Dorado Dominus */
-    color: #000 !important; /* Texto negro para que resalte en el dorado */
+    transform: translateX(-50%) translateY(-100px); 
+    background: var(--primary); 
+    color: #000 !important; 
     padding: 14px 28px;
-    border-radius: 50px; /* Forma de píldora */
+    border-radius: 50px; 
     box-shadow: 0 10px 25px rgba(0,0,0,0.4);
     z-index: 10001;
     font-weight: 800;
@@ -453,7 +434,6 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     white-space: nowrap;
 }
 
-/* Clase para activar la animación */
 .toast-exito.show {
     transform: translateX(-50%) translateY(0);
 }
@@ -463,7 +443,6 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     to { transform: translateX(0); opacity: 1; }
 }
 
-/* Ventana de Tallas */
 .modal-tallas {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -504,7 +483,6 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     border-radius: 5px;
 }
 
-/* Esto fuerza al bloque a flotar sobre cualquier cosa en el móvil */
 #panelAjustes {
     position: fixed !important;
     top: 15px !important;
@@ -518,19 +496,18 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 .toast-stock { background: #2196f3 !important; color: white !important; }
 .toast-fiao { background: #ff9800 !important; color: white !important; }
 .toast-error { background: #b71c1c !important; color: white !important; }
-/* MODAL DE ELECCIÓN MEJORADO */
 .modal-eleccion {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.85); /* Fondo oscuro transparente */
+    background: rgba(0, 0, 0, 0.85); 
     backdrop-filter: blur(10px);
-    display: none; /* Se activa con .active */
+    display: none; 
     justify-content: center;
-    align-items: center; /* Centrado total en pantalla */
-    z-index: 99999; /* El número más alto para que esté por encima de todo */
+    align-items: center; 
+    z-index: 99999; 
 }
 
 .modal-eleccion.active {
@@ -542,7 +519,7 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     width: 90%;
     max-width: 400px;
     padding: 30px;
-    border-radius: 25px; /* Bordes redondeados modernos */
+    border-radius: 25px; 
     border: 1px solid var(--primary);
     text-align: center;
     box-shadow: 0 20px 40px rgba(0,0,0,0.6);
@@ -556,7 +533,7 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 
 .btns-eleccion {
     display: flex;
-    flex-direction: column; /* Botones uno sobre otro en móviles es mejor */
+    flex-direction: column; 
     gap: 12px;
     margin-top: 25px;
 }

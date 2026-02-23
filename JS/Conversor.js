@@ -1,20 +1,20 @@
 const Conversor = {
-    tasaActual: 600,
+    tasaActual: 405.35, //es la tasa con la que ventas e inventario sacan cuentas
 
-    init() {
+    init() { //revisa en peristencia, si existe ya una tasa guardada (dom-tasa)
         const guardada = Persistencia.cargar('dom_tasa');
         if (guardada) {
             this.tasaActual = parseFloat(guardada);
         }
     },
 
-    setTasa(valor) {
+    setTasa(valor) { //actualiza la tasa del dia, aqui tengo que poner la API del dolar//
+        //
         const num = parseFloat(valor);
         if (isNaN(num) || num <= 0) return;
 
         const ventasHoy = Persistencia.cargar('dom_ventas') || [];
         
-        // INTEGRACIÓN: Si hay ventas y la tasa es distinta, lanzamos el modal estético
         if (ventasHoy.length > 0 && num !== this.tasaActual) {
             
             const overlay = document.createElement('div');
@@ -50,7 +50,6 @@ const Conversor = {
             };
 
         } else {
-            // Cambio directo si no hay ventas o es la misma tasa
             this.tasaActual = num;
             Persistencia.guardar('dom_tasa', this.tasaActual);
             if (typeof Interfaz !== 'undefined') {
@@ -61,5 +60,4 @@ const Conversor = {
     }
 };
 
-// Inicialización inmediata
 Conversor.init();

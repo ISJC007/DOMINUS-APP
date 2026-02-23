@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dominus-v2'; // Subimos versión
+const CACHE_NAME = 'dominus-v2'; 
 const ASSETS = [
   'index.html',
   'manifest.json',
@@ -12,7 +12,6 @@ const ASSETS = [
   'IMG/icon-512.png'
 ];
 
-// Instalación: Cacheo uno por uno para que si uno falla, los demás sigan
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
@@ -25,7 +24,6 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
-// Activación: Limpia el caché viejo (v1)
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys => {
@@ -36,7 +34,6 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Fetch: Estrategia de red primero, luego caché
 self.addEventListener('fetch', e => {
   e.respondWith(
     fetch(e.request).catch(() => caches.match(e.request))
