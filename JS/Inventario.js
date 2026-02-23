@@ -11,68 +11,77 @@ const Inventario = {
         } else {
             this.activo = config.invActivo;
         }
+        // Inicializamos la lista de autocompletado al cargar
+        this.actualizarDatalist();
     },
 
-guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null) { //recibe los datos del formulario
-    if (!nombre) return; 
-    
-    const nombreMin = nombre.trim().toLowerCase();
-    const index = this.productos.findIndex(p => p.nombre.toLowerCase() === nombreMin);
-    const precioFinal = (precio === "" || precio === null) ? 0 : parseFloat(precio);
-    const nuevaCant = parseFloat(cantidad) || 0;
+    // --- GESTIÓN DE STOCK (GUARDAR Y ELIMINAR) ---
 
-    if (index !== -1) {
-        this.productos[index].cantidad += nuevaCant;
-        this.productos[index].precio = precioFinal;
-        this.productos[index].unidad = unidad;
+    guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null) {
+        if (!nombre) return; 
         
-        if (tallas) {
-            if (!this.productos[index].tallas) this.productos[index].tallas = {};
-            Object.keys(tallas).forEach(t => {
-                const cantTallaRecarga = parseFloat(tallas[t]) || 0;
-                this.productos[index].tallas[t] = (this.productos[index].tallas[t] || 0) + cantTallaRecarga;
+        const nombreMin = nombre.trim().toLowerCase();
+        const index = this.productos.findIndex(p => p.nombre.toLowerCase() === nombreMin);
+        const precioFinal = (precio === "" || precio === null) ? 0 : parseFloat(precio);
+        const nuevaCant = parseFloat(cantidad) || 0;
+
+        if (index !== -1) {
+            this.productos[index].cantidad += nuevaCant;
+            this.productos[index].precio = precioFinal;
+            this.productos[index].unidad = unidad;
+            
+            if (tallas) {
+                if (!this.productos[index].tallas) this.productos[index].tallas = {};
+                Object.keys(tallas).forEach(t => {
+                    const cantTallaRecarga = parseFloat(tallas[t]) || 0;
+                    this.productos[index].tallas[t] = (this.productos[index].tallas[t] || 0) + cantTallaRecarga;
+                });
+            }
+            notificar(`📦 Stock recargado: +${nuevaCant} ${unidad}`, "stock");
+        } else {
+            this.productos.push({
+                id: Date.now(),
+                nombre: nombre.trim(),
+                cantidad: nuevaCant,
+                precio: precioFinal,
+                unidad: unidad,
+                tallas: tallas || {}
             });
+            notificar("📦 Nuevo producto en stock", "stock");
         }
-        notificar(`📦 Stock recargado: +${nuevaCant} ${unidad}`, "stock");
-    } else {
-        this.productos.push({
-            id: Date.now(),
-            nombre: nombre.trim(),
-            cantidad: nuevaCant,
-            precio: precioFinal,
-            unidad: unidad,
-            tallas: tallas || {}
-        });
-        notificar("📦 Nuevo producto en stock", "stock");
-    }
-    
-    this.sincronizar(); 
-},
-
-sincronizar() {
-    this.productos = this.productos.filter(p => p && p.nombre);
-
-    this.productos.forEach(p => {
-        const umbral = (p.unidad === 'Kg' || p.unidad === 'Lts') ? 1.5 : 2;
         
-        if (p.cantidad <= 0) {
-            notificar(`🚫 ${p.nombre} AGOTADO`, "error");
-        } else if (p.cantidad <= umbral) {
-            notificar(`⚠️ Poco stock de ${p.nombre}: ${p.cantidad}${p.unidad}`, "error");
+        this.sincronizar(); 
+    },
+
+    eliminar(id) {
+        this.productos = this.productos.filter(p => p.id !== Number(id));
+        this.sincronizar();
+        notificar("Producto eliminado del inventario", "error");
+    },
+
+    // --- LÓGICA DE CONTROL Y SINCRONIZACIÓN ---
+
+    sincronizar() {
+        this.productos = this.productos.filter(p => p && p.nombre);
+
+        this.productos.forEach(p => {
+            const umbral = (p.unidad === 'Kg' || p.unidad === 'Lts') ? 1.5 : 2;
+            
+            if (p.cantidad <= 0) {
+                notificar(`🚫 ${p.nombre} AGOTADO`, "error");
+            } else if (p.cantidad <= umbral) {
+                notificar(`⚠️ Poco stock de ${p.nombre}: ${p.cantidad}${p.unidad}`, "error");
+            }
+        });
+
+        Persistencia.guardar('dom_inventario', this.productos);
+
+        if (typeof Interfaz !== 'undefined' && Interfaz.renderInventario) {
+            Interfaz.renderInventario();
         }
-    });
+    },
 
-    Persistencia.guardar('dom_inventario', this.productos);
-
-    if (typeof Interfaz !== 'undefined' && Interfaz.renderInventario) {
-        Interfaz.renderInventario();
-    }
-},
-
-    descontar(nombre, cant, tallaElegida = null) { //Es el guardián de las ventas. Cuando vendes algo, esta función busca el producto y baja el número. Si es calzado, busca la talla específica y le resta a ese número.
-        //Conexión: * Ventas.js: Es llamada cada vez que se registra una venta.
-
-//Función notificar(): Si intentas vender más de lo que hay, dispara el error "Stock insuficiente".
+    descontar(nombre, cant, tallaElegida = null) {
         if (!this.activo) return true; 
 
         const cantidadARestar = Number(cant);
@@ -102,22 +111,43 @@ sincronizar() {
             }
             
             p.cantidad = Number(p.cantidad) - cantidadARestar; 
-            
-            Persistencia.guardar('dom_inventario', this.productos);
-            
-            if (typeof Interfaz !== 'undefined') {
-                Interfaz.renderInventario();
-            }
-            
+            this.sincronizar();
             return true; 
         }
-        
         return true; 
     },
 
-    eliminar(id) {
-        this.productos = this.productos.filter(p => p.id !== Number(id));
-        Persistencia.guardar('dom_inventario', this.productos);
-        notificar("Producto eliminado del inventario", "error");
+    // --- CEREBRO DE AUTO-APRENDIZAJE (PUNTO #5) ---
+    
+    aprenderDeVenta(nombre, precio) {
+        if (!nombre || nombre.trim() === "") return;
+        
+        let dic = Persistencia.cargar('dom_diccionario_ventas') || [];
+        const nombreLimpio = nombre.trim();
+        const index = dic.findIndex(d => d.nombre.toLowerCase() === nombreLimpio.toLowerCase());
+
+        if (index !== -1) {
+            dic[index].precio = parseFloat(precio);
+        } else {
+            dic.push({ nombre: nombreLimpio, precio: parseFloat(precio) });
+            console.log(`🧠 DOMINUS aprendió un nuevo producto: ${nombreLimpio}`);
+        }
+
+        Persistencia.guardar('dom_diccionario_ventas', dic);
+        this.actualizarDatalist();
+    },
+
+    buscarPrecioMemoria(nombre) {
+        let dic = Persistencia.cargar('dom_diccionario_ventas') || [];
+        const p = dic.find(d => d.nombre.toLowerCase() === nombre.trim().toLowerCase());
+        return p ? p.precio : null;
+    },
+
+    actualizarDatalist() {
+        let dic = Persistencia.cargar('dom_diccionario_ventas') || [];
+        const lista = document.getElementById('sugerencias-ventas');
+        if (lista) {
+            lista.innerHTML = dic.map(d => `<option value="${d.nombre}">`).join('');
+        }
     }
 };

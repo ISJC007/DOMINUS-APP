@@ -86,40 +86,47 @@ toggleAjustes: function() { //abre y cierra el panel de ajustes//
     }
 },
 
-    actualizarDashboard() {
-        const v = Persistencia.cargar('dom_ventas') || [];
-        const g = Persistencia.cargar('dom_gastos') || [];
-        const f = Persistencia.cargar('dom_fiaos') || [];
-        const t = Conversor.tasaActual > 0 ? Conversor.tasaActual : 1;
-        const hoy = new Date().toLocaleDateString('es-VE');
+   actualizarDashboard() {
+    const v = Persistencia.cargar('dom_ventas') || [];
+    const g = Persistencia.cargar('dom_gastos') || [];
+    const f = Persistencia.cargar('dom_fiaos') || [];
+    const t = Conversor.tasaActual > 0 ? Conversor.tasaActual : 1;
+    const hoy = new Date().toLocaleDateString('es-VE');
 
-        const vHoy = v.filter(vent => vent.fecha === hoy);
-        const gHoy = g.filter(gas => gas.fecha === hoy);
+    const vHoy = v.filter(vent => vent.fecha === hoy);
+    const gHoy = g.filter(gas => gas.fecha === hoy);
 
-        const totalV = vHoy.reduce((acc, i) => acc + (Number(i.montoBs) || 0), 0);
-        const totalG = gHoy.reduce((acc, i) => acc + (Number(i.montoBs) || 0), 0);
-        const netoBs = totalV - totalG;
-        const netoConvertido = netoBs / t;
+    // Sumamos ventas del día
+    const totalV = vHoy.reduce((acc, i) => acc + (Number(i.montoBs) || 0), 0);
+    // Sumamos gastos del día
+    const totalG = gHoy.reduce((acc, i) => acc + (Number(i.montoBs) || 0), 0);
 
-        if(document.getElementById('total-caja')) 
-            document.getElementById('total-caja').innerText = `${netoBs.toLocaleString('es-VE')} Bs`;
-        
-        if(document.getElementById('total-usd')) 
-            document.getElementById('total-usd').innerText = `$ ${netoConvertido.toFixed(2)}`;
-        
-        if(document.getElementById('total-fiaos')) 
-            document.getElementById('total-fiaos').innerText = `${f.reduce((acc, i) => acc + (Number(i.montoBs) || 0), 0).toLocaleString('es-VE')} Bs`;
-        
-        if(document.getElementById('total-gastos')) 
-            document.getElementById('total-gastos').innerText = `${totalG.toLocaleString('es-VE')} Bs`;
-        
-        if(document.getElementById('tasa-global')) 
-            document.getElementById('tasa-global').value = t;
+    // LA VERDAD: El neto ya no resta el totalG
+    const netoBs = totalV; 
+    const netoConvertido = netoBs / t;
 
-        
-                if (typeof Controlador !== 'undefined') 
-                 Controlador.renderizarGrafica();
-    },
+    // Actualizamos los textos en el HTML (ID por ID)
+    if(document.getElementById('total-caja')) 
+        document.getElementById('total-caja').innerText = `${netoBs.toLocaleString('es-VE')} Bs`;
+    
+    if(document.getElementById('total-usd')) 
+        document.getElementById('total-usd').innerText = `$ ${netoConvertido.toFixed(2)}`;
+    
+    // FIAOS: Siguen sumándose igual que antes
+    if(document.getElementById('total-fiaos')) 
+        document.getElementById('total-fiaos').innerText = `${f.reduce((acc, i) => acc + (Number(i.montoBs) || 0), 0).toLocaleString('es-VE')} Bs`;
+    
+    // GASTOS: Se muestran aquí, pero no afectan al neto de arriba
+    if(document.getElementById('total-gastos')) 
+        document.getElementById('total-gastos').innerText = `${totalG.toLocaleString('es-VE')} Bs`;
+    
+    if(document.getElementById('tasa-global')) 
+        document.getElementById('tasa-global').value = t;
+
+    // Actualizamos la gráfica al final
+    if (typeof Controlador !== 'undefined') 
+        Controlador.renderizarGrafica();
+},
 
     renderVentas() {
         const datos = Persistencia.cargar('dom_ventas') || [];
@@ -641,7 +648,7 @@ const modalEleccion = {
 
 
 const Controlador = {
- ejecutarVenta() {
+ejecutarVenta() {
     const p = document.getElementById('v-producto').value;
     const m = parseFloat(document.getElementById('v-monto').value);
     const mon = document.getElementById('v-moneda').value;
@@ -674,14 +681,23 @@ const Controlador = {
     const btnPunto = document.getElementById('btn-modo-punto');
     const esServicio = btnPunto ? btnPunto.classList.contains('activo-punto') : false;
         
+    // 1. Registramos la venta en el historial principal
     Ventas.registrarVenta(p, m, mon, met, cli, comFinal, esServicio, cantidad, tallaElegida);
     
+    // 👇 2. EL CEREBRO ENTRA EN ACCIÓN: DOMINUS aprende lo que acabas de vender
+    if (typeof Inventario !== 'undefined' && typeof Inventario.aprenderDeVenta === 'function') {
+        Inventario.aprenderDeVenta(p, m);
+    }
+    // 👆 ------------------------------------------------------------------ 👆
+    
+    // 3. Actualizamos la pantalla para reflejar los cambios
     Interfaz.actualizarDashboard();
     Interfaz.renderInventario(); 
     Interfaz.actualizarSelectorTallas(p); 
 
     notificar("Venta registrada con éxito", "exito");
 
+    // 4. Limpiamos el formulario para el siguiente cliente
     document.getElementById('v-producto').value = '';
     document.getElementById('v-monto').value = '';
     document.getElementById('v-cliente').value = '';
@@ -1223,8 +1239,8 @@ if (serviciosPendientes.length > 0) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => { //Es el que enciende el carro, espera 2.5 segundos (para que se vea el Splash), verifica que el Controlador y el Inventario existan, y muestra el Dashboard- apaga el splash-sreen y llama a interfaz show
-
+document.addEventListener('DOMContentLoaded', () => { 
+    // MODO OSCURO (Tu lógica intacta)
     const isDark = Persistencia.cargar('dom_dark_mode');
     if (isDark) {
         document.body.classList.add('dark-mode');
@@ -1232,35 +1248,53 @@ document.addEventListener('DOMContentLoaded', () => { //Es el que enciende el ca
         if (checkDark) checkDark.checked = true;
     }
 
-const configGuardada = localStorage.getItem('dom_config');
-let invActivo;
+    // --- AUTO-LLENADO DE PRECIOS ---
+    const inputProducto = document.getElementById('v-producto');
+    if (inputProducto) {
+        // Le conectamos el datalist para que salgan las sugerencias visuales
+        inputProducto.setAttribute('list', 'sugerencias-ventas');
+        
+        // Escuchamos cada vez que escribes o seleccionas una sugerencia
+        inputProducto.addEventListener('input', (e) => {
+            const nombreEscrito = e.target.value;
+            const precioRecordado = Inventario.buscarPrecioMemoria(nombreEscrito);
+            
+            // Si la memoria tiene un precio para ese producto, ¡pónselo al input de monto!
+            if (precioRecordado !== null) {
+                const inputMonto = document.getElementById('v-monto');
+                if (inputMonto) {
+                    inputMonto.value = precioRecordado;
+                    
+                    // Pequeña animación visual para que sepas que se auto-llenó
+                    inputMonto.style.backgroundColor = 'rgba(76, 175, 80, 0.2)'; 
+                    setTimeout(() => inputMonto.style.backgroundColor = '', 500);
+                }
+            }
+        });
+    }
+    // Asegurarnos de que el datalist se cargue al iniciar
+    if(typeof Inventario !== 'undefined' && typeof Inventario.actualizarDatalist === 'function') {
+        Inventario.actualizarDatalist();
+    }
+    // --- FIN AUTO-LLENADO ---
 
-if (configGuardada === null) {
-    invActivo = true; 
-    localStorage.setItem('dom_config', JSON.stringify({ invActivo: true }));
-} else {
-    invActivo = JSON.parse(configGuardada).invActivo;
-}
+    // CONFIGURACIÓN INVENTARIO (Tu lógica intacta)
+    const configGuardada = localStorage.getItem('dom_config');
+    let invActivo = (configGuardada === null) ? true : JSON.parse(configGuardada).invActivo;
+    if (configGuardada === null) {
+        localStorage.setItem('dom_config', JSON.stringify({ invActivo: true }));
+    }
+    if(typeof Inventario !== 'undefined') Inventario.activo = invActivo;
+    const checkInv = document.getElementById('check-inv-ajustes') || document.getElementById('check-inv');
+    if (checkInv) checkInv.checked = invActivo;
 
-if(typeof Inventario !== 'undefined') Inventario.activo = invActivo;
-
-const checkInv = document.getElementById('check-inv-ajustes') || document.getElementById('check-inv');
-if (checkInv) checkInv.checked = invActivo;
     try {
         console.log("🚀 Dominus iniciando...");
-        Ventas.init();
-        
-        setTimeout(() => { //aqui se quita la pantalla de carga
-            const splash = document.getElementById('splash-screen');
-            if(splash) {
-                splash.style.opacity = '0';
-                setTimeout(() => {
-                    splash.style.display = 'none';
-                    Interfaz.show('dashboard');
-                }, 500);
-            }
-        }, 2500);
 
+        (async () => {
+        await Ventas.init();
+    })();
+        // ELIMINAMOS EL SETTIMEOUT DE AQUÍ PARA QUE NO SE CRUCE CON VENTAS
     } catch (error) {
         console.error("❌ Error crítico en el inicio:", error);
         const splash = document.getElementById('splash-screen');

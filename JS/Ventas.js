@@ -3,22 +3,52 @@ const Ventas = {
     deudas: [],
     gastos: [], //todos estos son espacios vacios para guardar dichos datos
 
-    init() { //carga los datos en el tlf usando persistencia.cargar-llama a inventario-init para asegurar qe los productos esten antes de vender
-        this.historial = Persistencia.cargar('dom_ventas') || [];
-        this.deudas = Persistencia.cargar('dom_fiaos') || [];
-        this.gastos = Persistencia.cargar('dom_gastos') || [];
-        if (typeof Inventario !== 'undefined') Inventario.init();
+  // Antes: Ventas.init();
+// Ahora:
+async init() { // IMPORTANTE: El async debe estar aquí
+    // 1. Carga de datos base (Inalterado)
+    this.historial = Persistencia.cargar('dom_ventas') || [];
+    this.deudas = Persistencia.cargar('dom_fiaos') || [];
+    this.gastos = Persistencia.cargar('dom_gastos') || [];
+    
+    if (typeof Inventario !== 'undefined') Inventario.init();
 
-        setTimeout(() => {
-            const splash = document.getElementById('splash-screen');
-            if(splash) {
-                splash.classList.add('splash-fade-out');
-                setTimeout(() => {
-                    splash.style.display = 'none';
-                }, 800);
-            }
-        }, 2000); 
-    },
+    // 2. INYECCIÓN DE FRASES AL AZAR (Inalterado)
+    if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
+        const indice = Math.floor(Math.random() * bancoFrases.length);
+        const fraseElegida = bancoFrases[indice];
+        
+        const txtFrase = document.getElementById('frase-splash');
+        const txtAutor = document.getElementById('autor-splash');
+        
+        if (txtFrase && txtAutor) {
+            txtFrase.innerText = `"${fraseElegida.texto}"`;
+            txtAutor.innerText = `— ${fraseElegida.autor}`;
+        }
+    }
+
+    // --- VERIFICACIÓN DE SEGURIDAD (Punto #3) ---
+    // Aquí es donde la app se queda esperando por la huella o el PIN
+    const accesoConcedido = await Seguridad.iniciarProteccion();
+
+    if (!accesoConcedido) {
+        alert("Acceso denegado.");
+        location.reload(); 
+        return; 
+    }
+
+    // 3. CONTROL DEL SPLASH (Solo inicia si hubo acceso)
+    setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        if(splash) {
+            splash.classList.add('splash-fade-out');
+            setTimeout(() => {
+                splash.style.display = 'none';
+                if(typeof Interfaz !== 'undefined') Interfaz.show('dashboard');
+            }, 800);
+        }
+    }, 5000); 
+},
     registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, tallaEscogida = null) { 
 //Valida si hay stock, calcula la tasa con Conversor.tasaActual, resta la cantidad del inventario y guarda la venta. Conexión: * HTML: Saca los valores de los inputs de venta.
 //Inventario.js: Busca el producto en Inventario.productos y le resta la cantidad.
@@ -167,8 +197,7 @@ anularVenta: function(id) {
         const unicos = [...new Set([...nombres, ...nombresInv])];
         return unicos.slice(0, 10); 
     },
-
-  finalizarJornada() {
+finalizarJornada() {
         const ventas = Persistencia.cargar('dom_ventas') || [];
         const gastos = Persistencia.cargar('dom_gastos') || [];
         const hoy = new Date().toLocaleDateString('es-VE');
@@ -203,16 +232,23 @@ anularVenta: function(id) {
             }
         });
 
+        // 1. Calculamos el total de gastos del día (Solo para información)
         const totalGastos = gastos.filter(g => g.fecha === hoy)
                                   .reduce((acc, g) => acc + (Number(g.montoBs) || 0), 0);
 
+        // 2. Convertimos los USD acumulados a Bolívares según la tasa actual
+        const usdConvertidos = efecUSD * (Conversor.tasaActual || 0);
+
+        // 3. RETORNO DE DATOS
         return {
             efectivoBS: efecBS,
             efectivoUSD: efecUSD,
             digital: digital,
-            gastos: totalGastos,
+            gastos: totalGastos, 
             detalle: detalleMetodos, 
-            balanceNeto: (efecBS + digital) - totalGastos
+            // EL BALANCE NETO: Sumamos todo lo que entró (Bs + Digital + USD convertidos)
+            // Sin restar los gastos, para que el neto sea real.
+            balanceNeto: (efecBS + digital + usdConvertidos) 
         };
     },
 

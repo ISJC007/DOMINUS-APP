@@ -1,17 +1,42 @@
 const Conversor = {
-    tasaActual: 405.35, //es la tasa con la que ventas e inventario sacan cuentas
+    tasaActual: 405.35,
 
-    init() { //revisa en peristencia, si existe ya una tasa guardada (dom-tasa)
+    async init() { 
+        // 1. Carga inmediata del teléfono (Seguridad Offline)
         const guardada = Persistencia.cargar('dom_tasa');
         if (guardada) {
             this.tasaActual = parseFloat(guardada);
         }
+
+        // 2. Intentamos buscar la tasa en internet usando nuestro Servicio
+        const tasaInternet = await Servicios.obtenerTasaBCV();
+
+        if (tasaInternet) {
+            // Si la tasa de internet es diferente a la que tenemos...
+            if (tasaInternet !== this.tasaActual) {
+                // Notificamos al usuario con tu función
+                notificar(`Tasa BCV detectada: ${tasaInternet}`, 'exito');
+                
+                // Llamamos a setTasa. 
+                // Si hay ventas, esta función abrirá el modal de confirmación.
+                // Si NO hay ventas, la actualizará directamente.
+                this.setTasa(tasaInternet);
+            } else {
+                // Si son iguales, solo avisamos que estamos al día
+                console.log("✅ La tasa ya está actualizada con el BCV.");
+            }
+        } else {
+            // Si la API falló (sin internet), avisamos que usamos la guardada
+            notificar("Modo Offline: Usando tasa guardada", "stock");
+        }
     },
 
+
     setTasa(valor) { //actualiza la tasa del dia, aqui tengo que poner la API del dolar//
-        //
-        const num = parseFloat(valor);
-        if (isNaN(num) || num <= 0) return;
+
+    const num = Number(parseFloat(valor).toFixed(2)); 
+    
+    if (isNaN(num) || num <= 0) return;
 
         const ventasHoy = Persistencia.cargar('dom_ventas') || [];
         

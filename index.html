@@ -17,12 +17,22 @@
 <body>
 
     <div id="splash-screen" class="splash">
-        <div class="splash-content">
-            <h1 class="logo-anim">DOMINUS</h1>
-            <p class="slogan-anim">Domina tu negocio, Domina tu vida</p>
-            <div class="loader"></div>
+    <div class="splash-content">
+        <h1 class="logo-anim">DOMINUS</h1>
+        <p class="slogan-anim">Domina tu negocio, Domina tu vida</p>
+        
+        <div class="loader"></div>
+
+        <div id="contenedor-sabiduria" style="margin-top: 30px; max-width: 80%; margin-left: auto; margin-right: auto;">
+            <p id="frase-splash" style="font-style: italic; font-size: 1.1em; color: white; min-height: 3em; line-height: 1.4;">
+                "Preparando el ecosistema..."
+            </p>
+            <p id="autor-splash" style="color: var(--primary); font-weight: bold; margin-top: 10px; text-transform: uppercase; letter-spacing: 2px; font-size: 0.8em;">
+                — DOMINUS AI
+            </p>
         </div>
     </div>
+</div>
 
     <div id="panelAjustes" class="ajustes-sidebar">
         <div class="ajustes-header">
@@ -44,6 +54,17 @@
                     <span class="slider round"></span>
                 </label>
             </div>
+
+            <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <div style="display: flex; flex-direction: column;">
+        <span style="color: white; font-weight: 600;">🔐 Seguridad PIN</span>
+        <small style="color: #888; font-size: 0.75em;">Proteger acceso a la app</small>
+    </div>
+    <button onclick="Seguridad.prepararCambioPIN()" 
+            style="background: var(--primary); border: none; color: black; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 0.8em;">
+        CAMBIAR
+    </button>
+</div>
             <hr style="border: 0; border-top: 1px solid #333; margin: 20px 0;">
             <button type="button" class="btn-main" style="background: #ff4444; width: 100%;" onclick="DOMINUS.resetTotal()">
                 🗑️ Limpiar Toda la App
@@ -265,39 +286,30 @@
         <div class="modal-content-tallas glass">
             <h3 style="color:var(--primary); margin-bottom:15px;"> Desglose Por Tipo</h3>
             
-            <div style="margin-bottom: 15px;">
-                <label for="inv-bloque-rango" style="display:block; font-size: 0.8em; color: gray;">Filtrar por rango:</label>
-                <select id="inv-bloque-rango" name="inv-bloque-rango" class="glass" 
-                        style="width:100%; padding:8px; border:1px solid var(--primary); background:#111; color:white;"
-                        onchange="Interfaz.filtrarTallasPorBloque(this.value)">
-                    <option value="todos">Mostrar Todas</option>
-                    <option value="ninos-peq">Niños (18-25)</option>
-                    <option value="ninos-gra">Niños Grandes (26-32)</option>
-                    <option value="juvenil">Juvenil/Damas (33-39)</option>
-                    <option value="caballero">Caballeros (40-45)</option>
-                </select>
-            </div>
 
             <div id="contenedor-filas-tallas"></div>
             
             <button type="button" class="btn-main" style="margin-top:15px;" onclick="CerrarGestorTallas()">Confirmar Cantidades</button>
         </div>
     </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <script src="JS/Offline.js"></script>
-    <script src="JS/Conversor.js"></script>
-    <script src="JS/Inventario.js"></script>
-    <script src="JS/Ventas.js"></script>
-    <script src="JS/Main.js"></script>
+<script src="JS/Frases.js"></script>
+<script src="JS/Offline.js"></script>
+<script src="JS/Seguridad.js"></script> <script src="JS/Servicios.js"></script>
+<script src="JS/Conversor.js"></script>
+<script src="JS/Inventario.js"></script>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js');
-        }
-    </script>
+<script src="JS/Ventas.js"></script> 
+<script src="JS/Main.js"></script>
 
+<script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js');
+    }
+</script>
+
+<datalist id="sugerencias-ventas"></datalist>
 </body>
 </html>
