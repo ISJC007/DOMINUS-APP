@@ -49,17 +49,15 @@ async init() { // IMPORTANTE: El async debe estar aquí
         }
     }, 5000); 
 },
-    registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, tallaEscogida = null) { 
-//Valida si hay stock, calcula la tasa con Conversor.tasaActual, resta la cantidad del inventario y guarda la venta. Conexión: * HTML: Saca los valores de los inputs de venta.
-//Inventario.js: Busca el producto en Inventario.productos y le resta la cantidad.
-//Main.js: Llama a Interfaz.actualizarDashboard() para que los gráficos suban al momento.
 
-    const tasa = Conversor.tasaActual; 
+registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, tallaEscogida = null) {
+    const tasa = Conversor.tasaActual;
     const precioBase = Number(m);
     const cantidadVendida = Number(cant);
-    
+
+    // 1. Lógica de Inventario (Stock)
     const inv = Inventario.productos.find(i => i.nombre === p);
-    
+
     if (inv && !esServicio) {
         let cantidadARestarGlobal = cantidadVendida;
 
@@ -71,29 +69,27 @@ async init() { // IMPORTANTE: El async debe estar aquí
                 cantidadARestarGlobal = parseFloat(medida) * cantidadVendida;
             }
         }
-        
+
         inv.cantidad -= cantidadARestarGlobal;
 
         if (inv.tallas && tallaEscogida && inv.tallas[tallaEscogida] !== undefined) {
             inv.tallas[tallaEscogida] -= cantidadVendida;
-            
             if (inv.tallas[tallaEscogida] <= 0) {
                 delete inv.tallas[tallaEscogida];
             }
         }
-        
         Inventario.sincronizar();
-
     } else if (!esServicio) {
         console.warn(`⚠️ DOMINUS: El producto "${p}" no existe.`);
     }
 
+    // 2. Cálculos Financieros
     const montoUSD = (mon === 'USD') ? (precioBase * cantidadVendida) : (precioBase * cantidadVendida) / tasa;
     const montoBs = (mon === 'BS') ? (precioBase * cantidadVendida) : (precioBase * cantidadVendida) * tasa;
-
     const montoComision = (Number(montoBs) * (Number(com) / 100));
     const montoAEntregar = esServicio ? (montoBs - montoComision) : 0;
 
+    // 3. Estructura de la Venta
     const datosVenta = {
         id: Date.now(),
         fecha: new Date().toLocaleDateString('es-VE'),
@@ -109,16 +105,23 @@ async init() { // IMPORTANTE: El async debe estar aquí
         aEntregar: montoAEntregar,
         cliente: cli || "Anónimo",
         esServicio: esServicio,
-        pagado: false, 
-        montoPagadoReal: 0 
+        pagado: false,
+        montoPagadoReal: 0
     };
 
+    // 4. PERSISTENCIA SEGURA (Solución al problema de sumas incorrectas)
     if (met === 'Fiao') {
-        this.deudas.push({ ...datosVenta });
-        Persistencia.guardar('dom_fiaos', this.deudas);
+        // Cargar, PUSH, Guardar
+        let fiaos = Persistencia.cargar('dom_fiaos') || [];
+        fiaos.push({ ...datosVenta });
+        Persistencia.guardar('dom_fiaos', fiaos);
+        this.deudas = fiaos; // Sincronizar memoria
     } else {
-        this.historial.push(datosVenta);
-        Persistencia.guardar('dom_ventas', this.historial);
+        // Cargar, PUSH, Guardar
+        let historial = Persistencia.cargar('dom_ventas') || [];
+        historial.push(datosVenta);
+        Persistencia.guardar('dom_ventas', historial);
+        this.historial = historial; // Sincronizar memoria
     }
 },
 
@@ -159,36 +162,182 @@ anularVenta: function(id) {
         Persistencia.guardar('dom_gastos', this.gastos);
     },
 
-    abonarDeuda(id, monto, mon, metodoPago) { //abona una parte que un cliente pague, si se completa la deuda desaparece-actualiza persistencia y refresca el HTML de los fiados
-        const index = this.deudas.findIndex(d => d.id === Number(id));
-        if (index !== -1) {
-            const ahora = new Date();
-            const abonoBs = (mon === 'USD') ? monto * Conversor.tasaActual : monto;
-            
-            this.deudas[index].montoBs -= abonoBs;
-            
-            this.historial.push({
-                id: ahora.getTime(),
-                producto: `Abono: ${this.deudas[index].cliente}`,
-                montoBs: abonoBs,
-                metodo: metodoPago || `Abono ${mon}`, 
-                fecha: ahora.toLocaleDateString('es-VE'),
-                hora: ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            });
+abonarDeudaPorCliente(nombreCliente, montoAbono, moneda, metodoPago) {
+    let fiaos = Persistencia.cargar('dom_fiaos') || [];
+    let historial = Persistencia.cargar('dom_ventas') || [];
+    const tasaActual = Conversor.tasaActual;
+    const ahora = new Date();
 
-            if (this.deudas[index].montoBs <= 1) this.deudas.splice(index, 1);
+    // 1. Convertir TODO el abono a USD para trabajar con valor real
+    let abonoRestanteUSD = (moneda === 'USD') ? montoAbono : (montoAbono / tasaActual);
+    const abonoOriginalUSD = abonoRestanteUSD; // Para el historial
+
+    // 2. Ordenar deudas del cliente de la más vieja a la más nueva (por fecha o ID)
+    let deudasCliente = fiaos
+        .filter(f => f.cliente === nombreCliente)
+        .sort((a, b) => a.id - b.id); // Asumiendo que ID es timestamp
+
+    // 3. Procesar abono inteligente
+    for (let i = 0; i < deudasCliente.length; i++) {
+        if (abonoRestanteUSD <= 0) break;
+
+        let deudaActual = deudasCliente[i];
+        let montoDeudaUSD = parseFloat(deudaActual.montoUSD || 0);
+
+        if (abonoRestanteUSD >= montoDeudaUSD) {
+            // El abono cubre toda esta deuda
+            abonoRestanteUSD -= montoDeudaUSD;
+            // Eliminamos esta deuda del array principal
+            fiaos = fiaos.filter(f => f.id !== deudaActual.id);
+        } else {
+            // El abono cubre solo una parte de esta deuda
+            deudaActual.montoUSD = montoDeudaUSD - abonoRestanteUSD;
+            // Recalculamos Bs de esta deuda específica
+            deudaActual.montoBs = deudaActual.montoUSD * tasaActual;
+            abonoRestanteUSD = 0;
             
-            Persistencia.guardar('dom_fiaos', this.deudas);
-            Persistencia.guardar('dom_ventas', this.historial);
-            return true;
+            // Actualizamos la deuda parcial en el array principal
+            let index = fiaos.findIndex(f => f.id === deudaActual.id);
+            if (index !== -1) fiaos[index] = deudaActual;
         }
-        return false;
-    },
+    }
 
-    eliminarDeuda(id) {
-        this.deudas = this.deudas.filter(d => d.id !== Number(id));
-        Persistencia.guardar('dom_fiaos', this.deudas);
-    },
+    // 4. Registrar en el historial
+    historial.push({
+        id: ahora.getTime(),
+        producto: `Abono Cliente: ${nombreCliente}`,
+        montoUSD: abonoOriginalUSD,
+        montoBs: abonoOriginalUSD * tasaActual,
+        metodo: metodoPago,
+        fecha: ahora.toLocaleDateString('es-VE'),
+        hora: ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+
+    // 5. Guardar todo
+    Persistencia.guardar('dom_fiaos', fiaos);
+    Persistencia.guardar('dom_ventas', historial);
+    return true;
+},
+
+editarDeudaEspecifica(id) {
+    let fiaos = Persistencia.cargar('dom_fiaos') || [];
+    const deuda = fiaos.find(d => d.id === Number(id));
+
+    if (!deuda) return notificar("No se encontró el registro", "error");
+
+    // --- CREAMOS EL MODAL ESTÉTICO DINÁMICAMENTE ---
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    // Estilos para centrar y fondo borroso
+    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
+
+    overlay.innerHTML = `
+        <div class="card glass" style="max-width:350px; width:100%; padding:25px; border-radius:20px; text-align:center; color:white; border:1px solid var(--primary);">
+            <h3 style="color:var(--primary); margin-bottom:15px;">✏️ Editar Monto</h3>
+            <p style="opacity:0.8; font-size:0.9em; margin-bottom:5px;">${deuda.producto}</p>
+            <p style="font-weight:bold; margin-bottom:15px;">Actual: $${Number(deuda.montoUSD).toFixed(2)}</p>
+            
+            <input type="number" id="nuevo-monto-input" value="${deuda.montoUSD}" step="0.01"
+                   style="width:100%; padding:12px; border-radius:10px; border:1px solid var(--primary); background:rgba(0,0,0,0.3); color:white; font-size:1.1em; text-align:center;">
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button id="btn-cancelar-edicion" class="btn-main" style="background:#444; flex:1">Cancelar</button>
+                <button id="btn-guardar-edicion" class="btn-main" style="flex:1">Guardar</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // --- MAGIA: Lógica de los botones ---
+    
+    // 1. Botón Cancelar
+    document.getElementById('btn-cancelar-edicion').addEventListener('click', () => {
+        document.body.removeChild(overlay);
+    });
+
+    // 2. Botón Guardar
+    document.getElementById('btn-guardar-edicion').addEventListener('click', () => {
+        const nuevoMontoRaw = document.getElementById('nuevo-monto-input').value;
+        const nuevoMonto = parseFloat(nuevoMontoRaw);
+
+        if (nuevoMonto && !isNaN(nuevoMonto) && nuevoMonto > 0) {
+            // Aplicamos los cambios a los datos
+            deuda.montoUSD = nuevoMonto;
+            deuda.montoBs = deuda.montoUSD * Conversor.tasaActual;
+            
+            Persistencia.guardar('dom_fiaos', fiaos);
+            this.deudas = fiaos; 
+            
+            if (typeof Interfaz !== 'undefined') Interfaz.renderFiaos();
+            notificar("Registro actualizado", "exito");
+            
+            // Cerramos modal
+            document.body.removeChild(overlay);
+        } else {
+            notificar("Monto inválido", "error");
+        }
+    });
+},
+
+    // --- NUEVA FUNCIÓN NECESARIA EN VENTAS.JS ---
+eliminarRegistroEspecifico(id) {
+    let fiaos = Persistencia.cargar('dom_fiaos') || [];
+    const deudaAEliminar = fiaos.find(d => d.id === Number(id));
+    
+    if (!deudaAEliminar) return notificar("Registro no encontrado", "error");
+
+    // --- CREAMOS EL MODAL DE CONFIRMACIÓN DINÁMICAMENTE ---
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    // Estilos para centrar y fondo borroso
+    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
+
+    overlay.innerHTML = `
+        <div class="card glass" style="max-width:350px; width:100%; padding:25px; border-radius:20px; text-align:center; color:white; border:1px solid #ff4d4d;">
+            <span style="font-size:2.5em;">⚠️</span>
+            <h3 style="color:#ff4d4d; margin-bottom:15px;">¿Eliminar registro?</h3>
+            <p style="opacity:0.8; font-size:0.9em; margin-bottom:5px;">${deudaAEliminar.producto}</p>
+            <p style="font-weight:bold; margin-bottom:20px;">Monto: $${Number(deudaAEliminar.montoUSD).toFixed(2)}</p>
+            
+            <p style="font-size:0.85em; opacity:0.7; margin-bottom:20px;">Esta acción no se puede deshacer y actualizará el saldo total del cliente.</p>
+            
+            <div style="display:flex; gap:10px;">
+                <button id="btn-cancelar-eliminar" class="btn-main" style="background:#444; flex:1">Cancelar</button>
+                <button id="btn-confirmar-eliminar" class="btn-main" style="background:#ff4d4d; flex:1">Eliminar</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // --- MAGIA: Lógica de los botones ---
+    
+    // 1. Botón Cancelar
+    document.getElementById('btn-cancelar-eliminar').addEventListener('click', () => {
+        document.body.removeChild(overlay);
+    });
+
+    // 2. Botón Eliminar
+    document.getElementById('btn-confirmar-eliminar').addEventListener('click', () => {
+        // --- AQUÍ VA TU LÓGICA ORIGINAL DE ELIMINACIÓN ---
+        
+        // 1. ELIMINAMOS EL REGISTRO
+        fiaos = fiaos.filter(d => d.id !== Number(id));
+        
+        // 2. GUARDAMOS EL ESTADO LIMPIO
+        Persistencia.guardar('dom_fiaos', fiaos);
+        this.deudas = fiaos; 
+        
+        // 3. ACTUALIZAMOS UI
+        if (typeof Interfaz !== 'undefined') Interfaz.renderFiaos();
+        
+        notificar("Registro eliminado y saldo actualizado", "exito");
+        
+        // Cerrar modal
+        document.body.removeChild(overlay);
+    });
+},
 
     getSugerencias() {
         const nombres = this.historial.map(v => v.producto);
@@ -259,18 +408,36 @@ finalizarJornada() {
         console.log("DOMINUS: Jornada limpiada.");
     },
 
-   abrirProcesoAbono(clienteId) {
-    const deuda = Ventas.deudas.find(d => d.id === Number(clienteId));
-    if (!deuda) return notificar("No se encontró la deuda", "error");
+ abrirProcesoAbono(nombreCliente) {
+    // 1. CARGAMOS DATOS FRESCOS DE LA PERSISTENCIA
+    // Esto asegura que si se hicieron abonos o ventas recientes,
+    // el saldo mostrado sea el correcto y no uno antiguo en memoria.
+    const todosLosFiaos = Persistencia.cargar('dom_fiaos') || [];
+    
+    // Sincronizamos la memoria para seguridad de otros módulos
+    Ventas.deudas = todosLosFiaos; 
+
+    // Buscamos todas las deudas del cliente para sumar el total
+    const deudasCliente = Ventas.deudas.filter(d => d.cliente === nombreCliente);
+    
+    if (deudasCliente.length === 0) return notificar("No se encontraron deudas para este cliente", "error");
+
+    // 2. Calculamos el total agrupado para mostrarlo en el modal
+    const totalUSD = deudasCliente.reduce((sum, d) => sum + parseFloat(d.montoUSD || 0), 0);
+    const totalBs = totalUSD * Conversor.tasaActual;
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
 
     overlay.innerHTML = `
-        <div class="card glass" style="max-width:380px; width:100%; border:1px solid var(--primary); padding:25px; border-radius:20px; text-align:center;">
+        <div class="card glass" style="max-width:380px; width:100%; border:1px solid var(--primary); padding:25px; border-radius:20px; text-align:center; color:white;">
             <h3 style="color:var(--primary); margin-bottom:5px;">🤝 Abonar Deuda</h3>
-            <p style="font-size:0.9em; opacity:0.8; margin-bottom:15px;">Cliente: <strong>${deuda.cliente}</strong></p>
+            <p style="font-size:0.9em; opacity:0.8; margin-bottom:5px;">Cliente: <strong>${nombreCliente}</strong></p>
+            
+            <p style="font-size:1.1em; color:var(--primary); margin-bottom:15px; font-weight:bold;">
+                Debe Total: $${totalUSD.toFixed(2)} (${totalBs.toLocaleString('es-VE')} Bs)
+            </p>
             
             <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
                 <input type="number" id="monto-abono" placeholder="¿Cuánto paga?" 
@@ -296,7 +463,7 @@ finalizarJornada() {
     `;
 
     document.body.appendChild(overlay);
-    document.getElementById('monto-abono').focus();
+    setTimeout(() => document.getElementById('monto-abono').focus(), 100);
 
     document.getElementById('btn-cerrar-abono').onclick = () => overlay.remove();
 
@@ -309,17 +476,19 @@ finalizarJornada() {
             return notificar("Ingrese un monto válido", "error");
         }
 
-        const exito = Ventas.abonarDeuda(clienteId, monto, mon, met);
+        // 3. LLAMAMOS A LA FUNCIÓN QUE PROCESA POR CLIENTE
+        const exito = Ventas.abonarDeudaPorCliente(nombreCliente, monto, mon, met);
 
         if (exito) {
             overlay.remove();
             notificar("Abono registrado con éxito", "fiao");
             if (typeof Interfaz !== 'undefined') {
                 Interfaz.actualizarDashboard();
-                if (Interfaz.renderCreditos) Interfaz.renderCreditos(); 
-                else if (Interfaz.mostrarSeccion) Interfaz.mostrarSeccion('creditos'); 
-                }
+                // Aseguramos que se actualice la vista agrupada
+                if (Interfaz.renderFiaos) Interfaz.renderFiaos();
             }
-         };
-    }
+        }
+    };
+}
+
 }

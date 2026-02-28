@@ -86,7 +86,7 @@ toggleAjustes: function() { //abre y cierra el panel de ajustes//
     }
 },
 
-   actualizarDashboard() {
+ actualizarDashboard() {
     const v = Persistencia.cargar('dom_ventas') || [];
     const g = Persistencia.cargar('dom_gastos') || [];
     const f = Persistencia.cargar('dom_fiaos') || [];
@@ -112,9 +112,15 @@ toggleAjustes: function() { //abre y cierra el panel de ajustes//
     if(document.getElementById('total-usd')) 
         document.getElementById('total-usd').innerText = `$ ${netoConvertido.toFixed(2)}`;
     
-    // FIAOS: Siguen sumándose igual que antes
-    if(document.getElementById('total-fiaos')) 
-        document.getElementById('total-fiaos').innerText = `${f.reduce((acc, i) => acc + (Number(i.montoBs) || 0), 0).toLocaleString('es-VE')} Bs`;
+    // FIAOS: RECALCULADO INTELIGENTEMENTE (Basado en USD * Tasa Actual)
+    if(document.getElementById('total-fiaos')) {
+        // 1. Sumamos la deuda total en USD
+        const totalFiaosUSD = f.reduce((acc, i) => acc + (Number(i.montoUSD) || 0), 0);
+        // 2. Convertimos a Bs con la tasa actual (t)
+        const totalFiaosBs = totalFiaosUSD * t;
+
+        document.getElementById('total-fiaos').innerText = `${totalFiaosBs.toLocaleString('es-VE')} Bs`;
+    }
     
     // GASTOS: Se muestran aquí, pero no afectan al neto de arriba
     if(document.getElementById('total-gastos')) 
@@ -128,47 +134,77 @@ toggleAjustes: function() { //abre y cierra el panel de ajustes//
         Controlador.renderizarGrafica();
 },
 
-    renderVentas() {
-        const datos = Persistencia.cargar('dom_ventas') || [];
-        const lista = document.getElementById('lista-ventas-historial'); //aqui se guardan los datos del historial de ventas
-        if(!lista) return;
+  renderVentas() {
+    const datos = Persistencia.cargar('dom_ventas') || [];
+    const lista = document.getElementById('lista-ventas-historial');
+    if(!lista) return;
 
-        const ventasInvertidas = datos.slice().reverse();
-        
-        if (ventasInvertidas.length <= 6) {
-            lista.innerHTML = ventasInvertidas.map(v => this.generarFilaVenta(v)).join('');
-        } else {
-            const recientes = ventasInvertidas.slice(0, 3);
-            const antiguas = ventasInvertidas.slice(3);
-            const grupos = {};
-            antiguas.forEach(v => {
-                const horaBloque = v.hora ? v.hora.split(':')[0] + ":00" : "Otras";
-                if (!grupos[horaBloque]) grupos[horaBloque] = [];
-                grupos[horaBloque].push(v);
-            });
+    // Invertimos para mostrar lo más nuevo primero
+    const ventasInvertidas = datos.slice().reverse();
+    
+    if (ventasInvertidas.length <= 6) {
+        lista.innerHTML = ventasInvertidas.map(v => this.generarFilaVenta(v)).join('');
+    } else {
+        const recientes = ventasInvertidas.slice(0, 3);
+        const antiguas = ventasInvertidas.slice(3);
+        const grupos = {};
 
-            const htmlAntiguas = Object.keys(grupos).map(hora => `
-                <div style="border-left: 2px solid var(--primary); margin: 10px 0; padding-left: 10px;">
-                    <div style="font-size: 11px; font-weight: bold; color: var(--primary); margin-bottom: 5px;">🕒 Bloque ${hora}</div>
-                    ${grupos[hora].map(v => this.generarFilaVenta(v)).join('')}
+        // --- TU LÓGICA DE AGRUPAMIENTO POR HORA ---
+        antiguas.forEach(v => {
+            const horaBloque = v.hora ? v.hora.split(':')[0] + ":00" : "Otras";
+            if (!grupos[horaBloque]) grupos[horaBloque] = [];
+            grupos[horaBloque].push(v);
+        });
+
+        const htmlAntiguas = Object.keys(grupos).map(hora => `
+            <div class="bloque-hora-container">
+                <div class="bloque-hora-titulo">🕒 Bloque ${hora}</div>
+                ${grupos[hora].map(v => this.generarFilaVenta(v)).join('')}
+            </div>
+        `).join('');
+
+        // --- ESTRUCTURA DE LA LISTA CON DETALLES ---
+        lista.innerHTML = `
+            ${recientes.map(v => this.generarFilaVenta(v)).join('')}
+            <details class="glass detalles-historial">
+                <summary class="summary-historial">
+                    ➕ Ver ${antiguas.length} anteriores (por horas)
+                </summary>
+                <div class="detalles-content">
+                    ${htmlAntiguas}
                 </div>
-            `).join('');
+            </details>
+        `;
+    }
+},
 
-            lista.innerHTML = `
-                ${recientes.map(v => this.generarFilaVenta(v)).join('')}
-                <details class="glass" style="margin-top: 10px; border: 1px solid var(--primary); border-radius: 8px;">
-                    <summary style="padding: 12px; cursor: pointer; text-align: center; font-weight: bold; color: var(--primary);">
-                        ➕ Ver ${antiguas.length} anteriores (por horas)
-                    </summary>
-                    <div style="max-height: 400px; overflow-y: auto; padding: 5px;">
-                        ${htmlAntiguas}
-                    </div>
-                </details>
-            `;
-        }
-    },
+ generarFilaVenta(v) {
+    let btnLiq = "";
+    if (v.esServicio && !v.pagado) {
+        btnLiq = `<button class="btn-liquidar" onclick="Controlador.liquidarServicioManual(${v.id})">💸 LIQUIDAR</button>`;
+    } else if (v.esServicio && v.pagado) {
+        btnLiq = `<span class="tag-pagado">✔ PAGADO</span>`;
+    }
 
-    alternarModoPunto() { //aqui se activa el modo punto de mi papa//
+    const cantidadStr = v.cantidadVenta > 1 ? `<span class="cantidad-badge">x${v.cantidadVenta}</span>` : "";
+    const montoUSD = v.montoUSD ? `<span class="monto-usd-venta">$ ${Number(v.montoUSD).toFixed(2)}</span>` : "";
+
+    // --- CAMBIO: Ahora usamos clases CSS ---
+    return `
+        <div class="item-venta glass">
+            <div class="venta-info">
+                <strong>${v.producto}</strong> ${cantidadStr} ${btnLiq}
+                <small class="venta-fecha">🕒 ${v.fecha} - ${v.hora || ''}</small>
+                <small class="venta-metodo">${v.metodo} ${v.cliente ? '• ' + v.cliente : ''}</small>
+            </div>
+            <div class="venta-montos">
+                <span class="monto-bs-venta">${Number(v.montoBs).toLocaleString('es-VE')} Bs</span>
+                ${montoUSD}
+            </div>
+        </div>`;
+},
+
+ alternarModoPunto() { //aqui se activa el modo punto de mi papa//
     const btnPunto = document.getElementById('btn-modo-punto');
     const wrapper = document.getElementById('wrapper-comision');
     const btnVender = document.querySelector('.btn-main'); //botón de registrar
@@ -189,31 +225,6 @@ toggleAjustes: function() { //abre y cierra el panel de ajustes//
         if(btnVender) btnVender.innerText = "Registrar Venta";
         document.getElementById('v-comision').value = 0;
     }
-},
-
-    generarFilaVenta(v) {
-    let btnLiq = "";
-    if (v.esServicio && !v.pagado) {
-        btnLiq = `<button onclick="Controlador.liquidarServicioManual(${v.id})" style="background:#ffd700; color:#000; border:none; padding:2px 6px; border-radius:4px; font-size:10px; cursor:pointer; margin-left:5px; font-weight:bold;">💸 LIQUIDAR</button>`;
-    } else if (v.esServicio && v.pagado) {
-        btnLiq = `<span style="color:#4caf50; font-size:10px; margin-left:5px; font-weight:bold;">✔ PAGADO</span>`;
-    }
-
-     const cantidadStr = v.cantidadVenta > 1 ? `<span style="color:var(--primary)">x${v.cantidadVenta}</span>` : "";
-    const montoUSD = v.montoUSD ? `<br><small style="opacity:0.6">$ ${Number(v.montoUSD).toFixed(2)}</small>` : "";
-
-    return `
-        <div class="item-lista glass" style="margin-bottom: 8px;">
-            <span>
-                <strong>${v.producto}</strong> ${cantidadStr} ${btnLiq}<br>
-                <small style="opacity:0.8">🕒 ${v.fecha} - ${v.hora || ''}</small><br>
-                <small style="color:var(--primary)">${v.metodo} ${v.cliente ? '• ' + v.cliente : ''}</small>
-            </span>
-            <div style="text-align: right;">
-                <span style="font-weight:bold; display:block;">${Number(v.montoBs).toLocaleString('es-VE')} Bs</span>
-                ${montoUSD}
-            </div>
-        </div>`;
 },
 
     renderGastos() {
@@ -256,66 +267,96 @@ toggleAjustes: function() { //abre y cierra el panel de ajustes//
                 <span style="color:#ff5252; font-weight:bold">-${Number(g.montoBs).toLocaleString('es-VE')} Bs</span>
             </div>`;
     },
+renderFiaos() {
+    // 1. Cargamos datos frescos de la persistencia
+    const datos = Persistencia.cargar('dom_fiaos') || [];
+    const lista = document.getElementById('lista-fiaos');
+    if(!lista) return;
 
-    renderFiaos() {
-        const datos = Persistencia.cargar('dom_fiaos') || [];
-        const lista = document.getElementById('lista-fiaos');
-        if(!lista) return;
-        if(datos.length === 0) {
-            lista.innerHTML = '<p style="text-align:center; opacity:0.5; padding:20px;">Sin créditos.</p>';
-            return;
+    if(datos.length === 0) {
+        lista.innerHTML = '<p class="sin-creditos">🎉 ¡Todos los clientes están al día! 🎉</p>';
+        return;
+    }
+
+    // 2. Lógica para agrupar por cliente
+    const agrupado = {};
+
+    datos.forEach(f => {
+        const cliente = f.cliente || "Cliente";
+        if (!agrupado[cliente]) {
+            agrupado[cliente] = {
+                cliente: cliente,
+                totalUSD: 0,
+                deudas: [] 
+            };
         }
-        const fiaosInvertidos = datos.slice().reverse();
-        if (fiaosInvertidos.length <= 6) {
-            lista.innerHTML = fiaosInvertidos.map(f => this.generarFilaFiao(f)).join('');
-        } else {
-            const recientes = fiaosInvertidos.slice(0, 3);
-            const antiguas = fiaosInvertidos.slice(3);
-            const grupos = {};
-            antiguas.forEach(f => {
-                const horaBloque = f.hora ? f.hora.split(':')[0] + ":00" : "Otras";
-                if (!grupos[horaBloque]) grupos[horaBloque] = [];
-                grupos[horaBloque].push(f);
-            });
-            const htmlAntiguos = Object.keys(grupos).map(hora => `
-                <div style="border-left: 2px solid #2196F3; margin: 10px 0; padding-left: 10px;">
-                    <div style="font-size: 11px; font-weight: bold; color: #2196F3; margin-bottom: 5px;">🕒 Bloque ${hora}</div>
-                    ${grupos[hora].map(f => this.generarFilaFiao(f)).join('')}
-                </div>
-            `).join('');
-            lista.innerHTML = `${recientes.map(f => this.generarFilaFiao(f)).join('')}
-                <details class="glass" style="margin-top: 10px; border: 1px solid #2196F3; border-radius: 8px;">
-                    <summary style="padding: 12px; cursor: pointer; text-align: center; font-weight: bold; color: #2196F3;">➕ Ver anteriores</summary>
-                    <div style="max-height: 400px; overflow-y: auto; padding: 5px;">${htmlAntiguos}</div>
-                </details>`;
-        }
-    },
+        
+        // Sumamos en dólares asegurando que sea un número
+        agrupado[cliente].totalUSD += parseFloat(f.montoUSD || 0);
+        
+        // Guardamos la deuda completa para los detalles
+        agrupado[cliente].deudas.push(f);
+    });
 
-   generarFilaFiao(f) {
-    const montoDisplay = Number(f.montoBs).toLocaleString('es-VE');
-    const montoUSD = f.montoUSD ? `($${Number(f.montoUSD).toFixed(2)})` : '';
+    // 3. Renderizar grupos
+    const listaAgrupada = Object.values(agrupado);
+    
+    lista.className = 'lista-fiaos-container';
+    
+    // IMPORTANTE: Asegúrate de que 'this' se refiere al objeto Interfaz
+    lista.innerHTML = listaAgrupada.map(c => this.generarFilaFiaoAgrupada(c)).join('');
+},
 
-    const mensaje = `Hola ${f.cliente}, te escribo de DOMINUS para recordarte el pago pendiente de ${montoDisplay} Bs por: ${f.producto} (x${f.cantidadVenta || 1}). ¡Feliz día!`;
+// --- 3. NUEVA FUNCIÓN PARA FILAS AGRUPADAS ---
+generarFilaFiaoAgrupada(c) {
+    const tasaActual = Conversor.tasaActual;
+    const totalBs = c.totalUSD * tasaActual;
+    const montoBsDisplay = Number(totalBs).toLocaleString('es-VE');
+    const montoUSDDisplay = Number(c.totalUSD).toFixed(2);
+
+    const mensaje = `Hola ${c.cliente}, te escribo de DOMINUS BUSINESS. Tienes una deuda total de $${montoUSDDisplay} (${montoBsDisplay} Bs). ¡Esperamos tu pago!`;
     const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
 
     return `
-        <div class="item-lista glass border-fiao" style="margin-bottom: 8px;">
-            <span>
-                <strong>👤 ${f.cliente || "Cliente"}</strong><br>
-                <small>${f.producto} (x${f.cantidadVenta || 1})</small>
-            </span>
-            <div class="acciones-fiao text-right">
-                <span class="monto-deuda" style="display:block;">${montoDisplay} Bs</span>
-                <small style="color: #aaa; font-size: 0.7rem;">${montoUSD}</small>
-                
-                <div style="display:flex; gap:5px; margin-top:5px; justify-content: flex-end;">
-                    <a href="${urlWhatsapp}" target="_blank" class="btn-mini" title="Cobrar por WhatsApp" style="background:#25D366; border-radius:50%; padding:5px; display: flex; align-items: center; justify-content: center; text-decoration: none;">📲</a>
-                    <button class="btn-mini btn-success" onclick="Controlador.abonar('${f.id}')">Abonar</button>
-                    <button class="btn-mini btn-danger" onclick="Controlador.eliminarDeuda('${f.id}')">🗑️</button>
+        <div class="card-fiao glass border-fiao">
+            <div class="fiao-header">
+                <div class="fiao-info">
+                    <strong>👤 ${c.cliente}</strong>
+                    <span class="monto-usd">$${montoUSDDisplay}</span>
+                </div>
+                <div class="fiao-actions">
+                    <span class="monto-bs">${montoBsDisplay} Bs</span>
+                    <div class="action-buttons">
+                        <a href="${urlWhatsapp}" target="_blank" class="btn-whatsapp" title="Cobrar por WhatsApp">📲</a>
+                        <button class="btn-abonar" onclick="Ventas.abrirProcesoAbono('${c.cliente}')">Abonar</button>
+                    </div>
                 </div>
             </div>
+            
+            <details class="fiao-details">
+                <summary>Ver detalles de deuda</summary>
+                <div class="details-content">
+                    ${c.deudas.map(d => `
+                        <div class="detail-item">
+                            <div class="detail-text">
+                                <span class="detail-product">${d.producto}</span>
+                                <small class="detail-date">🕒 ${d.fecha || 'Sin fecha'}</small>
+                            </div>
+                            <div class="detail-price-actions">
+                                <span class="detail-price">$${Number(d.montoUSD).toFixed(2)}</span>
+                                <div class="detail-btns">
+                                    <button class="btn-edit-small" onclick="Ventas.editarDeudaEspecifica(${d.id})" title="Editar monto">✏️</button>
+                                    
+                                    <button class="btn-delete-small" onclick="Ventas.eliminarRegistroEspecifico(${d.id})" title="Eliminar registro">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                    <button class="btn-eliminar-todo" onclick="Controlador.eliminarDeuda('${c.cliente}')">⚠️ Borrar historial del cliente</button>
+                </div>
+            </details>
         </div>`;
-   },
+},
 
  renderInventario() {
     if (typeof Inventario === 'undefined' || !Inventario.productos) return;
@@ -868,19 +909,30 @@ mostrarStockDisponible: function(talla) { //informa al usuario cuanto queda de e
     }
 },
     
-  abonar(id) {
-    const deuda = Ventas.deudas.find(d => d.id === Number(id));
-    if (!deuda) return notificar("No se encontró la deuda", "error");
+ // Aceptamos el nombre del cliente en lugar del ID
+abonar(nombreCliente) {
+    // 1. Buscamos al cliente en lugar de una deuda específica
+    const deudasCliente = Ventas.deudas.filter(d => d.cliente === nombreCliente);
+    
+    if (deudasCliente.length === 0) return notificar("No se encontraron deudas para este cliente", "error");
+
+    // 2. Calculamos el total en USD agrupado para mostrarlo en el modal
+    const totalUSD = deudasCliente.reduce((sum, d) => sum + parseFloat(d.montoUSD || 0), 0);
+    const totalBs = totalUSD * Conversor.tasaActual;
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
+    // Estilos igual que antes...
     overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
 
     overlay.innerHTML = `
         <div class="card glass" style="max-width:380px; width:100%; border:1px solid var(--primary); padding:25px; border-radius:20px; text-align:center; color:white;">
             <span style="font-size:2.5em;">🤝</span>
             <h3 style="color:var(--primary); margin:10px 0;">Registrar Abono</h3>
-            <p style="font-size:0.9em; opacity:0.8; margin-bottom:15px;">Cliente: <strong>${deuda.cliente}</strong></p>
+            <p style="font-size:0.9em; opacity:0.8; margin-bottom:5px;">Cliente: <strong>${nombreCliente}</strong></p>
+            <p style="font-size:1.1em; color:var(--primary); margin-bottom:15px; font-weight:bold;">
+                Debe: $${totalUSD.toFixed(2)} (${totalBs.toLocaleString('es-VE')} Bs)
+            </p>
             
             <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
                 <input type="number" id="monto-abono" placeholder="¿Cuánto paga?" 
@@ -907,41 +959,56 @@ mostrarStockDisponible: function(talla) { //informa al usuario cuanto queda de e
     `;
 
     document.body.appendChild(overlay);
+
+    // --- MAGIA: Lógica de los botones ---
     
-    setTimeout(() => document.getElementById('monto-abono').focus(), 100);
+    // 1. Botón Cerrar
+    document.getElementById('btn-cerrar-abono').addEventListener('click', () => {
+        document.body.removeChild(overlay);
+    });
 
-    document.getElementById('btn-cerrar-abono').onclick = () => overlay.remove();
+    // 2. Botón Confirmar
+    document.getElementById('btn-guardar-abono').addEventListener('click', () => {
+        const montoRaw = document.getElementById('monto-abono').value;
+        const monto = parseFloat(montoRaw);
+        const moneda = document.getElementById('moneda-abono').value;
+        const metodo = document.getElementById('metodo-abono').value;
 
-    document.getElementById('btn-guardar-abono').onclick = () => {
-        const montoVal = document.getElementById('monto-abono').value;
-        const mon = document.getElementById('moneda-abono').value;
-        const met = document.getElementById('metodo-abono').value;
+        if (!monto || monto <= 0) return notificar("Ingrese un monto válido", "error");
 
-        if (!montoVal || isNaN(montoVal) || parseFloat(montoVal) <= 0) {
-            return notificar("Ingrese un monto válido", "error");
+        // Llama a tu función lógica existente
+        const resultado = Ventas.abonarDeudaPorCliente(nombreCliente, monto, moneda, metodo);
+
+        if (resultado) {
+            // Refrescar vista
+            Interfaz.renderFiaos();
+            // Cerrar modal
+            document.body.removeChild(overlay);
+            notificar(`Abono de ${monto} ${moneda} registrado`, "exito");
         }
-
-        if (Ventas.abonarDeuda(id, parseFloat(montoVal), mon, met)) {
-            overlay.remove();
-            notificar("Abono registrado con éxito", "fiao");
-            
-            if (typeof Interfaz !== 'undefined') {
-                Interfaz.show('fiaos-list');
-                Interfaz.actualizarDashboard();
-            }
-        }
-    };
-},
-
-eliminarDeuda(id) {
-    Interfaz.confirmarAccion("¿Borrar Deuda?", "Esta acción no se puede deshacer.", () => {
-        Ventas.eliminarDeuda(id);
-        Interfaz.show('fiaos-list');
-        notificar("Deuda eliminada", "error");
     });
 },
 
-eliminarInv(id) {
+// --- 2. MODIFICADO PARA ELIMINAR TODO EL TOTAL DEL CLIENTE ---
+eliminarDeuda(nombreCliente) {
+    Interfaz.confirmarAccion(`¿Borrar Deuda de ${nombreCliente}?`, "Esta acción borrará todo el historial de crédito de este cliente.", () => {
+        let fiaos = Persistencia.cargar('dom_fiaos') || [];
+        
+        // Filtramos para eliminar todas las entradas del cliente
+        fiaos = fiaos.filter(f => f.cliente !== nombreCliente);
+        
+        Persistencia.guardar('dom_fiaos', fiaos);
+        
+        // Sincronizamos la memoria de Ventas
+        Ventas.deudas = fiaos; 
+        
+        // Refrescamos la vista
+        Interfaz.renderFiaos();
+        notificar(`Historial de ${nombreCliente} borrado`, "error");
+    });
+},
+
+    eliminarInv(id) {
     Interfaz.confirmarAccion("¿Borrar Producto?", "Se eliminará permanentemente del stock.", () => {
         Inventario.eliminar(id);
         Interfaz.renderInventario();
@@ -949,20 +1016,6 @@ eliminarInv(id) {
     });
 },
 
-    editarDeuda(id) {
-        const montoNuevo = prompt("Ingrese el nuevo monto total de la deuda (en Bs):");
-        if(montoNuevo !== null && montoNuevo !== "" && !isNaN(montoNuevo)) {
-            let fiaos = Persistencia.cargar('dom_fiaos') || [];
-            const index = fiaos.findIndex(f => f.id === Number(id));
-            if(index !== -1) {
-                fiaos[index].montoBs = parseFloat(montoNuevo);
-                Persistencia.guardar('dom_fiaos', fiaos);
-                Ventas.init(); 
-                Interfaz.renderFiaos();
-                alert("Deuda actualizada correctamente.");
-            }
-        }
-    },
 
     toggleInv(activo) { //activa y descativa el inventario//
         Inventario.activo = activo; 

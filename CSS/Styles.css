@@ -20,6 +20,7 @@ html, body {
     overflow-x: hidden; 
     width: 100%;
     position: relative;
+    box-sizing: border-box; /* 🛡️ Seguridad: Incluye bordes y padding en el ancho */
 }
 
 body {
@@ -27,6 +28,7 @@ body {
     color: var(--text);
     font-family: 'Inter', -apple-system, sans-serif;
     margin: 0; 
+    padding: 0; /* 🛡️ Arreglo: Limpiamos padding inicial para evitar desplazamientos */
     padding-bottom: 90px;
     transition: background-color 0.3s ease;
     -webkit-tap-highlight-color: transparent;
@@ -381,16 +383,20 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 
 .splash {
     position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
+    top: 0; 
+    left: 0; 
+    width: 100vw; /* 🛡️ Cambio: vw asegura el ancho total del viewport */
+    height: 100vh; /* 🛡️ Cambio: vh asegura el alto total del viewport */
     background: #0f0f0f;
     display: flex; 
-    flex-direction: column; /* <-- ESTO ORDENA TODO HACIA ABAJO */
+    flex-direction: column;
     justify-content: center; 
     align-items: center;
     z-index: 9999;
     transition: opacity 0.5s ease;
-    text-align: center; /* Centra el texto de las frases */
+    text-align: center;
     padding: 20px;
+    box-sizing: border-box; /* 🛡️ Seguridad: Evita que el padding sume ancho */
 }
 
 .splash-fade-out {
@@ -423,6 +429,7 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     position: fixed;
     top: 25px; 
     left: 50%;
+    /* 🛡️ Cambio: translateX(-50%) centra perfectamente ignorando el ancho del toast */
     transform: translateX(-50%) translateY(-100px); 
     background: var(--primary); 
     color: #000 !important; 
@@ -437,9 +444,11 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     gap: 10px;
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
     white-space: nowrap;
+    max-width: 90%; /* 🛡️ Seguridad: Evita que en pantallas chicas se salga */
 }
 
 .toast-exito.show {
+    /* 🛡️ Cambio: Mantenemos el translateX para que siga centrado */
     transform: translateX(-50%) translateY(0);
 }
 
@@ -522,27 +531,39 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     margin: 20px 0;
 }
 
-.toast-gasto { background: #ff5252 !important; color: white !important; }
-.toast-stock { background: #2196f3 !important; color: white !important; }
-.toast-fiao { background: #ff9800 !important; color: white !important; }
-.toast-error { background: #b71c1c !important; color: white !important; }
-.modal-eleccion {
+/* --- CORRECCIÓN DE MODALES --- */
+.modal-overlay, .modal-eleccion {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.85); 
-    backdrop-filter: blur(10px);
-    display: none; 
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    display: flex; /* Cambiado: no usar 'none' por defecto si JS lo controla */
     justify-content: center;
-    align-items: center; 
-    z-index: 99999; 
+    align-items: center;
+    z-index: 100000;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box; /* IMPORTANTE */
+}
+
+/* Ocultar por defecto si no es .active */
+.modal-eleccion {                
+    display: none;                
 }
 
 .modal-eleccion.active {
-    display: flex;
+    display: flex;                
 }
+
+/* --- TOASTS --- */
+.toast-gasto { background: #ff5252 !important; color: white !important; }
+.toast-stock { background: #2196f3 !important; color: white !important; }
+.toast-fiao { background: #ff9800 !important; color: white !important; }
+.toast-error { background: #b71c1c !important; color: white !important; }
 
 .eleccion-content {
     background: #1a1a1a;
@@ -593,3 +614,272 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     from { opacity: 0; bottom: 50px; }
     to { opacity: 1; bottom: 80px; }
 }
+
+/* --- ESTILOS PARA LA TARJETA DE FIAO --- */
+.card-fiao {
+    margin-bottom: 12px;
+    padding: 18px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.05); /* Efecto Glass */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    transition: transform 0.2s;
+}
+
+.card-fiao:hover {
+    transform: translateY(-2px);
+}
+
+.fiao-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.fiao-info strong {
+    font-size: 1.1em;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.monto-usd {
+    color: var(--primary);
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.fiao-actions {
+    text-align: right;
+}
+
+.monto-bs {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* Botones Mini */
+.btn-whatsapp {
+    background: #25D366;
+    border-radius: 50%;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    width: 35px;
+    height: 35px;
+}
+
+.btn-abonar {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    background: var(--primary);
+    color: white;
+    cursor: pointer;
+}
+
+/* --- ESTILOS PARA LOS DETALLES DESPLEGABLES --- */
+.fiao-details {
+    margin-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 10px;
+    font-size: 0.9em;
+    color: #ccc;
+}
+
+.fiao-details summary {
+    cursor: pointer;
+    outline: none;
+    list-style: none; /* Quita la flechita por defecto */
+}
+
+.details-content {
+    margin-top: 10px;
+    max-height: 150px;
+    overflow-y: auto; /* Scroll si hay muchas deudas */
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.detail-product small {
+    opacity: 0.7;
+    margin-left: 5px;
+}
+
+/* --- ESTILOS PARA EL HISTORIAL DE VENTAS --- */
+.bloque-hora-container {
+    border-left: 2px solid var(--primary);
+    margin: 10px 0;
+    padding-left: 10px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 4px;
+}
+
+.bloque-hora-titulo {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 5px;
+    padding-top: 5px;
+}
+
+.detalles-historial {
+    margin-top: 10px;
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+}
+
+.summary-historial {
+    padding: 12px;
+    cursor: pointer;
+    text-align: center;
+    font-weight: bold;
+    color: var(--primary);
+    list-style: none; /* Oculta la flechita */
+}
+
+.detalles-content {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+/* --- ESTILOS PARA LA FILA DE VENTA --- */
+.item-venta {
+    margin-bottom: 8px;
+    padding: 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: white;
+}
+
+.venta-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.venta-info strong {
+    font-size: 0.95rem;
+}
+
+.cantidad-badge {
+    color: var(--primary);
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+.btn-liquidar {
+    background: #ffd700;
+    color: #000;
+    border: none;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 10px;
+    cursor: pointer;
+    margin-left: 5px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.tag-pagado {
+    color: #4caf50;
+    font-size: 10px;
+    margin-left: 5px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.venta-fecha {
+    opacity: 0.8;
+    font-size: 0.8rem;
+    margin-top: 4px;
+}
+
+.venta-metodo {
+    color: var(--primary);
+    font-size: 0.8rem;
+}
+
+.venta-montos {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.monto-bs-venta {
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.monto-usd-venta {
+    opacity: 0.6;
+    font-size: 0.85rem;
+}
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.detail-price-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.detail-btns {
+    display: flex;
+    gap: 5px;
+}
+
+.btn-edit-small, .btn-delete-small {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    border-radius: 4px;
+    padding: 2px 5px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: 0.3s;
+}
+
+.btn-edit-small:hover { background: #ffd700; }
+.btn-delete-small:hover { background: #ff4444; }
+
+.btn-eliminar-todo {
+    width: 100%;
+    margin-top: 15px;
+    background: transparent;
+    color: #ff4444;
+    border: 1px solid #ff4444;
+    padding: 5px;
+    border-radius: 8px;
+    font-size: 11px;
+    cursor: pointer;
+    opacity: 0.6;
+}
+
+.btn-eliminar-todo:hover { opacity: 1; background: rgba(255,68,68,0.1); }
+

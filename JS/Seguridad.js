@@ -10,6 +10,14 @@ const Seguridad = {
         alert("✅ PIN de seguridad actualizado con éxito.");
     },
 
+    // --- FUNCIÓN DE VIBRACIÓN (NUEVA) ---
+    vibrar(patron = [200, 100, 200]) {
+        // Verifica si el dispositivo soporta vibración
+        if ("vibrate" in navigator) {
+            navigator.vibrate(patron);
+        }
+    },
+
     // 2. LÓGICA DE INICIO (Con control de tiempo)
     async iniciarProteccion() {
         const ultimaVez = localStorage.getItem('dom_ultima_auth');
@@ -43,18 +51,28 @@ const Seguridad = {
     // 3. MÉTODOS DE AUTENTICACIÓN
     async autenticarBiometrico() {
         try {
-            console.log("🔐 Intentando autenticación biométrica...");
-            // Esto activa el sensor de huella/rostro nativo del sistema
-            const credential = await navigator.credentials.get({
+            console.log("🔐 Iniciando protocolo robusto de biometría...");
+
+            // Definimos las opciones de la credencial
+            const options = {
                 publicKey: {
-                    challenge: new Uint8Array([10, 20, 30, 40]), // Reto de seguridad
-                    authenticatorSelection: { userVerification: "required" },
-                    timeout: 60000
+                    // Genera un reto aleatorio que el navegador acepta mejor
+                    challenge: Uint8Array.from(window.crypto.getRandomValues(new Uint8Array(32))),
+                    rp: {
+                        name: "DOMINUS BUSINESS",
+                        id: window.location.hostname
+                    },
+                    userVerification: "preferred", // 'preferred' es más compatible que 'required' en algunos móviles
+                    timeout: 30000 // 30 segundos
                 }
-            });
-            return !!credential; 
+            };
+
+            const credential = await navigator.credentials.get(options);
+            return !!credential; // Devuelve true si la credencial es válida
+
         } catch (e) {
-            console.warn("⚠️ Biometría fallida o cancelada, recurriendo a PIN.");
+            console.error("⚠️ Error técnico: Fallo en lectura Biométrica:", e);
+            // Si hay error en la huella, volvemos a intentar con PIN
             return await this.solicitarPIN(); 
         }
     },
@@ -65,6 +83,9 @@ const Seguridad = {
         if (pinIngresado === this.getClave()) {
             return true;
         } else {
+            // --- AÑADIMOS LA VIBRACIÓN AQUÍ ---
+            this.vibrar([100, 50, 100, 50, 100]); // Vibración de error
+            alert("❌ PIN Incorrecto");
             return false;
         }
     },
@@ -80,9 +101,11 @@ const Seguridad = {
                 this.setClave(nuevoPin);
             } else {
                 alert("❌ PIN inválido. Debe tener al menos 4 números.");
+                this.vibrar(300); // Vibración corta de error
             }
         } else {
             alert("❌ El PIN ingresado no coincide con el actual.");
+            this.vibrar([100, 50, 100, 50, 100]); // Vibración de error
         }
     }
 };
