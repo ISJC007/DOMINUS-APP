@@ -32,57 +32,52 @@ const Conversor = {
     },
 
 
-    setTasa(valor) { //actualiza la tasa del dia, aqui tengo que poner la API del dolar//
-
+setTasa(valor) { // actualiza la tasa del dia
     const num = Number(parseFloat(valor).toFixed(2)); 
     
     if (isNaN(num) || num <= 0) return;
 
-        const ventasHoy = Persistencia.cargar('dom_ventas') || [];
+    const ventasHoy = Persistencia.cargar('dom_ventas') || [];
+    
+    // 💡 Lógica de negocio: Verificar si hay ventas y si la tasa cambia
+    if (ventasHoy.length > 0 && num !== this.tasaActual) {
         
-        if (ventasHoy.length > 0 && num !== this.tasaActual) {
-            
-            const overlay = document.createElement('div');
-            overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
-            
-            overlay.innerHTML = `
-                <div class="card glass" style="max-width:400px; text-align:center; border:1px solid var(--primary); padding:25px;">
-                    <h3 style="color:var(--primary); margin-bottom:15px;">⚠️ ¿Cambiar Tasa?</h3>
-                    <p style="font-size:0.9em; margin-bottom:20px; opacity:0.9;">
-                        Ya registraste ventas hoy. Cambiar la tasa ahora hará que los montos en el cierre no coincidan perfectamente.
-                    </p>
-                    <div style="display:flex; gap:10px;">
-                        <button id="btn-cancel-tasa" class="btn-main" style="background:#444; flex:1">Cancelar</button>
-                        <button id="btn-conf-tasa" class="btn-main" style="flex:1">Confirmar</button>
-                    </div>
-                </div>
-            `;
-
-            document.body.appendChild(overlay);
-
-            document.getElementById('btn-cancel-tasa').onclick = () => {
-                const inputTasa = document.getElementById('tasa-global');
-                if (inputTasa) inputTasa.value = this.tasaActual;
-                overlay.remove();
-            };
-
-            document.getElementById('btn-conf-tasa').onclick = () => {
+        // 🚀 INTEGRACIÓN: Usando confirmarAccion personalizado
+        Interfaz.confirmarAccion(
+            "⚠️ ¿Cambiar Tasa?",
+            `Ya registraste ${ventasHoy.length} ventas hoy. Cambiar la tasa ahora hará que los montos en el cierre no coincidan perfectamente.`,
+            () => {
+                // --- ACCIÓN SI CONFIRMAN ---
                 this.tasaActual = num;
                 Persistencia.guardar('dom_tasa', this.tasaActual);
                 if (typeof Interfaz !== 'undefined') Interfaz.actualizarDashboard();
-                overlay.remove();
                 if (typeof notificar === 'function') notificar("Tasa actualizada", "exito");
-            };
+            },
+            "Sí, cambiar",  // 👈 Texto confirmar
+            "Cancelar",     // 👈 Texto cancelar
+            true            // 👈 esPeligroso = true (Rojo, ya que afecta el cierre)
+        );
 
-        } else {
-            this.tasaActual = num;
-            Persistencia.guardar('dom_tasa', this.tasaActual);
-            if (typeof Interfaz !== 'undefined') {
-                Interfaz.actualizarDashboard();
-            }
-            console.log("Tasa actualizada con éxito: " + this.tasaActual);
+        // 💡 Lógica extra: Si cancelan, revertir el input visualmente
+        // Como confirmarAccion elimina el overlay automáticamente, necesitamos
+        // asegurar que el input de tasa muestre el valor correcto si cancelan.
+        document.getElementById('btn-abortar-' + Date.now()).onclick = () => {
+             const inputTasa = document.getElementById('tasa-global');
+             if (inputTasa) inputTasa.value = this.tasaActual;
+        };
+
+    } else {
+        // --- ACCIÓN DIRECTA (si no hay ventas o es la misma tasa) ---
+        this.tasaActual = num;
+        Persistencia.guardar('dom_tasa', this.tasaActual);
+        if (typeof Interfaz !== 'undefined') {
+            Interfaz.actualizarDashboard();
         }
+        console.log("Tasa actualizada con éxito: " + this.tasaActual);
+        if (typeof notificar === 'function') notificar("Tasa actualizada", "exito");
     }
+},
+
 };
 
 Conversor.init();

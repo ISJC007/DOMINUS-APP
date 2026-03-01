@@ -234,40 +234,48 @@
             <div id="lista-fiaos" class="listado-container"></div>
         </section>
 
-        <section id="view-inventario" class="app-section hidden" style="overflow-x: hidden;">
+       <section id="view-inventario" class="app-section hidden" style="overflow-x: hidden;">
     <div class="card glass">
         <h3>📦 Cargar Inventario</h3>
-        <label for="inv-nombre">Producto:</label>
-        <input type="text" id="inv-nombre" name="inv-nombre" placeholder="Producto" style="width: 100%; box-sizing: border-box;">
         
-        <div class="input-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; box-sizing: border-box;">
-            <div style="min-width: 0;"> 
-                <label for="inv-cant">Cantidad:</label>
-                <input type="number" id="inv-cant" name="inv-cant" placeholder="Cantidad" style="width: 100%; box-sizing: border-box;">
+        <fieldset style="border: 1px solid #444; border-radius: 10px; padding: 10px; margin-bottom: 15px;">
+            <legend style="color: var(--primary); padding: 0 5px;">Datos del Producto</legend>
+            
+            <label for="inv-nombre">Producto:</label>
+            <input type="text" id="inv-nombre" name="inv-nombre" placeholder="Camisa..." style="width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; width: 100%; box-sizing: border-box;">
+                <div style="flex: 1; min-width: 120px;"> 
+                    <label for="inv-cant">Cantidad Total:</label>
+                    <input type="number" id="inv-cant" name="inv-cant" placeholder="0" min="0" style="width: 100%; box-sizing: border-box;">
+                </div>
+                <div style="flex: 1; min-width: 120px;">
+                    <label for="inv-precio">Precio de Venta:</label>
+                    <input type="number" id="inv-precio" name="inv-precio" placeholder="$0.00" min="0" step="0.01" style="width: 100%; box-sizing: border-box;">
+                </div>
             </div>
-            <div style="min-width: 0;">
-                <label for="inv-precio">Precio:</label>
-                <input type="number" id="inv-precio" name="inv-precio" placeholder="Precio" style="width: 100%; box-sizing: border-box;">
-            </div>
+        </fieldset>
+
+        <label for="inv-unidad">Unidad de Medida / Tipo:</label>
+        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+            <select id="inv-unidad" name="inv-unidad" class="glass" style="flex: 2; padding: 10px; color: white; background: #222; box-sizing: border-box;">
+                <option value="Und">Unidad (Und)</option>
+                <option value="Paca">Paca (Paq)</option>
+                <option value="Kg">Kilogramos (Kg)</option>
+                <option value="Lts">Litros (Lts)</option>
+                <option value="Talla">Talla (Ropa/Calzado)</option>
+            </select>
+            
+            <button type="button" class="btn-mini" style="background:#444; flex: 1; padding: 10px; font-size: 0.9em;" onclick="AbrirGestorTallas()">
+                 ⚙️ Desglosar
+            </button>
         </div>
-
-        <button type="button" class="btn-mini" style="background:#444; margin: 10px 0; width:100%;" onclick="AbrirGestorTallas()">
-             Desglosar por Tipo
-        </button>
-
-        <label for="inv-unidad">Unidad de Medida:</label>
-        <select id="inv-unidad" name="inv-unidad" class="glass" style="width: 100%; margin-bottom: 10px; padding: 10px; color: white; background: #222; box-sizing: border-box;">
-            <option value="Und">Unidad (Und)</option>
-            <option value="Paca">Paca (Paq)</option>
-            <option value="Kg">Kilogramos (Kg)</option>
-            <option value="Lts">Litros (Lts)</option>
-            <option value="Talla">Talla (Ropa/Calzado)</option>
-        </select>
 
         <button type="button" class="btn-main" onclick="Controlador.guardarEnInventario()">Cargar Producto</button>
     </div>
 
-    <div style="margin: 25px 15px 0 15px;"> <h4 style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="margin: 25px 15px 0 15px;"> 
+        <h4 style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
             Stock Actual 
         </h4>
         
@@ -280,18 +288,16 @@
     </div>
 </section>
 
-    </main>
-
-    <div id="modal-gestor-tallas" class="modal-tallas">
-        <div class="modal-content-tallas glass">
-            <h3 style="color:var(--primary); margin-bottom:15px;"> Desglose Por Tipo</h3>
-            
-
-            <div id="contenedor-filas-tallas"></div>
-            
-            <button type="button" class="btn-main" style="margin-top:15px;" onclick="CerrarGestorTallas()">Confirmar Cantidades</button>
-        </div>
+<div id="modal-gestor-tallas" class="modal-tallas">
+    <div class="modal-content-tallas glass">
+        <h3 style="color:var(--primary); margin-bottom:15px;">⚙️ Desglose Por Tipo</h3>
+        
+        <div id="contenedor-filas-tallas"></div>
+        
+        <button type="button" class="btn-main" style="margin-top:15px;" onclick="CerrarGestorTallas()">Confirmar Cantidades</button>
     </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 

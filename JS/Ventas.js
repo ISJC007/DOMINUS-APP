@@ -71,12 +71,14 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
     const precioBase = Number(m);
     const cantidadVendida = Number(cant);
 
-    // 1. Lógica de Inventario (Stock)
-    const inv = Inventario.productos.find(i => i.nombre === p);
+    // 1. Lógica de Inventario (Stock) - 🚀 MEJORADO PARA PUNTO 7
+    const nombreLimpio = p.trim().toLowerCase();
+    const inv = Inventario.productos.find(i => i.nombre.toLowerCase() === nombreLimpio);
 
     if (inv && !esServicio) {
         let cantidadARestarGlobal = cantidadVendida;
 
+        // Lógica para Kg/Lts (siempre usa tallaEscogida para el desglose)
         if ((inv.unidad === 'Kg' || inv.unidad === 'Lts') && tallaEscogida) {
             const medida = tallaEscogida.toLowerCase();
             if (medida.includes('g') || medida.includes('ml')) {
@@ -86,17 +88,33 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
             }
         }
 
+        // ✅ CORRECCIÓN: Resta segura con decimales (máximo 3 decimales)
         inv.cantidad -= cantidadARestarGlobal;
+        if (inv.unidad === 'Kg' || inv.unidad === 'Lts') {
+            inv.cantidad = parseFloat(inv.cantidad.toFixed(3));
+        }
 
+        // Lógica de Tallas (Ropa/Calzado)
         if (inv.tallas && tallaEscogida && inv.tallas[tallaEscogida] !== undefined) {
             inv.tallas[tallaEscogida] -= cantidadVendida;
             if (inv.tallas[tallaEscogida] <= 0) {
                 delete inv.tallas[tallaEscogida];
             }
         }
+
         Inventario.sincronizar();
+
+        // ✅ CORRECCIÓN: ¡Alerta de Stock Bajo (Punto 7)!
+        const minimo = inv.stockMinimo || ((inv.unidad === 'Kg' || inv.unidad === 'Lts') ? 1.5 : 3);
+        
+        if (inv.cantidad <= minimo && inv.cantidad > 0) {
+            notificar(`⚠️ ALERTA: Queda poco stock de ${inv.nombre} (${inv.cantidad} ${inv.unidad})`);
+        } else if (inv.cantidad <= 0) {
+            notificar(`❌ ALERTA: ${inv.nombre} AGOTADO`);
+        }
+
     } else if (!esServicio) {
-        console.warn(`⚠️ DOMINUS: El producto "${p}" no existe.`);
+        console.warn(`⚠️ DOMINUS: El producto "${p}" no existe en el inventario.`);
     }
 
     // 2. Cálculos Financieros
@@ -125,7 +143,7 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
         montoPagadoReal: 0
     };
 
-    // 4. PERSISTENCIA SEGURA (Solución al problema de sumas incorrectas)
+    // 4. PERSISTENCIA SEGURA
     if (met === 'Fiao') {
         // Cargar, PUSH, Guardar
         let fiaos = Persistencia.cargar('dom_fiaos') || [];
@@ -142,27 +160,41 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
 },
 
 anularVenta: function(id) {
-    const v = Ventas.historial.find(item => item.id === Number(id));
+    const idNum = Number(id);
+    const v = Ventas.historial.find(item => item.id === idNum);
     
-    if (!v) return notificar("❌ Error: Venta no encontrada");
-
-    if (confirm(`¿Anular venta de "${v.producto}"? El stock regresará.`)) {
-        
-        if (!v.esServicio && typeof Inventario !== 'undefined') {
-            Inventario.devolver(v.producto, v.cantidadVenta, v.tallaVenta);
-        }
-
-        Ventas.historial = Ventas.historial.filter(item => item.id !== Number(id));
-        
-        Persistencia.guardar('dom_ventas', Ventas.historial);
-        Interfaz.actualizarDashboard();
-        
-        if (typeof Interfaz.actualizarSelectorTallas === 'function') {
-            Interfaz.actualizarSelectorTallas(document.getElementById('v-producto').value);
-        }
-
-        notificar("🗑️ Venta anulada y stock recuperado");
+    if (!v) {
+        notificar("❌ Error: Venta no encontrada", "error");
+        return;
     }
+
+    // 🚀 INTEGRACIÓN: Actualizado con parámetros personalizados y color rojo
+    Interfaz.confirmarAccion(
+        "¿Anular Venta?",
+        `¿Estás seguro de anular la venta de "${v.producto}"? El stock regresará automáticamente.`,
+        () => {
+            // --- ESTO SE EJECUTA SI EL USUARIO DICE "SÍ" ---
+            
+            if (!v.esServicio && typeof Inventario !== 'undefined') {
+                Inventario.devolver(v.producto, v.cantidadVenta, v.tallaEscogida);
+            }
+
+            Ventas.historial = Ventas.historial.filter(item => item.id !== idNum);
+            
+            Persistencia.guardar('dom_ventas', Ventas.historial);
+            
+            // Asegurar actualización total de la interfaz
+            if (typeof Interfaz !== 'undefined') {
+                Interfaz.actualizarDashboard();
+                if (Interfaz.renderHistorial) Interfaz.renderHistorial();
+            }
+            
+            notificar("🗑️ Venta anulada y stock recuperado");
+        },
+        "Sí, anular",  // 👈 Texto personalizado para confirmar
+        "Cancelar",    // 👈 Texto personalizado para cancelar
+        true           // 👈 ¡Es peligroso! (color rojo)
+    );
 },
 
     registrarGasto(desc, m, mon) {

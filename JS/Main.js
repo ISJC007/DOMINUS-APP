@@ -10,27 +10,165 @@ const rangosTallas = { //aqui se definen que numeros pertenecen a cada categoria
 
 const Interfaz = { //muestra todo en pantalla lo que se clickea//
 
-confirmarAccion(titulo, mensaje, onConfirmar) { //crea un modal de alerta mas bonito-se conecta al .glass y se inyecta en el body
+ modalRecargaRapida: function(nombreProducto) {
+    const p = Inventario.productos.find(prod => prod.nombre === nombreProducto);
+    if (!p) return notificar("Producto no encontrado", "error");
+
+    // 1. Pedir cantidad (Modal personalizado)
+    this.mostrarModalEntrada(
+        "Recarga Rápida",
+        `Producto: <b>${p.nombre}</b><br>Stock actual: ${p.cantidad} ${p.unidad}`,
+        "Cantidad a sumar",
+        (cantidadStr) => {
+            const cantidad = parseFloat(cantidadStr);
+            if (isNaN(cantidad) || cantidad <= 0) {
+                notificar("Cantidad inválida", "error");
+                return;
+            }
+
+            // 2. Si tiene tallas, usar modal de tallas en vez de prompt
+            if (p.tallas && Object.keys(p.tallas).length > 0) {
+                const tallasDisponibles = Object.keys(p.tallas);
+                
+                // 🚀 USANDO EL NUEVO MODAL DE TALLAS
+                this.mostrarModalTallas(
+                    "Seleccionar Talla",
+                    `¿A qué TALLA sumar ${cantidad}?`,
+                    tallasDisponibles,
+                    (tallaElegida) => {
+                        // 3. Confirmar la acción final
+                        this.ejecutarConfirmacionRecarga(p, cantidad, tallaElegida);
+                    }
+                );
+            } else {
+                // Si no tiene tallas, confirmar directamente
+                this.ejecutarConfirmacionRecarga(p, cantidad, null);
+            }
+        }
+    );
+},
+
+// 💡 FUNCIÓN AUXILIAR PARA NO REPETIR CÓDIGO
+ejecutarConfirmacionRecarga: function(p, cantidad, tallaElegida) {
+    Interfaz.confirmarAccion(
+        "Confirmar Recarga",
+        `¿Sumar ${cantidad} ${p.unidad} a "${p.nombre}"${tallaElegida ? ' en talla ' + tallaElegida : ''}?`,
+        () => {
+            Inventario.recargarRapido(p.nombre, cantidad, tallaElegida);
+        },
+        "Sí, recargar",
+        "Cancelar",
+        false
+    );
+},
+
+// AÑADE ESTO A TU OBJETO INTERFAZ
+mostrarModalTallas: function(titulo, mensaje, tallas, onSeleccionar) {
+    const uniqueId = Date.now();
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px;";
+
+    // Generar botones para cada talla
+    let botonesTallas = "";
+    tallas.forEach(talla => {
+        const btnTallaId = `btn-talla-${talla}-${uniqueId}`;
+        botonesTallas += `<button id="${btnTallaId}" class="btn-main" style="background:rgba(76, 175, 80, 0.3); border:1px solid #4caf50; flex:1; margin:5px;">${talla}</button>`;
+    });
+
+    overlay.innerHTML = `
+        <div class="card glass" style="max-width:320px; width:100%; text-align:center; border:1px solid #4caf50; padding:25px; border-radius:20px;">
+            <h3 style="color:#ffffff; margin-bottom:10px;">${titulo}</h3>
+            <p style="color:white; opacity:0.9; margin-bottom:20px; font-size:0.9em;">${mensaje}</p>
+            <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:20px;">
+                ${botonesTallas}
+            </div>
+            <button id="btn-cancelar-talla" class="btn-main" style="background:#444; width:100%">Cancelar</button>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Eventos para botones de tallas
+    tallas.forEach(talla => {
+        const btnTallaId = `btn-talla-${talla}-${uniqueId}`;
+        document.getElementById(btnTallaId).onclick = () => {
+            onSeleccionar(talla);
+            overlay.remove();
+        };
+    });
+
+    document.getElementById('btn-cancelar-talla').onclick = () => overlay.remove();
+},
+
+mostrarModalEntrada: function(titulo, mensaje, placeholder, onAceptar) {
+    const uniqueId = Date.now();
+    const inputId = `input-${uniqueId}`;
+    const btnAceptarId = `btn-aceptar-${uniqueId}`;
+    const btnCancelarId = `btn-cancelar-${uniqueId}`;
+
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px;";
 
     overlay.innerHTML = `
-        <div class="card glass" style="max-width:320px; width:100%; text-align:center; border:1px solid #ff4444; padding:25px; border-radius:20px;">
-            <span style="font-size:3em;">⚠️</span>
-            <h3 style="color:#ff4444; margin:10px 0;">${titulo}</h3>
+        <div class="card glass" style="max-width:320px; width:100%; text-align:center; border:1px solid #4caf50; padding:25px; border-radius:20px;">
+            <h3 style="color:#ffffff; margin-bottom:10px;">${titulo}</h3>
+            <p style="color:white; opacity:0.9; margin-bottom:15px; font-size:0.9em;">${mensaje}</p>
+            <input type="number" id="${inputId}" placeholder="${placeholder}" 
+                style="width:100%; padding:10px; border-radius:10px; border:1px solid #4caf50; background:rgba(0,0,0,0.3); color:white; margin-bottom:20px; text-align:center; font-size:1.2em;">
+            <div style="display:flex; gap:10px;">
+                <button id="${btnCancelarId}" class="btn-main" style="background:#444; flex:1">Cancelar</button>
+                <button id="${btnAceptarId}" class="btn-main" style="background:#4caf50; flex:1">Aceptar</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    
+    // Enfocar el input automáticamente
+    document.getElementById(inputId).focus();
+
+    document.getElementById(btnCancelarId).onclick = () => overlay.remove();
+    document.getElementById(btnAceptarId).onclick = () => {
+        const valor = document.getElementById(inputId).value;
+        onAceptar(valor);
+        overlay.remove();
+    };
+},
+
+// 🔥 FUNCIÓN MODIFICADA
+confirmarAccion(titulo, mensaje, onConfirmar, textoConfirmar = "Sí, proceder", textoCancelar = "No, cancelar", esPeligroso = false) {
+    // Generar ID único para este modal
+    const uniqueId = Date.now();
+    const btnAbortarId = `btn-abortar-${uniqueId}`;
+    const btnProcederId = `btn-proceder-${uniqueId}`;
+    
+    // 🔥 Definir colores y icono según la acción
+    const colorPrimario = esPeligroso ? "#ff4444" : "#4caf50";
+    const icono = esPeligroso ? "⚠️" : "❓";
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px;";
+
+    overlay.innerHTML = `
+        <div class="card glass" style="max-width:320px; width:100%; text-align:center; border:1px solid ${colorPrimario}; padding:25px; border-radius:20px;">
+            <span style="font-size:3em;">${icono}</span>
+            <h3 style="color:#ffffff; margin:10px 0;">${titulo}</h3>
             <p style="color:white; opacity:0.9; margin-bottom:20px;">${mensaje}</p>
             <div style="display:flex; gap:10px;">
-                <button id="btn-abortar" class="btn-main" style="background:#444; flex:1">No, cancelar</button>
-                <button id="btn-proceder" class="btn-main" style="background:#ff4444; flex:1">Sí, borrar</button>
+                <button id="${btnAbortarId}" class="btn-main" style="background:#444; flex:1">${textoCancelar}</button>
+                <button id="${btnProcederId}" class="btn-main" style="background:${colorPrimario}; flex:1">${textoConfirmar}</button>
             </div>
         </div>
     `;
 
     document.body.appendChild(overlay);
 
-    document.getElementById('btn-abortar').onclick = () => overlay.remove();
-    document.getElementById('btn-proceder').onclick = () => {
+    document.getElementById(btnAbortarId).onclick = () => overlay.remove();
+    document.getElementById(btnProcederId).onclick = () => {
         onConfirmar();
         overlay.remove();
     };
@@ -189,7 +327,14 @@ toggleAjustes: function() { //abre y cierra el panel de ajustes//
     const cantidadStr = v.cantidadVenta > 1 ? `<span class="cantidad-badge">x${v.cantidadVenta}</span>` : "";
     const montoUSD = v.montoUSD ? `<span class="monto-usd-venta">$ ${Number(v.montoUSD).toFixed(2)}</span>` : "";
 
-    // --- CAMBIO: Ahora usamos clases CSS ---
+    // 🚀 AÑADIR BOTÓN DE ANULACIÓN AQUÍ
+   const btnAnular = `<button class="btn-mini btn-danger" 
+        onclick="Ventas.anularVenta('${v.id}')" 
+        title="Anular venta y devolver stock"
+        style="width: 35px; height: 35px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+        🔄
+    </button>`;
+
     return `
         <div class="item-venta glass">
             <div class="venta-info">
@@ -197,9 +342,11 @@ toggleAjustes: function() { //abre y cierra el panel de ajustes//
                 <small class="venta-fecha">🕒 ${v.fecha} - ${v.hora || ''}</small>
                 <small class="venta-metodo">${v.metodo} ${v.cliente ? '• ' + v.cliente : ''}</small>
             </div>
-            <div class="venta-montos">
+            
+            <div class="venta-montos" style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
                 <span class="monto-bs-venta">${Number(v.montoBs).toLocaleString('es-VE')} Bs</span>
                 ${montoUSD}
+                ${btnAnular}
             </div>
         </div>`;
 },
@@ -360,12 +507,11 @@ generarFilaFiaoAgrupada(c) {
 
  renderInventario() {
     if (typeof Inventario === 'undefined' || !Inventario.productos) return;
-    const lista = document.getElementById('lista-inventario'); //aqui se guarda los datos de la lista de inventario
+    const lista = document.getElementById('lista-inventario');
     if (!lista) return;
 
     const generarHTMLItem = (p) => {
         const unidad = p.unidad || 'Und';
-        const precioUSD = (p.precio / Conversor.tasaActual).toFixed(2);
         
         let htmlTallas = "";
         if (p.tallas) {
@@ -374,7 +520,7 @@ generarFilaFiaoAgrupada(c) {
                     ${Object.entries(p.tallas)
                         .filter(([t, c]) => c > 0)
                         .map(([t, c]) => `
-                            <span style="font-size: 10px; background: rgba(76, 175, 80, 0.2); color: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(76, 175, 80, 0.3); font-family: monospace;">
+                            <span style="font-size: 10px; background: rgba(62, 187, 66, 0.2); color: #ffffff; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(76, 175, 80, 0.3); font-family: monospace;">
                                 T${t}:<b>${c}</b>
                             </span>
                         `).join('')}
@@ -389,16 +535,19 @@ generarFilaFiaoAgrupada(c) {
                     ${htmlTallas}
                 </span>
                 
-                <div class="acciones-fiao" style="text-align: right; display: flex; align-items: center; gap: 10px;">
+                <div class="acciones-fiao" style="text-align: right; display: flex; align-items: center; gap: 6px;">
+                    
+                    <button class="btn-mini btn-success" onclick="Interfaz.modalRecargaRapida('${p.nombre}')" style="padding: 8px; border-radius: 6px;" title="Recarga Rápida">➕</button>
+                    
+                    <button class="btn-mini btn-info" onclick="Controlador.prepararEdicionInventario('${p.nombre}')" style="padding: 8px; border-radius: 6px;" title="Editar Detalles">✏️</button>
+
                     <div style="display: flex; flex-direction: column; align-items: flex-end;">
                         <input type="number" value="${p.precio}" step="0.01" 
                             onchange="Controlador.editarPrecioRapido('${p.id}', this.value)" 
-                            style="width: 85px; background: rgba(0,0,0,0.5); color: #4caf50; border: 1px solid #4caf50; border-radius: 6px; text-align: right; font-weight: bold; padding: 4px;">
-                        <small style="font-size: 10px; color: #4caf50; margin-top: 2px; font-weight: bold;">
-                             ≈ $${precioUSD}
-                        </small>
+                            style="width: 70px; background: rgba(0,0,0,0.5); color: #4caf50; border: 1px solid #4caf50; border-radius: 6px; text-align: right; font-weight: bold; padding: 4px;">
                     </div>
-                    <button class="btn-mini btn-danger" onclick="Controlador.eliminarInv('${p.id}')" style="padding: 8px; border-radius: 6px;">🗑️</button>
+                    
+                    <button class="btn-mini btn-danger" onclick="Controlador.eliminarInv('${p.id}')" style="padding: 8px; border-radius: 6px;" title="Eliminar">🗑️</button>
                 </div>
             </div>`;
     };
@@ -828,51 +977,165 @@ ejecutarVenta() {
         }
     };
 },
-    
-    ejecutarGasto() {
-        const d = document.getElementById('g-desc').value;
-        const m = parseFloat(document.getElementById('g-monto').value);
-        const mon = document.getElementById('g-moneda').value;
-        if(!d || isNaN(m)) return alert("Faltan datos");
-        Ventas.registrarGasto(d, m, mon);
-        document.getElementById('g-desc').value = '';
-        document.getElementById('g-monto').value = '';
-Interfaz.actualizarDashboard();
-    },
 
-guardarEnInventario() { //guarda el producto en el almacen//
-    const n = document.getElementById('inv-nombre').value;
-    const c = document.getElementById('inv-cant').value;
-    const p = document.getElementById('inv-precio').value;
+prepararEdicionInventario: function(nombreProducto) {
+    const p = Inventario.productos.find(prod => prod.nombre === nombreProducto);
+    if (!p) return notificar("Producto no encontrado", "error");
+
+    // Llenar el formulario superior
+    document.getElementById('inv-nombre').value = p.nombre;
+    document.getElementById('inv-cant').value = p.cantidad;
+    document.getElementById('inv-precio').value = p.precio;
+    if(document.getElementById('inv-unidad')) document.getElementById('inv-unidad').value = p.unidad;
+
+    // Cargar tallas temporales para edición
+    if (p.tallas) {
+        tallasTemporales = {...p.tallas};
+        // 💡 Llama aquí a tu función que refresca visualmente las tallas si tienes una
+        // Interfaz.renderTallasTemporales(); 
+    }
+
+    // Cambiar el estilo del botón guardar para indicar modo edición
+    const btnGuardar = document.querySelector('button[onclick="Controlador.guardarEnInventario()"]');
+    if (btnGuardar) {
+        btnGuardar.innerText = "💾 Actualizar";
+        btnGuardar.style.background = "#2196F3"; // Color azul
+        // Cambiamos la función del botón temporalmente
+        btnGuardar.setAttribute("onclick", `Controlador.actualizarProducto('${p.nombre}')`);
+    }
     
+    notificar(`Editando: ${p.nombre}`);
+},
+
+actualizarProducto: function(nombreOriginal) {
+    const n = document.getElementById('inv-nombre').value;
+    const cStr = document.getElementById('inv-cant').value;
+    const pStr = document.getElementById('inv-precio').value;
     const unidadElemento = document.getElementById('inv-unidad');
     const u = unidadElemento ? unidadElemento.value : 'Und';
 
-    if(!n || !c) return alert("Falta nombre o cantidad");
+    if(!n || !cStr) return notificar("Falta nombre o cantidad", "error");
+
+    const c = parseFloat(cStr);
+    const p = parseFloat(pStr) || 0;
 
     const tieneTallas = Object.keys(tallasTemporales).length > 0;
     const tallasParaGuardar = tieneTallas ? {...tallasTemporales} : null;
 
     if (tieneTallas) {
         const sumaTallas = Object.values(tallasTemporales).reduce((a, b) => a + b, 0);
-        if (sumaTallas !== parseFloat(c)) {
-            return alert(`❌ Error: El stock total es ${c}, pero las tallas suman ${sumaTallas}. Deben ser iguales.`);
+        if (Math.abs(sumaTallas - c) > 0.01) {
+            return notificar(`❌ El total (${c}) no coincide con la suma de tallas (${sumaTallas}).`, "error");
         }
     }
 
-    Inventario.guardar(n, c, p || 0, u, tallasParaGuardar); 
+    // LLAMADA A LA LÓGICA DE INVENTARIO
+    Inventario.actualizar(nombreOriginal, n, c, p, u, tallasParaGuardar);
 
+    // --- IMPORTANTE: Restaurar el botón Guardar ---
+    this.limpiarFormularioInventario(); // 💡 Asegúrate de tener esta función para limpiar
+    
+    Interfaz.renderInventario();
+    notificar("✅ Producto actualizado");
+},
+
+limpiarFormularioInventario: function() {
+        document.getElementById('inv-nombre').value = '';
+        document.getElementById('inv-cant').value = '';
+        document.getElementById('inv-precio').value = '';
+        
+        const unidadElemento = document.getElementById('inv-unidad');
+        if(unidadElemento) unidadElemento.value = 'Und';
+        
+        tallasTemporales = {};
+        
+        // Restaurar botón guardar original si estaba en modo edición
+        const btnGuardar = document.querySelector('button[onclick^="Controlador.actualizarProducto"]');
+        if (btnGuardar) {
+            btnGuardar.innerText = "💾 Guardar";
+            btnGuardar.style.background = ""; // Color original
+            btnGuardar.setAttribute("onclick", "Controlador.guardarEnInventario()");
+        }
+        
+        // Si tienes una función para refrescar la UI de tallas, llámala aquí:
+        // if (typeof Interfaz !== 'undefined' && Interfaz.renderTallasTemporales) Interfaz.renderTallasTemporales();
+    },
+  ejecutarGasto() {
+    const d = document.getElementById('g-desc').value;
+    const m = parseFloat(document.getElementById('g-monto').value);
+    const mon = document.getElementById('g-moneda').value;
+    
+    if(!d || isNaN(m)) {
+        notificar("❌ Faltan datos o el monto es inválido", "error");
+        return;
+    }
+
+    // 🚀 INTEGRACIÓN: Actualizado con parámetros personalizados
+    Interfaz.confirmarAccion(
+        "Registrar Gasto",
+        `¿Confirmar gasto de ${m} ${mon} por: "${d}"?`,
+        () => {
+            // --- ESTO SE EJECUTA SI EL USUARIO DICE "SÍ" ---
+            Ventas.registrarGasto(d, m, mon);
+            
+            // Limpiar formulario
+            document.getElementById('g-desc').value = '';
+            document.getElementById('g-monto').value = '';
+            
+            // Actualizar vista
+            Interfaz.actualizarDashboard();
+            notificar("💸 Gasto registrado correctamente");
+        },
+        "Sí, registrar", // 👈 Texto personalizado para confirmar
+        "Cancelar",       // 👈 Texto personalizado para cancelar
+        false             // 👈 No es peligroso (color verde por defecto)
+    );
+},
+
+guardarEnInventario() { 
+    const n = document.getElementById('inv-nombre').value;
+    const cStr = document.getElementById('inv-cant').value;
+    const pStr = document.getElementById('inv-precio').value;
+    
+    const unidadElemento = document.getElementById('inv-unidad');
+    const u = unidadElemento ? unidadElemento.value : 'Und';
+
+    // ✅ CORRECCIÓN: Usar notificar en lugar de alert
+    if(!n || !cStr) {
+        notificar("❌ Falta nombre o cantidad", "error");
+        return;
+    }
+
+    // Convertimos a float para soportar Kg y Lts con decimales
+    const c = parseFloat(cStr);
+    const p = parseFloat(pStr) || 0;
+
+    const tieneTallas = Object.keys(tallasTemporales).length > 0;
+    const tallasParaGuardar = tieneTallas ? {...tallasTemporales} : null;
+
+    if (tieneTallas) {
+        const sumaTallas = Object.values(tallasTemporales).reduce((a, b) => a + b, 0);
+        // Usamos una pequeña tolerancia para evitar errores de decimales en JS
+        if (Math.abs(sumaTallas - c) > 0.01) {
+            // ✅ CORRECCIÓN: Usar notificar en lugar de alert
+            notificar(`❌ Error: El stock total es ${c}, pero las tallas suman ${sumaTallas}. Deben ser iguales.`, "error");
+            return;
+        }
+    }
+
+    Inventario.guardar(n, c, p, u, tallasParaGuardar); 
+
+    // Limpiar campos
     document.getElementById('inv-nombre').value = '';
     document.getElementById('inv-cant').value = '';
     document.getElementById('inv-precio').value = '';
-    
     if(unidadElemento) unidadElemento.value = 'Und';
-
     tallasTemporales = {};
 
     Interfaz.renderInventario();
     
-    notificar("📦 Producto cargado correctamente");
+    // ✅ OPCIONAL: Notificar éxito
+    notificar(`✅ Producto "${n}" guardado correctamente.`);
 },
 
 mostrarStockDisponible: function(talla) { //informa al usuario cuanto queda de esa talla antes de vender//
@@ -991,29 +1254,47 @@ abonar(nombreCliente) {
 
 // --- 2. MODIFICADO PARA ELIMINAR TODO EL TOTAL DEL CLIENTE ---
 eliminarDeuda(nombreCliente) {
-    Interfaz.confirmarAccion(`¿Borrar Deuda de ${nombreCliente}?`, "Esta acción borrará todo el historial de crédito de este cliente.", () => {
-        let fiaos = Persistencia.cargar('dom_fiaos') || [];
-        
-        // Filtramos para eliminar todas las entradas del cliente
-        fiaos = fiaos.filter(f => f.cliente !== nombreCliente);
-        
-        Persistencia.guardar('dom_fiaos', fiaos);
-        
-        // Sincronizamos la memoria de Ventas
-        Ventas.deudas = fiaos; 
-        
-        // Refrescamos la vista
-        Interfaz.renderFiaos();
-        notificar(`Historial de ${nombreCliente} borrado`, "error");
-    });
+    // 🚀 INTEGRACIÓN: Actualizado con parámetros personalizados y color rojo
+    Interfaz.confirmarAccion(
+        `¿Borrar Deuda de ${nombreCliente}?`,
+        "Esta acción borrará todo el historial de crédito de este cliente.",
+        () => {
+            // --- ESTO SE EJECUTA SI EL USUARIO DICE "SÍ" ---
+            let fiaos = Persistencia.cargar('dom_fiaos') || [];
+            
+            // Filtramos para eliminar todas las entradas del cliente
+            fiaos = fiaos.filter(f => f.cliente !== nombreCliente);
+            
+            Persistencia.guardar('dom_fiaos', fiaos);
+            
+            // Sincronizamos la memoria de Ventas
+            Ventas.deudas = fiaos; 
+            
+            // Refrescamos la vista
+            Interfaz.renderFiaos();
+            notificar(`Historial de ${nombreCliente} borrado`, "error");
+        },
+        "Sí, eliminar", // 👈 Texto personalizado para confirmar
+        "Cancelar",     // 👈 Texto personalizado para cancelar
+        true            // 👈 ¡Es peligroso! (color rojo)
+    );
 },
 
-    eliminarInv(id) {
-    Interfaz.confirmarAccion("¿Borrar Producto?", "Se eliminará permanentemente del stock.", () => {
-        Inventario.eliminar(id);
-        Interfaz.renderInventario();
-        notificar("Producto eliminado", "error");
-    });
+eliminarInv(id) {
+    // 🚀 INTEGRACIÓN: Actualizado con parámetros personalizados y color rojo
+    Interfaz.confirmarAccion(
+        "¿Borrar Producto?",
+        "Se eliminará permanentemente del stock.",
+        () => {
+            // --- ESTO SE EJECUTA SI EL USUARIO DICE "SÍ" ---
+            Inventario.eliminar(id);
+            Interfaz.renderInventario();
+            notificar("Producto eliminado", "error");
+        },
+        "Sí, eliminar", // 👈 Texto personalizado para confirmar
+        "Cancelar",     // 👈 Texto personalizado para cancelar
+        true            // 👈 ¡Es peligroso! (color rojo)
+    );
 },
 
 
