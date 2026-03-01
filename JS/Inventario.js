@@ -52,11 +52,12 @@ recargarRapido(nombre, cantidad, tallaElegida) {
     this.sincronizar(); // Guarda en localStorage
 },
     // 🚀 NUEVO: Esta función arregla tu base de datos vieja sin borrar nada
-    migrarEstructura() {
+   migrarEstructura() {
         let modificado = false;
         this.productos = this.productos.map(p => {
             if (!p.id) { p.id = Date.now() + Math.random(); modificado = true; }
             if (!p.unidad) { p.unidad = 'Und'; modificado = true; }
+            if (!p.codigo) { p.codigo = ""; modificado = true; } // 👈 NUEVO: Campo código
             if (!p.stockMinimo) { 
                 p.stockMinimo = (p.unidad === 'Kg' || p.unidad === 'Lts') ? 1.5 : 3; 
                 modificado = true; 
@@ -102,61 +103,63 @@ recargarRapido(nombre, cantidad, tallaElegida) {
 },
 
     // 🛠️ MEJORADO: Ahora suma decimales correctamente y actualiza sin romper
-  guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null) {
-    if (!nombre) return; 
-    
-    const nombreLimpio = nombre.trim();
-    // Buscar por nombre para ver si ya existe
-    const index = this.productos.findIndex(p => p.nombre.toLowerCase() === nombreLimpio.toLowerCase());
-    const precioFinal = (precio === "" || precio === null) ? 0 : parseFloat(precio);
-    const nuevaCant = parseFloat(cantidad) || 0;
-
-    if (index !== -1) {
-        // --- PRODUCTO EXISTENTE: Actualizar ---
+ guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null, codigo = "") { // 👈 NUEVO: Parámetro codigo
+        if (!nombre) return; 
         
-        // 1. SUMAR LA CANTIDAD (Evitando errores de decimales largos)
-        this.productos[index].cantidad += nuevaCant;
-        if (unidad === 'Kg' || unidad === 'Lts') {
-            this.productos[index].cantidad = parseFloat(this.productos[index].cantidad.toFixed(3));
-        }
+        const nombreLimpio = nombre.trim();
+        // Buscar por nombre para ver si ya existe
+        const index = this.productos.findIndex(p => p.nombre.toLowerCase() === nombreLimpio.toLowerCase());
+        const precioFinal = (precio === "" || precio === null) ? 0 : parseFloat(precio);
+        const nuevaCant = parseFloat(cantidad) || 0;
 
-        // 2. Solo actualiza el precio si le pusiste uno nuevo mayor a 0
-        if (precioFinal > 0) {
-            this.productos[index].precio = precioFinal;
-        }
-        this.productos[index].unidad = unidad;
-        
-        // 3. Sumar tallas si existen
-        if (tallas) {
-            if (!this.productos[index].tallas) this.productos[index].tallas = {};
-            Object.keys(tallas).forEach(t => {
-                const cantTallaRecarga = parseFloat(tallas[t]) || 0;
-                this.productos[index].tallas[t] = (this.productos[index].tallas[t] || 0) + cantTallaRecarga;
+        if (index !== -1) {
+            // --- PRODUCTO EXISTENTE: Actualizar ---
+            
+            // 1. SUMAR LA CANTIDAD (Evitando errores de decimales largos)
+            this.productos[index].cantidad += nuevaCant;
+            if (unidad === 'Kg' || unidad === 'Lts') {
+                this.productos[index].cantidad = parseFloat(this.productos[index].cantidad.toFixed(3));
+            }
+
+            // 2. Solo actualiza el precio si le pusiste uno nuevo mayor a 0
+            if (precioFinal > 0) {
+                this.productos[index].precio = precioFinal;
+            }
+            this.productos[index].unidad = unidad;
+            this.productos[index].codigo = codigo; // 👈 NUEVO: Actualizar código
+            
+            // 3. Sumar tallas si existen
+            if (tallas) {
+                if (!this.productos[index].tallas) this.productos[index].tallas = {};
+                Object.keys(tallas).forEach(t => {
+                    const cantTallaRecarga = parseFloat(tallas[t]) || 0;
+                    this.productos[index].tallas[t] = (this.productos[index].tallas[t] || 0) + cantTallaRecarga;
+                });
+            }
+            notificar(`Stock actualizado: +${nuevaCant} ${unidad}`, "stock");
+        } else {
+            // --- PRODUCTO NUEVO ---
+            
+            // Generar ID ÚNICO para asegurar integridad de datos
+            const nuevoId = Date.now() + Math.random();
+            
+            this.productos.push({
+                id: nuevoId,
+                nombre: nombreLimpio,
+                cantidad: nuevaCant,
+                precio: precioFinal,
+                unidad: unidad,
+                codigo: codigo, // 👈 NUEVO: Guardar código
+                // Definir stock mínimo automático según unidad
+                stockMinimo: (unidad === 'Kg' || unidad === 'Lts') ? 1.5 : 3,
+                tallas: tallas || {}
             });
+            notificar("📦 Nuevo producto registrado", "stock");
         }
-        notificar(`Stock actualizado: +${nuevaCant} ${unidad}`, "stock");
-    } else {
-        // --- PRODUCTO NUEVO ---
         
-        // Generar ID ÚNICO para asegurar integridad de datos
-        const nuevoId = Date.now() + Math.random();
-        
-        this.productos.push({
-            id: nuevoId,
-            nombre: nombreLimpio,
-            cantidad: nuevaCant,
-            precio: precioFinal,
-            unidad: unidad,
-            // Definir stock mínimo automático según unidad
-            stockMinimo: (unidad === 'Kg' || unidad === 'Lts') ? 1.5 : 3,
-            tallas: tallas || {}
-        });
-        notificar("📦 Nuevo producto registrado", "stock");
-    }
-    
-    // Guardar cambios en localStorage
-    this.sincronizar(); 
-},
+        // Guardar cambios en localStorage
+        this.sincronizar(); 
+    },
 
     eliminar(id) {
         this.productos = this.productos.filter(p => p.id !== Number(id));
@@ -178,6 +181,10 @@ recargarRapido(nombre, cantidad, tallaElegida) {
         // 💡 NOTA: Eliminamos la lógica de alertas de aquí 
         // porque se repiten mucho al guardar. 
         // Las alertas ahora están en registrarVenta().
+    },
+
+   buscarPorCodigo: function(codigo) {
+        return this.productos.find(prod => prod.codigo === codigo);
     },
 
     descontar(nombre, cant, tallaElegida = null) {

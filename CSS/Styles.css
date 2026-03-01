@@ -883,3 +883,13 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 
 .btn-eliminar-todo:hover { opacity: 1; background: rgba(255,68,68,0.1); }
 
+/* Añade esto a tu archivo CSS/Styles.css */
+#contenedor-camara video {
+    width: 100% !important;
+    height: auto !important;
+}
+#contenedor-camara canvas.drawingBuffer {
+    position: absolute;
+    top: 0;
+    left: 0;
+}

@@ -191,6 +191,7 @@ anularVenta: function(id) {
             
             notificar("🗑️ Venta anulada y stock recuperado");
         },
+        null, // 🚀 CORRECCIÓN: Acción al cancelar
         "Sí, anular",  // 👈 Texto personalizado para confirmar
         "Cancelar",    // 👈 Texto personalizado para cancelar
         true           // 👈 ¡Es peligroso! (color rojo)

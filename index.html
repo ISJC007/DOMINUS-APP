@@ -131,79 +131,83 @@
             </div>
         </section>
 
-        <section id="view-ventas" class="app-section hidden">
-            <div class="card glass">
-                <h3>Nueva Venta</h3>
+     <section id="view-ventas" class="app-section hidden">
+    <div class="card glass">
+        <button type="button" class="btn-main btn-success" 
+            style="width:100%; margin-bottom:15px; background:linear-gradient(45deg, #2ecc71, #27ae60); border:none; padding:12px; border-radius:8px; color:white; font-weight:bold; cursor:pointer;" 
+            onclick="Interfaz.iniciarEscannerCamara()">
+            📷 Escanear Producto
+        </button>
 
-                <button type="button" id="btn-modo-punto" class="glass" 
-                    onclick="Interfaz.alternarModoPunto()"
-                    style="width: 100%; padding: 12px; margin-bottom: 10px; border: 1px dashed var(--primary); color: var(--primary); font-weight: bold; cursor: pointer; border-radius: 8px;">
-                    🏦 ¿Es Servicio de Punto?
-                </button>
+        <h3>Nueva Venta</h3>
 
-                <div id="wrapper-comision" class="hidden">
-                    <label for="v-comision">Comisión %:</label>
-                    <input type="number" id="v-comision" name="v-comision" placeholder="Comisión %" style="margin-bottom: 5px;">
-                    <div class="comision-selector" style="display: flex; gap: 5px; margin-bottom: 10px;">
-                        <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=5">5%</button>
-                        <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=10">10%</button>
-                        <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=15">15%</button>
-                        <button type="button" class="btn-mini" style="background:#607d8b" onclick="document.getElementById('v-comision').value=0">0%</button>
-                    </div>
-                </div>
+        <button type="button" id="btn-modo-punto" class="glass" 
+            onclick="Interfaz.alternarModoPunto()"
+            style="width: 100%; padding: 12px; margin-bottom: 10px; border: 1px dashed var(--primary); color: var(--primary); font-weight: bold; cursor: pointer; border-radius: 8px;">
+            🏦 ¿Es Servicio de Punto?
+        </button>
 
-                <label for="v-producto">Producto:</label>
-                <input type="text" id="v-producto" name="v-producto" list="sugerencias-ventas" oninput="Interfaz.actualizarSelectorTallas(this.value)" placeholder="(Ej: Pollo)">
-                <datalist id="sugerencias-ventas"></datalist>
-
-                <label for="v-cantidad">Cantidad:</label>
-                <input type="number" id="v-cantidad" name="v-cantidad" placeholder="Cantidad" value="1" style="margin-bottom: 10px;">
-
-                <div id="contenedor-talla" class="hidden" style="margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <label for="v-talla" style="color: var(--primary); font-size: 0.9em;">Seleccione Talla/Peso:</label>
-                    </div>
-                    <select id="v-talla" name="v-talla" class="glass" 
-                            style="width: 100%; padding: 10px; border-radius: 8px; background: #222; color: white; border: 1px solid var(--primary);"
-                            onchange="Controlador.mostrarStockDisponible(this.value)"> 
-                        <option value="">Seleccione Talla...</option>
-                    </select>
-                </div>
-
-                <div class="input-group">
-                    <div style="flex:2">
-                        <label for="v-monto">Monto:</label>
-                        <input type="number" id="v-monto" name="v-monto" placeholder="Monto">
-                    </div>
-                    <div style="flex:1">
-                        <label for="v-moneda">Moneda:</label>
-                        <select id="v-moneda" name="v-moneda">
-                            <option value="USD">$ USD</option>
-                            <option value="BS">Bs</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <label for="v-metodo">Método de Pago:</label>
-                <select id="v-metodo" name="v-metodo" onchange="Interfaz.toggleClienteField(this.value)">
-                    <option value="Efectivo $">Efectivo $</option>
-                    <option value="Pago Móvil">Pago Móvil</option>
-                    <option value="Punto de Venta">Punto de Venta</option>
-                    <option value="Fiao">Fiao (Deuda)</option>
-                    <option value="Biopago">Biopago</option>
-                </select>
-                
-                <div id="wrapper-cliente" class="hidden">
-                    <label for="v-cliente">Cliente:</label>
-                    <input type="text" id="v-cliente" name="v-cliente" placeholder="Nombre del Cliente">
-                </div>
-
-                <button type="button" class="btn-main" onclick="Controlador.ejecutarVenta()">Registrar Venta</button>
+        <div id="wrapper-comision" class="hidden">
+            <label for="v-comision">Comisión %:</label>
+            <input type="number" id="v-comision" name="v-comision" placeholder="Comisión %" style="margin-bottom: 5px;">
+            <div class="comision-selector" style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=5">5%</button>
+                <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=10">10%</button>
+                <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=15">15%</button>
+                <button type="button" class="btn-mini" style="background:#607d8b" onclick="document.getElementById('v-comision').value=0">0%</button>
             </div>
+        </div>
 
-            <h4>Últimas Ventas</h4>
-            <div id="lista-ventas-historial" class="listado-container"></div>
-        </section>
+        <label for="v-producto">Producto:</label>
+        <input type="text" id="v-producto" name="v-producto" list="sugerencias-ventas" oninput="Interfaz.actualizarSelectorTallas(this.value)" placeholder="(Ej: Pollo)">
+        <datalist id="sugerencias-ventas"></datalist>
+
+        <label for="v-cantidad">Cantidad:</label>
+        <input type="number" id="v-cantidad" name="v-cantidad" placeholder="Cantidad" value="1" style="margin-bottom: 10px;">
+
+        <div id="contenedor-talla" class="hidden" style="margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <label for="v-talla" style="color: var(--primary); font-size: 0.9em;">Seleccione Talla/Peso:</label>
+            </div>
+            <select id="v-talla" name="v-talla" class="glass" 
+                    style="width: 100%; padding: 10px; border-radius: 8px; background: #222; color: white; border: 1px solid var(--primary);"
+                    onchange="Controlador.mostrarStockDisponible(this.value)"> 
+                <option value="">Seleccione Talla...</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <div style="flex:2">
+                <label for="v-monto">Monto:</label>
+                <input type="number" id="v-monto" name="v-monto" placeholder="Monto">
+            </div>
+            <div style="flex:1">
+                <label for="v-moneda">Moneda:</label>
+                <select id="v-moneda" name="v-moneda">
+                    <option value="USD">$ USD</option>
+                    <option value="BS">Bs</option>
+                </select>
+            </div>
+        </div>
+        
+        <label for="v-metodo">Método de Pago:</label>
+        <select id="v-metodo" name="v-metodo" onchange="Interfaz.toggleClienteField(this.value)">
+            <option value="Efectivo $">Efectivo $</option>
+            <option value="Pago Móvil">Pago Móvil</option>
+            <option value="Punto de Venta">Punto de Venta</option>
+            <option value="Fiao">Fiao (Deuda)</option>
+            <option value="Biopago">Biopago</option>
+        </select>
+        
+        <div id="wrapper-cliente" class="hidden">
+            <label for="v-cliente">Cliente:</label>
+            <input type="text" id="v-cliente" name="v-cliente" placeholder="Nombre del Cliente">
+        </div>
+
+        <button type="button" class="btn-main" onclick="Controlador.ejecutarVenta()">Registrar Venta</button>
+    </div> <h4>Últimas Ventas</h4>
+    <div id="lista-ventas-historial" class="listado-container"></div>
+</section>
 
         <section id="view-gastos" class="app-section hidden">
             <div class="card glass">
@@ -276,13 +280,19 @@
 
     <div style="margin: 25px 15px 0 15px;"> 
         <h4 style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-            Stock Actual 
-        </h4>
+    Stock Actual 
+    <button type="button" class="btn-mini" style="background:var(--primary); color:black; padding: 5px 10px;" 
+            onclick="Interfaz.mostrarSelectorEscaner()">
+        📷 Escanear
+    </button>
+</h4>
         
         <div class="search-box glass" style="margin-bottom: 15px; position: sticky; top: 0; z-index: 5; box-sizing: border-box;">
             <input type="text" id="busqueda-real-inv" placeholder="🔍 Buscar producto..." 
                    style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--primary); background: rgba(0,0,0,0.3); color: white; font-size: 1em; box-sizing: border-box;">
         </div>
+
+        <div id="contenedor-camara" style="display:none; width: 100%; height: 300px; margin-bottom: 15px; border-radius: 10px; overflow: hidden;"></div>
 
         <div id="lista-inventario" class="listado-container" style="width: 100%; overflow-x: hidden;"></div>
     </div>
@@ -300,6 +310,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.rawgit.com/serratus/quaggaJS/0420d5e/dist/quagga.min.js"></script>
 
 <script src="JS/frases.js"></script>
 <script src="JS/Offline.js"></script>

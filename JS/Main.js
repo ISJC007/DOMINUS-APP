@@ -10,7 +10,259 @@ const rangosTallas = { //aqui se definen que numeros pertenecen a cada categoria
 
 const Interfaz = { //muestra todo en pantalla lo que se clickea//
 
- modalRecargaRapida: function(nombreProducto) {
+   mostrarSelectorEscaner: function() {
+        this.confirmarAccion(
+            "Método de Escaneo",
+            "¿Qué método deseas usar para gestionar tu inventario?",
+            () => {                
+                // Acción al confirmar (OK): Láser
+                this.iniciarBusquedaEscannerLaser();
+            },
+            () => {                
+                // Acción al cancelar: Cámara
+                this.iniciarEscannerCamara();
+            },
+            "Láser", // Texto botón confirmar
+            "Cámara", // Texto botón cancelar
+            false // No es peligroso
+        );
+    },
+
+// Añade esto a tu objeto Interfaz
+iniciarBusquedaEscannerLaser: function() {
+        let inputScanner = document.getElementById('input-scanner-laser');
+        if (!inputScanner) {
+            inputScanner = document.createElement('input');
+            inputScanner.type = 'text';
+            inputScanner.id = 'input-scanner-laser';
+            inputScanner.style.position = 'absolute';
+            inputScanner.style.opacity = '0';
+            inputScanner.style.top = '-100px'; 
+            document.body.appendChild(inputScanner);
+        }
+        
+        inputScanner.focus();
+        notificar("📢 Láser activado, escanee el producto", "info");
+
+        inputScanner.onchange = (e) => {
+            const codigo = e.target.value;
+            if (codigo) {
+                this.procesarCodigoEscaneado(codigo);
+            }
+            e.target.value = '';
+            inputScanner.focus();
+        };
+    },
+
+// Dentro de tu archivo Main.js, actualiza esta función
+iniciarEscannerCamara: function() {
+    const contenedorCamara = document.getElementById('contenedor-camara');
+    const seccionVentas = document.getElementById('view-ventas');
+    // 💡 NUEVO: Seleccionamos el contenido principal para desenfocarlo
+    const contenidoPrincipal = document.querySelector('body > *:not(#contenedor-camara)');
+    
+    // 💡 NUEVO: Estilo para que la cámara flote sobre todo
+    contenedorCamara.style.cssText = `
+        display: block;                
+        position: fixed;               
+        top: 0;                        
+        left: 0;                       
+        width: 100vw;                  
+        height: 100vh;                 
+        z-index: 999999;               
+        background: black;             
+        overflow: hidden;
+    `;
+    
+    // 💡 NUEVO: Aplicar desenfoque al fondo
+    if (contenidoPrincipal) {
+        contenidoPrincipal.style.transition = 'filter 0.3s ease';
+        contenidoPrincipal.style.filter = 'blur(5px)';
+    }
+
+    // 💡 Crear botón de cerrar dinámicamente
+    const btnCerrar = document.createElement('button');
+    btnCerrar.innerHTML = '✕ Cerrar';
+    btnCerrar.style = "position:absolute; top:20px; right:20px; z-index:9999999; background:rgba(255,0,0,0.7); color:white; border:none; padding:15px; border-radius:50px; font-weight:bold; cursor:pointer;";
+    btnCerrar.onclick = () => {
+        Quagga.stop();
+        contenedorCamara.style.display = 'none';
+        btnCerrar.remove(); // Eliminar botón
+        // 💡 Restaurar fondo
+        if (contenidoPrincipal) contenidoPrincipal.style.filter = 'none';
+    };
+    contenedorCamara.appendChild(btnCerrar);
+    
+    notificar("📷 Iniciando cámara...", "info");
+
+    Quagga.init({
+        inputStream : {
+            name : "Live",
+            type : "LiveStream",
+            target: contenedorCamara,
+            constraints: { facingMode: "environment" }
+        },
+        decoder : { readers : ["ean_reader", "code_128_reader"] }
+    }, function(err) {
+        if (err) {
+            notificar("❌ Error al abrir la cámara", "error");
+            contenedorCamara.style.display = 'none';
+            btnCerrar.remove();
+            if (contenidoPrincipal) contenidoPrincipal.style.filter = 'none';
+            return;
+        }
+        Quagga.start();
+    });
+
+    Quagga.onDetected((result) => {
+        const codigo = result.codeResult.code;
+        Quagga.stop();
+        contenedorCamara.style.display = 'none';
+        btnCerrar.remove();
+        
+        // 💡 Restaurar fondo
+        if (contenidoPrincipal) contenidoPrincipal.style.filter = 'none';
+        
+        this.efectoFlash();
+        const audio = new Audio('AUDIO/scan.mp3'); 
+        audio.play().catch(e => console.log("Sonido no reproducido", e));
+        
+        // Esta función ya la integramos con tallas y confirmación de precio
+        this.procesarCodigoEscaneado(codigo);
+    });
+},
+
+// Dentro de tu archivo Main.js, actualiza esta función
+procesarCodigoEscaneado: function(codigo) {
+    // 💡 EFECTO SONIDO
+    const audio = new Audio('AUDIO/scan.mp3'); 
+    audio.play().catch(e => console.log("Sonido no reproducido", e));
+    
+    // 💡 EFECTO FLASH
+    this.efectoFlash();
+    
+    const producto = Inventario.buscarPorCodigo(codigo);
+    
+    if (producto) {
+        notificar(`✅ Escaneado: ${producto.nombre}`);
+        
+        // 🚀 LÓGICA DE VENTA CON TALLAS Y CONFIRMACIÓN
+        
+        // 1. Verificar si tiene tallas
+        if (producto.tallas && Object.keys(producto.tallas).length > 0) {
+            const tallasDisponibles = Object.keys(producto.tallas);
+            
+            // 2. Pedir talla primero
+            this.mostrarModalTallas(
+                "Seleccionar Talla",
+                `¿Qué talla vender de ${producto.nombre}?`,
+                tallasDisponibles,
+                (tallaElegida) => {
+                    // 3. Después de elegir talla, pedir precio
+                    this.pedirPrecioYRegistrarVenta(producto, tallaElegida);
+                }
+            );
+        } else {
+            // Si no tiene tallas, pedir precio directamente
+            this.pedirPrecioYRegistrarVenta(producto, null);
+        }
+        
+    } else {
+        // 🚀 💡 LÓGICA: Producto no encontrado -> Registrar Nuevo
+        notificar(`⚠️ Producto no encontrado: ${codigo}`, "error");
+        
+        // Preguntar si quiere registrarlo
+        this.confirmarAccion(
+            "Producto Nuevo",
+            `El código <b>${codigo}</b> no existe. ¿Deseas registrarlo ahora?`,
+            () => {
+                // Si dice sí, abrir el modal de crear producto nuevo
+                // Asegúrate que tu modalRecargaRapida acepte el código como parámetro
+                this.modalRecargaRapida("", codigo);
+            },
+            null, // No hacer nada al cancelar
+            "Sí, registrar",
+            "No",
+            false // No es peligroso
+        );
+    }
+},
+
+// 🚀 NUEVA FUNCIÓN AUXILIAR: Pide precio y registra
+pedirPrecioYRegistrarVenta: function(producto, tallaElegida) {
+    
+    // 💡 VALIDACIÓN DE STOCK
+    if (tallaElegida) {
+        // Si hay talla, verificar stock específico
+        if (!producto.tallas[tallaElegida] || producto.tallas[tallaElegida] <= 0) {
+            notificar(`❌ ALERTA: ${producto.nombre} talla ${tallaElegida} AGOTADO`, "error");
+            return; // ⛔ Detenemos la venta
+        }
+    } else {
+        // Si no hay tallas, verificar stock general
+        if (!producto.cantidad || producto.cantidad <= 0) {
+            notificar(`❌ ALERTA: ${producto.nombre} AGOTADO`, "error");
+            return; // ⛔ Detenemos la venta
+        }
+    }
+
+    // Buscamos el precio en memoria
+    const precioMemoria = Inventario.buscarPrecioMemoria(producto.nombre) || 0;
+    
+    // Usamos modal de entrada para mostrar el precio y permitir cambiarlo
+    this.mostrarModalEntrada(
+        "Confirmar Venta",
+        `Producto: <b>${producto.nombre}</b>${tallaElegida ? ' (' + tallaElegida + ')' : ''}<br>Precio sugerido: $${precioMemoria}`,
+        "Precio USD",
+        (nuevoPrecioStr) => {
+            const precioFinal = parseFloat(nuevoPrecioStr);
+            
+            if (isNaN(precioFinal) || precioFinal < 0) {
+                notificar("Precio inválido", "error");
+                return;
+            }
+            
+            // Registramos la venta con el precio confirmado/cambiado
+            Ventas.registrarVenta(
+                producto.nombre, 
+                precioFinal, 
+                'USD', 
+                'Efectivo', 
+                'Anónimo', 
+                0, // comisión
+                false, // esServicio
+                1, // cantidad
+                tallaElegida
+            );
+            
+            notificar(`💰 Venta registrada: ${producto.nombre} - $${precioFinal}`);
+            
+            // Actualizamos la pantalla de historial
+            if (typeof Interfaz !== 'undefined') Interfaz.renderVentas();
+        },
+        precioMemoria
+    );
+},
+    // 🚀 NUEVO: Efecto visual de flash
+    efectoFlash: function() {
+        const flash = document.createElement('div');
+        flash.style.position = 'fixed';
+        flash.style.top = '0';
+        flash.style.left = '0';
+        flash.style.width = '100%';
+        flash.style.height = '100%';
+        flash.style.backgroundColor = 'white';
+        flash.style.zIndex = '999999'; // Muy alto para estar sobre todo
+        flash.style.opacity = '0';
+        flash.style.transition = 'opacity 0.2s';
+        document.body.appendChild(flash);
+        
+        setTimeout(() => { flash.style.opacity = '0.5'; }, 10);
+        setTimeout(() => { flash.style.opacity = '0'; }, 100);
+        setTimeout(() => { document.body.removeChild(flash); }, 200);
+    },
+
+modalRecargaRapida: function(nombreProducto) {
     const p = Inventario.productos.find(prod => prod.nombre === nombreProducto);
     if (!p) return notificar("Producto no encontrado", "error");
 
@@ -46,6 +298,20 @@ const Interfaz = { //muestra todo en pantalla lo que se clickea//
             }
         }
     );
+
+    // 🚀 NUEVO: Foco automático en el campo de entrada del modal
+    // Necesitamos un pequeño retraso para asegurar que mostrarModalEntrada 
+    // ya dibujó el campo en la pantalla.
+    setTimeout(() => {
+        // ⚠️ DEBES ASEGURARTE QUE EL CAMPO DE TEXTO DENTRO DE 
+        // mostrarModalEntrada TENGA EL ID 'input-modal-entrada' 
+        // O MODIFICAR ESTE ID.
+        const inputModal = document.getElementById('input-modal-entrada');
+        if (inputModal) {
+            inputModal.focus();
+            inputModal.select(); // Selecciona el texto para borrarlo rápido
+        }
+    }, 300);
 },
 
 // 💡 FUNCIÓN AUXILIAR PARA NO REPETIR CÓDIGO
@@ -56,6 +322,7 @@ ejecutarConfirmacionRecarga: function(p, cantidad, tallaElegida) {
         () => {
             Inventario.recargarRapido(p.nombre, cantidad, tallaElegida);
         },
+        null, // 🚀 CORRECCIÓN: Acción al cancelar (null si no hace nada)
         "Sí, recargar",
         "Cancelar",
         false
@@ -139,40 +406,43 @@ mostrarModalEntrada: function(titulo, mensaje, placeholder, onAceptar) {
 },
 
 // 🔥 FUNCIÓN MODIFICADA
-confirmarAccion(titulo, mensaje, onConfirmar, textoConfirmar = "Sí, proceder", textoCancelar = "No, cancelar", esPeligroso = false) {
-    // Generar ID único para este modal
-    const uniqueId = Date.now();
-    const btnAbortarId = `btn-abortar-${uniqueId}`;
-    const btnProcederId = `btn-proceder-${uniqueId}`;
-    
-    // 🔥 Definir colores y icono según la acción
-    const colorPrimario = esPeligroso ? "#ff4444" : "#4caf50";
-    const icono = esPeligroso ? "⚠️" : "❓";
+confirmarAccion(titulo, mensaje, onConfirmar, onCancelar = null, textoConfirmar = "Sí, proceder", textoCancelar = "No, cancelar", esPeligroso = false) {
+        const uniqueId = Date.now();
+        const btnAbortarId = `btn-abortar-${uniqueId}`;
+        const btnProcederId = `btn-proceder-${uniqueId}`;
+        
+        const colorPrimario = esPeligroso ? "#ff4444" : "#4caf50";
+        const icono = esPeligroso ? "⚠️" : "❓";
 
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px;";
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px;";
 
-    overlay.innerHTML = `
-        <div class="card glass" style="max-width:320px; width:100%; text-align:center; border:1px solid ${colorPrimario}; padding:25px; border-radius:20px;">
-            <span style="font-size:3em;">${icono}</span>
-            <h3 style="color:#ffffff; margin:10px 0;">${titulo}</h3>
-            <p style="color:white; opacity:0.9; margin-bottom:20px;">${mensaje}</p>
-            <div style="display:flex; gap:10px;">
-                <button id="${btnAbortarId}" class="btn-main" style="background:#444; flex:1">${textoCancelar}</button>
-                <button id="${btnProcederId}" class="btn-main" style="background:${colorPrimario}; flex:1">${textoConfirmar}</button>
+        overlay.innerHTML = `
+            <div class="card glass" style="max-width:320px; width:100%; text-align:center; border:1px solid ${colorPrimario}; padding:25px; border-radius:20px;">
+                <span style="font-size:3em;">${icono}</span>
+                <h3 style="color:#ffffff; margin:10px 0;">${titulo}</h3>
+                <p style="color:white; opacity:0.9; margin-bottom:20px;">${mensaje}</p>
+                <div style="display:flex; gap:10px;">
+                    <button id="${btnAbortarId}" class="btn-main" style="background:#444; flex:1">${textoCancelar}</button>
+                    <button id="${btnProcederId}" class="btn-main" style="background:${colorPrimario}; flex:1">${textoConfirmar}</button>
+                </div>
             </div>
-        </div>
-    `;
+        `;
 
-    document.body.appendChild(overlay);
+        document.body.appendChild(overlay);
 
-    document.getElementById(btnAbortarId).onclick = () => overlay.remove();
-    document.getElementById(btnProcederId).onclick = () => {
-        onConfirmar();
-        overlay.remove();
-    };
-},
+        document.getElementById(btnAbortarId).onclick = () => {
+            if (onCancelar) onCancelar(); // 👈 Ejecutar acción al cancelar
+            overlay.remove();
+        };
+
+        document.getElementById(btnProcederId).onclick = () => {
+            onConfirmar();
+            overlay.remove();
+        };
+
+    },
 
     cambiarSeccion: function(id) {
         console.log("Cambiando a:", id);
@@ -1071,11 +1341,10 @@ limpiarFormularioInventario: function() {
     }
 
     // 🚀 INTEGRACIÓN: Actualizado con parámetros personalizados
-    Interfaz.confirmarAccion(
+   Interfaz.confirmarAccion(
         "Registrar Gasto",
         `¿Confirmar gasto de ${m} ${mon} por: "${d}"?`,
-        () => {
-            // --- ESTO SE EJECUTA SI EL USUARIO DICE "SÍ" ---
+        () => {                
             Ventas.registrarGasto(d, m, mon);
             
             // Limpiar formulario
@@ -1086,9 +1355,10 @@ limpiarFormularioInventario: function() {
             Interfaz.actualizarDashboard();
             notificar("💸 Gasto registrado correctamente");
         },
-        "Sí, registrar", // 👈 Texto personalizado para confirmar
-        "Cancelar",       // 👈 Texto personalizado para cancelar
-        false             // 👈 No es peligroso (color verde por defecto)
+       null, // 🚀 CORRECCIÓN: Acción al cancelar
+        "Sí, registrar",
+        "Cancelar",
+        false
     );
 },
 
@@ -1254,7 +1524,6 @@ abonar(nombreCliente) {
 
 // --- 2. MODIFICADO PARA ELIMINAR TODO EL TOTAL DEL CLIENTE ---
 eliminarDeuda(nombreCliente) {
-    // 🚀 INTEGRACIÓN: Actualizado con parámetros personalizados y color rojo
     Interfaz.confirmarAccion(
         `¿Borrar Deuda de ${nombreCliente}?`,
         "Esta acción borrará todo el historial de crédito de este cliente.",
@@ -1274,14 +1543,14 @@ eliminarDeuda(nombreCliente) {
             Interfaz.renderFiaos();
             notificar(`Historial de ${nombreCliente} borrado`, "error");
         },
-        "Sí, eliminar", // 👈 Texto personalizado para confirmar
-        "Cancelar",     // 👈 Texto personalizado para cancelar
-        true            // 👈 ¡Es peligroso! (color rojo)
+       null, // 🚀 CORRECCIÓN: Acción al cancelar
+        "Sí, eliminar",
+        "Cancelar",
+        true
     );
 },
 
 eliminarInv(id) {
-    // 🚀 INTEGRACIÓN: Actualizado con parámetros personalizados y color rojo
     Interfaz.confirmarAccion(
         "¿Borrar Producto?",
         "Se eliminará permanentemente del stock.",
@@ -1291,12 +1560,12 @@ eliminarInv(id) {
             Interfaz.renderInventario();
             notificar("Producto eliminado", "error");
         },
-        "Sí, eliminar", // 👈 Texto personalizado para confirmar
-        "Cancelar",     // 👈 Texto personalizado para cancelar
-        true            // 👈 ¡Es peligroso! (color rojo)
+       null, // 🚀 CORRECCIÓN: Acción al cancelar
+        "Sí, eliminar",
+        "Cancelar",
+        true
     );
 },
-
 
     toggleInv(activo) { //activa y descativa el inventario//
         Inventario.activo = activo; 
