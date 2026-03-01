@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dominus-v2'; 
+const CACHE_NAME = 'dominus-v3'; 
 const ASSETS = [
   'index.html',
   'manifest.json',

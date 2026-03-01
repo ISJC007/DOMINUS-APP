@@ -1,54 +1,70 @@
 const Ventas = {
-    historial: [], 
+    historial: [],
     deudas: [],
-    gastos: [], //todos estos son espacios vacios para guardar dichos datos
+    gastos: [],
 
-  // Antes: Ventas.init();
-// Ahora:
-async init() { // IMPORTANTE: El async debe estar aquí
-    // 1. Carga de datos base (Inalterado)
-    this.historial = Persistencia.cargar('dom_ventas') || [];
-    this.deudas = Persistencia.cargar('dom_fiaos') || [];
-    this.gastos = Persistencia.cargar('dom_gastos') || [];
-    
-    if (typeof Inventario !== 'undefined') Inventario.init();
-
-    // 2. INYECCIÓN DE FRASES AL AZAR (Inalterado)
-    if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
-        const indice = Math.floor(Math.random() * bancoFrases.length);
-        const fraseElegida = bancoFrases[indice];
-        
-        const txtFrase = document.getElementById('frase-splash');
-        const txtAutor = document.getElementById('autor-splash');
-        
-        if (txtFrase && txtAutor) {
-            txtFrase.innerText = `"${fraseElegida.texto}"`;
-            txtAutor.innerText = `— ${fraseElegida.autor}`;
+    async init() {
+        // --- REGISTRO Y ACTUALIZACIÓN AUTOMÁTICA DEL SW ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+            .then(reg => {
+                console.log('Dominus: SW registrado', reg);
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log('🔄 Nueva versión disponible. Recargando automáticamente...');
+                            window.location.reload();
+                        }
+                    });
+                });
+            })
+            .catch(err => console.error('Dominus: SW fallo', err));
         }
-    }
+        // ---------------------------------------------------
 
-    // --- VERIFICACIÓN DE SEGURIDAD (Punto #3) ---
-    // Aquí es donde la app se queda esperando por la huella o el PIN
-    const accesoConcedido = await Seguridad.iniciarProteccion();
+        // 1. Carga de datos base (Inalterado)
+        this.historial = Persistencia.cargar('dom_ventas') || [];
+        this.deudas = Persistencia.cargar('dom_fiaos') || [];
+        this.gastos = Persistencia.cargar('dom_gastos') || [];
 
-    if (!accesoConcedido) {
-        alert("Acceso denegado.");
-        location.reload(); 
-        return; 
-    }
+        if (typeof Inventario !== 'undefined') Inventario.init();
 
-    // 3. CONTROL DEL SPLASH (Solo inicia si hubo acceso)
-    setTimeout(() => {
-        const splash = document.getElementById('splash-screen');
-        if(splash) {
-            splash.classList.add('splash-fade-out');
-            setTimeout(() => {
-                splash.style.display = 'none';
-                if(typeof Interfaz !== 'undefined') Interfaz.show('dashboard');
-            }, 800);
+        // 2. INYECCIÓN DE FRASES AL AZAR (Inalterado)
+        if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
+            const indice = Math.floor(Math.random() * bancoFrases.length);
+            const fraseElegida = bancoFrases[indice];
+
+            const txtFrase = document.getElementById('frase-splash');
+            const txtAutor = document.getElementById('autor-splash');
+
+            if (txtFrase && txtAutor) {
+                txtFrase.innerText = `"${fraseElegida.texto}"`;
+                txtAutor.innerText = `— ${fraseElegida.autor}`;
+            }
         }
-    }, 5000); 
-},
+
+        // --- VERIFICACIÓN DE SEGURIDAD (Punto #3) ---
+        const accesoConcedido = await Seguridad.iniciarProteccion();
+
+        if (!accesoConcedido) {
+            alert("Acceso denegado.");
+            location.reload();
+            return;
+        }
+
+        // 3. CONTROL DEL SPLASH (Solo inicia si hubo acceso)
+        setTimeout(() => {
+            const splash = document.getElementById('splash-screen');
+            if (splash) {
+                splash.classList.add('splash-fade-out');
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                    if (typeof Interfaz !== 'undefined') Interfaz.show('dashboard');
+                }, 800);
+            }
+        }, 5000);
+    },
 
 registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, tallaEscogida = null) {
     const tasa = Conversor.tasaActual;
