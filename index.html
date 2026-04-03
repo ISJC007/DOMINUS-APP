@@ -131,79 +131,111 @@
             </div>
         </section>
 
-        <section id="view-ventas" class="app-section hidden">
-            <div class="card glass">
-                <h3>Nueva Venta</h3>
+     <section id="view-ventas" class="app-section hidden">
+    <div class="card glass">
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button type="button" class="btn-main btn-success" 
+                style="flex: 1; background:linear-gradient(45deg, #2ecc71, #27ae60); border:none; padding:12px; border-radius:8px; color:white; font-weight:bold; cursor:pointer;" 
+                onclick="Scanner.iniciarEscannerCamara(Controlador.procesarCodigoEscaneado.bind(Controlador))">
+                📷 Escanear
+            </button>
+            
+            <button type="button" class="btn-main" 
+                style="flex: 1; background:linear-gradient(45deg, #f39c12, #e67e22); border:none; padding:12px; border-radius:8px; color:white; font-weight:bold; cursor:pointer;" 
+                onclick="InterfazDevoluciones.abrirSelectorDevolucion()">
+                🔄 Devolución
+            </button>
+        </div>
+        <h3>Nueva Venta</h3>
 
-                <button type="button" id="btn-modo-punto" class="glass" 
-                    onclick="Interfaz.alternarModoPunto()"
-                    style="width: 100%; padding: 12px; margin-bottom: 10px; border: 1px dashed var(--primary); color: var(--primary); font-weight: bold; cursor: pointer; border-radius: 8px;">
-                    🏦 ¿Es Servicio de Punto?
-                </button>
+        <button type="button" id="btn-modo-punto" class="glass" 
+            onclick="Interfaz.alternarModoPunto()"
+            style="width: 100%; padding: 12px; margin-bottom: 10px; border: 1px dashed var(--primary); color: var(--primary); font-weight: bold; cursor: pointer; border-radius: 8px;">
+            🏦 ¿Es Servicio de Punto?
+        </button>
 
-                <div id="wrapper-comision" class="hidden">
-                    <label for="v-comision">Comisión %:</label>
-                    <input type="number" id="v-comision" name="v-comision" placeholder="Comisión %" style="margin-bottom: 5px;">
-                    <div class="comision-selector" style="display: flex; gap: 5px; margin-bottom: 10px;">
-                        <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=5">5%</button>
-                        <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=10">10%</button>
-                        <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=15">15%</button>
-                        <button type="button" class="btn-mini" style="background:#607d8b" onclick="document.getElementById('v-comision').value=0">0%</button>
-                    </div>
-                </div>
+        <div id="wrapper-comision" class="hidden">
+            <label for="v-comision">Comisión %:</label>
+            <input type="number" id="v-comision" name="v-comision" placeholder="Comisión %" style="margin-bottom: 5px;">
+            <div class="comision-selector" style="display: flex; gap: 5px; margin-bottom: 10px;">
+                <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=5">5%</button>
+                <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=10">10%</button>
+                <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=15">15%</button>
+                <button type="button" class="btn-mini" style="background:#607d8b" onclick="document.getElementById('v-comision').value=0">0%</button>
+            </div>
+        </div>
 
-                <label for="v-producto">Producto:</label>
-                <input type="text" id="v-producto" name="v-producto" list="sugerencias-ventas" oninput="Interfaz.actualizarSelectorTallas(this.value)" placeholder="(Ej: Pollo)">
-                <datalist id="sugerencias-ventas"></datalist>
+        <label for="v-producto">Producto:</label>
+<input type="text" id="v-producto" name="v-producto" list="sugerencias-ventas" oninput="Interfaz.actualizarSelectorTallas(this.value)" placeholder="(Ej: Pollo)" autocomplete="off">        <datalist id="sugerencias-ventas"></datalist>
 
-                <label for="v-cantidad">Cantidad:</label>
-                <input type="number" id="v-cantidad" name="v-cantidad" placeholder="Cantidad" value="1" style="margin-bottom: 10px;">
+        <label for="v-cantidad">Cantidad:</label>
+<input type="number" id="v-cantidad" name="v-cantidad" placeholder="Cantidad" value="1" style="margin-bottom: 10px;" autocomplete="off">
+        <div id="contenedor-talla" class="hidden" style="margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <label for="v-talla" style="color: var(--primary); font-size: 0.9em;">Seleccione Talla/Peso:</label>
+            </div>
+            <select id="v-talla" name="v-talla" class="glass" 
+                    style="width: 100%; padding: 10px; border-radius: 8px; background: #222; color: white; border: 1px solid var(--primary);"
+                    onchange="Controlador.mostrarStockDisponible(this.value)"> 
+                <option value="">Seleccione Talla...</option>
+            </select>
+        </div>
 
-                <div id="contenedor-talla" class="hidden" style="margin-bottom: 10px;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <label for="v-talla" style="color: var(--primary); font-size: 0.9em;">Seleccione Talla/Peso:</label>
-                    </div>
-                    <select id="v-talla" name="v-talla" class="glass" 
-                            style="width: 100%; padding: 10px; border-radius: 8px; background: #222; color: white; border: 1px solid var(--primary);"
-                            onchange="Controlador.mostrarStockDisponible(this.value)"> 
-                        <option value="">Seleccione Talla...</option>
-                    </select>
-                </div>
-
-                <div class="input-group">
-                    <div style="flex:2">
-                        <label for="v-monto">Monto:</label>
-                        <input type="number" id="v-monto" name="v-monto" placeholder="Monto">
-                    </div>
-                    <div style="flex:1">
-                        <label for="v-moneda">Moneda:</label>
-                        <select id="v-moneda" name="v-moneda">
-                            <option value="USD">$ USD</option>
-                            <option value="BS">Bs</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <label for="v-metodo">Método de Pago:</label>
-                <select id="v-metodo" name="v-metodo" onchange="Interfaz.toggleClienteField(this.value)">
-                    <option value="Efectivo $">Efectivo $</option>
-                    <option value="Pago Móvil">Pago Móvil</option>
-                    <option value="Punto de Venta">Punto de Venta</option>
-                    <option value="Fiao">Fiao (Deuda)</option>
-                    <option value="Biopago">Biopago</option>
+        <div class="input-group">
+            <div style="flex:2">
+                <label for="v-monto">Monto:</label>
+<input type="number" id="v-monto" name="v-monto" placeholder="Monto" autocomplete="off">            </div>
+            <div style="flex:1">
+                <label for="v-moneda">Moneda:</label>
+                <select id="v-moneda" name="v-moneda">
+                    <option value="USD">$ USD</option>
+                    <option value="BS">Bs</option>
                 </select>
-                
-                <div id="wrapper-cliente" class="hidden">
-                    <label for="v-cliente">Cliente:</label>
-                    <input type="text" id="v-cliente" name="v-cliente" placeholder="Nombre del Cliente">
-                </div>
+            </div>
+        </div>
+        
+        <label for="v-metodo">Método de Pago:</label>
+        <select id="v-metodo" name="v-metodo" onchange="Interfaz.toggleClienteField(this.value)">
+            <option value="Efectivo $">Efectivo $</option>
+            <option value="Pago Móvil">Pago Móvil</option>
+            <option value="Punto de Venta">Punto de Venta</option>
+            <option value="Fiao">Fiao (Deuda)</option>
+            <option value="Biopago">Biopago</option>
+        </select>
+        
+        <div id="wrapper-cliente" class="hidden">
+            <label for="v-cliente">Cliente:</label>
+            <input type="text" id="v-cliente" name="v-cliente" placeholder="Nombre del Cliente">
+        </div>
 
-                <button type="button" class="btn-main" onclick="Controlador.ejecutarVenta()">Registrar Venta</button>
+<button type="button" class="btn-main" onclick="Controlador.ejecutarVenta()" style="background: transparent; border: 2px solid var(--primary); color: var(--primary);">
+            ➕ Añadir a la Cuenta
+        </button>
+
+        <div id="contenedor-carrito" style="margin-top: 20px; border: 1px solid var(--primary); border-radius: 12px; padding: 15px; background: rgba(0,0,0,0.4);">
+            <h4 style="margin: 0 0 10px 0; color: var(--primary); text-align: center; font-size: 1.1em;">🛒 Cuenta Actual</h4>
+
+            <div id="lista-carrito-temporal" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px;">
+                <p style="text-align:center; opacity:0.5; font-size:0.9em;">La cuenta está vacía</p>
             </div>
 
-            <h4>Últimas Ventas</h4>
-            <div id="lista-ventas-historial" class="listado-container"></div>
-        </section>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #555; padding-top: 15px; margin-bottom: 15px;">
+                <b style="font-size: 1.2em;">TOTAL:</b>
+                <div style="text-align: right;">
+                    <b id="total-carrito-bs" style="color: var(--primary); font-size: 1.4em;">0.00 Bs</b><br>
+                    <small id="total-carrito-usd" style="opacity: 0.8; font-size: 1em;">$0.00</small>
+                </div>
+            </div>
+
+            <button type="button" class="btn-main" onclick="Controlador.ejecutarCobroFinal()" style="width: 100%; font-size: 1.2em; padding: 15px; box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);">
+                ✅ COBRAR TOTAL
+            </button>
+        </div>
+        
+        <h4>Últimas Ventas</h4>
+    <div id="lista-ventas-historial" class="listado-container"></div>
+</section>
 
         <section id="view-gastos" class="app-section hidden">
             <div class="card glass">
@@ -276,13 +308,19 @@
 
     <div style="margin: 25px 15px 0 15px;"> 
         <h4 style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-            Stock Actual 
-        </h4>
+    Stock Actual 
+    <button type="button" class="btn-mini" style="background:var(--primary); color:black; padding: 5px 10px;" 
+            onclick="Scanner.iniciarEscannerCamara()">
+        📷 Escanear
+    </button>
+</h4>
         
         <div class="search-box glass" style="margin-bottom: 15px; position: sticky; top: 0; z-index: 5; box-sizing: border-box;">
             <input type="text" id="busqueda-real-inv" placeholder="🔍 Buscar producto..." 
                    style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--primary); background: rgba(0,0,0,0.3); color: white; font-size: 1em; box-sizing: border-box;">
         </div>
+
+        <div id="contenedor-camara" style="display:none; width: 100%; height: 300px; margin-bottom: 15px; border-radius: 10px; overflow: hidden;"></div>
 
         <div id="lista-inventario" class="listado-container" style="width: 100%; overflow-x: hidden;"></div>
     </div>
@@ -300,12 +338,15 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.rawgit.com/serratus/quaggaJS/0420d5e/dist/quagga.min.js"></script>
 
 <script src="JS/frases.js"></script>
 <script src="JS/Offline.js"></script>
 <script src="JS/Seguridad.js"></script> <script src="JS/Servicios.js"></script>
 <script src="JS/Conversor.js"></script>
 <script src="JS/Inventario.js"></script>
+<script src="JS/Controlador.js"></script>
+<script src="JS/scaner.js"></script>
 
 <script src="JS/Ventas.js"></script> 
 <script src="JS/Main.js"></script>
@@ -315,6 +356,7 @@
         navigator.serviceWorker.register('./sw.js');
     }
 </script>
+<script src="JS/Teclado.js"></script>
 
 </body>
 </html>

@@ -4,18 +4,34 @@ const Servicios = {
 
     async obtenerTasaBCV() {
         try {
+            console.log("📡 Intentando actualizar tasa desde el BCV...");
             const respuesta = await fetch(this.urlTasa);
             const datos = await respuesta.json();
             
             if (datos && datos.promedio) {
-                // Redondeamos a 2 decimales antes de enviarlo
                 const tasaLimpia = Number(datos.promedio.toFixed(2));
+                
+                // --- GUARDAR RESPALDO ---
+                // Guardamos la tasa fresca para que esté disponible offline después
+                localStorage.setItem('dom_tasa_respaldo', tasaLimpia);
+                
                 return tasaLimpia;
             }
-            return null;
         } catch (error) {
-            console.error("❌ Error API:", error);
-            return null;
+            console.warn("⚠️ Sin conexión al BCV. Buscando respaldo local...");
+            
+            // --- RECUPERAR RESPALDO ---
+            // Intentamos sacar la última tasa guardada
+            const tasaGuardada = localStorage.getItem('dom_tasa_respaldo');
+            
+            if (tasaGuardada) {
+                console.log("📦 Usando tasa de respaldo: " + tasaGuardada);
+                return Number(tasaGuardada);
+            }
+            
+            // Si es la primera vez y no hay nada guardado, usamos un valor base
+            // para que la app no se detenga (puedes ajustarlo según el día)
+            return 50.00; 
         }
     }
 };

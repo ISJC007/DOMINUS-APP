@@ -1,7 +1,6 @@
 const Seguridad = {
     // 1. GESTIÓN DE CLAVES (Persistencia)
     getClave() {
-        // Buscamos la clave guardada; si no existe, usamos '1234' por defecto
         return Persistencia.cargar('dom_seguridad_pin') || '1234';
     },
 
@@ -10,9 +9,7 @@ const Seguridad = {
         alert("✅ PIN de seguridad actualizado con éxito.");
     },
 
-    // --- FUNCIÓN DE VIBRACIÓN (NUEVA) ---
     vibrar(patron = [200, 100, 200]) {
-        // Verifica si el dispositivo soporta vibración
         if ("vibrate" in navigator) {
             navigator.vibrate(patron);
         }
@@ -22,17 +19,17 @@ const Seguridad = {
     async iniciarProteccion() {
         const ultimaVez = localStorage.getItem('dom_ultima_auth');
         const ahora = Date.now();
-        const cincoMinutos = 5 * 60 * 1000; // Bloqueo automático tras 5 min de inactividad
+        const cincoMinutos = 5 * 60 * 1000;
 
-        // Si se autenticó hace menos de 5 minutos, dejamos pasar sin preguntar
         if (ultimaVez && (ahora - ultimaVez < cincoMinutos)) {
             console.log("🔓 Sesión activa (menos de 5 min). Acceso directo.");
             return true; 
         }
 
-        // Si pasó el tiempo, verificamos hardware biométrico
-        const soportaBiometria = window.PublicKeyCredential && 
-                                 await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        // COMENTADO TEMPORALMENTE PARA DESARROLLO LOCAL (Evita errores de dominio)
+        // const soportaBiometria = window.PublicKeyCredential && 
+        //                          await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        const soportaBiometria = false; 
 
         let resultado = false;
         if (soportaBiometria) {
@@ -41,7 +38,6 @@ const Seguridad = {
             resultado = await this.solicitarPIN();
         }
 
-        // Si el acceso es correcto (por PIN o Huella), renovamos el sello de tiempo
         if (resultado) {
             localStorage.setItem('dom_ultima_auth', Date.now());
         }
@@ -52,60 +48,90 @@ const Seguridad = {
     async autenticarBiometrico() {
         try {
             console.log("🔐 Iniciando protocolo robusto de biometría...");
-
-            // Definimos las opciones de la credencial
             const options = {
                 publicKey: {
-                    // Genera un reto aleatorio que el navegador acepta mejor
                     challenge: Uint8Array.from(window.crypto.getRandomValues(new Uint8Array(32))),
-                    rp: {
-                        name: "DOMINUS BUSINESS",
-                        id: window.location.hostname
+                    rp: { name: "DOMINUS BUSINESS", id: window.location.hostname },
+                    user: {
+                        id: Uint8Array.from("user_id", c => c.charCodeAt(0)),
+                        name: "Johander José",
+                        displayName: "Johander"
                     },
-                    userVerification: "preferred", // 'preferred' es más compatible que 'required' en algunos móviles
-                    timeout: 30000 // 30 segundos
+                    pubKeyCredParams: [{alg: -7, type: "public-key"}],
+                    userVerification: "preferred",
+                    timeout: 30000
                 }
             };
-
             const credential = await navigator.credentials.get(options);
-            return !!credential; // Devuelve true si la credencial es válida
-
+            return !!credential;
         } catch (e) {
-            console.error("⚠️ Error técnico: Fallo en lectura Biométrica:", e);
-            // Si hay error en la huella, volvemos a intentar con PIN
+            console.error("⚠️ Error técnico:", e);
             return await this.solicitarPIN(); 
         }
     },
 
-    async solicitarPIN() {
-        const pinIngresado = prompt("DOMINUS PROTECTED\nIngrese su PIN de seguridad para entrar:");
-        
-        if (pinIngresado === this.getClave()) {
-            return true;
-        } else {
-            // --- AÑADIMOS LA VIBRACIÓN AQUÍ ---
-            this.vibrar([100, 50, 100, 50, 100]); // Vibración de error
-            alert("❌ PIN Incorrecto");
-            return false;
-        }
+    // --- MEJORA: SOLICITAR PIN SIN PROMPT ---
+    solicitarPIN() {
+        return new Promise((resolve) => {
+            // 1. Crear el contenedor visual desde JS
+            const overlay = document.createElement('div');
+            overlay.style = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.95); z-index: 20000;
+                display: flex; align-items: center; justify-content: center;
+                flex-direction: column; font-family: sans-serif;
+            `;
+
+            overlay.innerHTML = `
+                <div style="text-align: center; width: 80%; max-width: 300px;">
+                    <h2 style="color: #ffd700; margin-bottom: 5px;">DOMINUS</h2>
+                    <p style="color: white; opacity: 0.7; margin-bottom: 20px;">Seguridad Requerida</p>
+                    <input type="password" id="pin-invisible" 
+                           inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                           style="width: 100%; background: transparent; border: none; 
+                                  border-bottom: 2px solid #ffd700; color: white; 
+                                  font-size: 3rem; text-align: center; outline: none;">
+                    <div id="pin-error" style="color: #ff4444; margin-top: 15px; height: 20px;"></div>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+            const input = document.getElementById('pin-invisible');
+            const errorDiv = document.getElementById('pin-error');
+            
+            input.focus();
+
+            // 2. Lógica de validación automática al escribir
+            input.oninput = () => {
+                if (input.value.length === 4) {
+                    if (input.value === this.getClave()) {
+                        overlay.remove();
+                        resolve(true);
+                    } else {
+                        this.vibrar([100, 50, 100, 50, 100]);
+                        input.value = "";
+                        errorDiv.innerText = "PIN INCORRECTO";
+                        setTimeout(() => errorDiv.innerText = "", 1500);
+                    }
+                }
+            };
+        });
     },
 
-    // 4. FUNCIÓN PARA AJUSTES (Llamada desde el botón que pusimos en el panel)
+    // 4. FUNCIÓN PARA AJUSTES
     prepararCambioPIN() {
         const pinActual = prompt("🔐 Para seguridad, ingrese su PIN ACTUAL:");
-        
         if (pinActual === this.getClave()) {
             const nuevoPin = prompt("✨ Ingrese su NUEVO PIN (mínimo 4 números):");
-            
             if (nuevoPin && nuevoPin.length >= 4) {
                 this.setClave(nuevoPin);
             } else {
-                alert("❌ PIN inválido. Debe tener al menos 4 números.");
-                this.vibrar(300); // Vibración corta de error
+                alert("❌ PIN inválido.");
+                this.vibrar(300);
             }
         } else {
-            alert("❌ El PIN ingresado no coincide con el actual.");
-            this.vibrar([100, 50, 100, 50, 100]); // Vibración de error
+            alert("❌ El PIN no coincide.");
+            this.vibrar([100, 50, 100, 50, 100]);
         }
     }
 };

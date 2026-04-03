@@ -2,6 +2,46 @@ const Ventas = {
     historial: [],
     deudas: [],
     gastos: [],
+    carrito: [], // 👈 NUEVO: Array temporal
+
+    // 👈 NUEVA FUNCIÓN: Guarda en el carrito temporal
+    prepararParaCarrito(p, m, mon, met, cli, com, esServicio, cant, tallaEscogida) {
+        const tasa = Conversor.tasaActual;
+        const precioBase = Number(m);
+        const cantidadVendida = Number(cant);
+        
+        // Calculamos los totales provisionales
+        const montoBs = (mon === 'BS') ? (precioBase * cantidadVendida) : (precioBase * cantidadVendida) * tasa;
+        const montoUSD = (mon === 'USD') ? (precioBase * cantidadVendida) : (precioBase * cantidadVendida) / tasa;
+
+        this.carrito.push({
+            p, m, mon, met, cli, com, esServicio, cant: cantidadVendida, tallaEscogida,
+            totalBs: montoBs,
+            totalUSD: montoUSD
+        });
+        return this.carrito;
+    },
+
+    // 👈 NUEVA FUNCIÓN: Suma el total
+    obtenerTotalVentaActual() {
+        return this.carrito.reduce((acc, item) => acc + item.totalBs, 0);
+    },
+
+    // 👈 NUEVA FUNCIÓN: El motor que pasa el carrito al historial
+    procesarCobroCarrito() {
+        if (this.carrito.length === 0) return false;
+
+        // Iteramos el carrito y reutilizamos tu función registrarVenta original
+        this.carrito.forEach(item => {
+            this.registrarVenta(
+                item.p, item.m, item.mon, item.met, item.cli, item.com,
+                item.esServicio, item.cant, item.tallaEscogida
+            );
+        });
+
+        this.carrito = []; // Vaciamos al terminar
+        return true;
+    },
 
     async init() {
         // --- REGISTRO Y ACTUALIZACIÓN AUTOMÁTICA DEL SW ---
@@ -66,19 +106,19 @@ const Ventas = {
         }, 5000);
     },
 
+    
+
 registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, tallaEscogida = null) {
     const tasa = Conversor.tasaActual;
     const precioBase = Number(m);
     const cantidadVendida = Number(cant);
 
-    // 1. Lógica de Inventario (Stock) - 🚀 MEJORADO PARA PUNTO 7
+    // 1. Lógica de Inventario (Stock)
     const nombreLimpio = p.trim().toLowerCase();
     const inv = Inventario.productos.find(i => i.nombre.toLowerCase() === nombreLimpio);
 
     if (inv && !esServicio) {
         let cantidadARestarGlobal = cantidadVendida;
-
-        // Lógica para Kg/Lts (siempre usa tallaEscogida para el desglose)
         if ((inv.unidad === 'Kg' || inv.unidad === 'Lts') && tallaEscogida) {
             const medida = tallaEscogida.toLowerCase();
             if (medida.includes('g') || medida.includes('ml')) {
@@ -88,13 +128,11 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
             }
         }
 
-        // ✅ CORRECCIÓN: Resta segura con decimales (máximo 3 decimales)
         inv.cantidad -= cantidadARestarGlobal;
         if (inv.unidad === 'Kg' || inv.unidad === 'Lts') {
             inv.cantidad = parseFloat(inv.cantidad.toFixed(3));
         }
 
-        // Lógica de Tallas (Ropa/Calzado)
         if (inv.tallas && tallaEscogida && inv.tallas[tallaEscogida] !== undefined) {
             inv.tallas[tallaEscogida] -= cantidadVendida;
             if (inv.tallas[tallaEscogida] <= 0) {
@@ -104,22 +142,29 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
 
         Inventario.sincronizar();
 
-        // ✅ CORRECCIÓN: ¡Alerta de Stock Bajo (Punto 7)!
         const minimo = inv.stockMinimo || ((inv.unidad === 'Kg' || inv.unidad === 'Lts') ? 1.5 : 3);
-        
         if (inv.cantidad <= minimo && inv.cantidad > 0) {
             notificar(`⚠️ ALERTA: Queda poco stock de ${inv.nombre} (${inv.cantidad} ${inv.unidad})`);
         } else if (inv.cantidad <= 0) {
             notificar(`❌ ALERTA: ${inv.nombre} AGOTADO`);
         }
-
     } else if (!esServicio) {
         console.warn(`⚠️ DOMINUS: El producto "${p}" no existe en el inventario.`);
     }
 
-    // 2. Cálculos Financieros
-    const montoUSD = (mon === 'USD') ? (precioBase * cantidadVendida) : (precioBase * cantidadVendida) / tasa;
-    const montoBs = (mon === 'BS') ? (precioBase * cantidadVendida) : (precioBase * cantidadVendida) * tasa;
+    // 2. Cálculos Financieros y APLICACIÓN DE CRÉDITO
+    // Si existe window.creditoDevolucion, restamos ese monto del total antes de registrar
+    let montoAjustado = precioBase;
+    let idRef = null;
+
+    if (window.creditoDevolucion && window.creditoDevolucion.montoBs > 0) {
+        montoAjustado = Math.max(0, precioBase - (window.creditoDevolucion.montoBs / cantidadVendida));
+        idRef = window.creditoDevolucion.idOriginal;
+        console.log(`💰 DOMINUS: Aplicando crédito de devolución. Monto ajustado: ${montoAjustado}`);
+    }
+
+    const montoUSD = (mon === 'USD') ? (montoAjustado * cantidadVendida) : (montoAjustado * cantidadVendida) / tasa;
+    const montoBs = (mon === 'BS') ? (montoAjustado * cantidadVendida) : (montoAjustado * cantidadVendida) * tasa;
     const montoComision = (Number(montoBs) * (Number(com) / 100));
     const montoAEntregar = esServicio ? (montoBs - montoComision) : 0;
 
@@ -129,9 +174,12 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
         fecha: new Date().toLocaleDateString('es-VE'),
         hora: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
         producto: esServicio ? `PUNTO: ${p}` : (tallaEscogida ? `${p} (${tallaEscogida})` : p),
+        productoNombre: p, 
+        tallaElegida: tallaEscogida,
         cantidadVenta: cantidadVendida,
         montoBs: Number(montoBs.toFixed(2)),
         montoUSD: Number(montoUSD.toFixed(2)),
+        montoTotal: Number(montoBs.toFixed(2)),
         tasaHistorica: tasa,
         monedaOriginal: mon,
         metodo: met,
@@ -140,23 +188,32 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
         cliente: cli || "Anónimo",
         esServicio: esServicio,
         pagado: false,
-        montoPagadoReal: 0
+        montoPagadoReal: 0,
+        devuelta: false,
+        idReferenciaCambio: idRef // 🚀 Registramos la referencia para historial
     };
 
     // 4. PERSISTENCIA SEGURA
     if (met === 'Fiao') {
-        // Cargar, PUSH, Guardar
         let fiaos = Persistencia.cargar('dom_fiaos') || [];
         fiaos.push({ ...datosVenta });
         Persistencia.guardar('dom_fiaos', fiaos);
-        this.deudas = fiaos; // Sincronizar memoria
+        this.deudas = fiaos;
     } else {
-        // Cargar, PUSH, Guardar
         let historial = Persistencia.cargar('dom_ventas') || [];
         historial.push(datosVenta);
         Persistencia.guardar('dom_ventas', historial);
-        this.historial = historial; // Sincronizar memoria
+        this.historial = historial;
     }
+
+    if (typeof HistorialDevoluciones !== 'undefined') {
+        HistorialDevoluciones.registrarVentaParaHistorial(datosVenta);
+    }
+
+    // 🚀 Limpieza final del crédito global
+    window.creditoDevolucion = null;
+
+    return datosVenta;
 },
 
 anularVenta: function(id) {
@@ -191,6 +248,7 @@ anularVenta: function(id) {
             
             notificar("🗑️ Venta anulada y stock recuperado");
         },
+        null, // 🚀 CORRECCIÓN: Acción al cancelar
         "Sí, anular",  // 👈 Texto personalizado para confirmar
         "Cancelar",    // 👈 Texto personalizado para cancelar
         true           // 👈 ¡Es peligroso! (color rojo)
@@ -540,3 +598,45 @@ finalizarJornada() {
 }
 
 }
+
+// --- JS/Ventas.js ---
+
+const HistorialDevoluciones = {
+    // 1. FUNCIÓN: Guarda la venta al finalizar (Mejorado para evitar duplicados)
+    registrarVentaParaHistorial: function(datosVenta) {
+        let historial = Persistencia.cargar('dom_historial_ventas') || [];
+        
+        // Evitar duplicados si por error se llama dos veces
+        if (!historial.find(v => v.id === datosVenta.id)) {
+            historial.push(datosVenta);
+            Persistencia.guardar('dom_historial_ventas', historial);
+            console.log("✅ Venta registrada en historial permanente.");
+        }
+    },
+
+    // 2. FUNCIÓN: Búsqueda rápida por nombre de producto (Mejorado: Filtra ya devueltos)
+    buscarVentaPorProducto: function(nombreProducto) {
+        let historial = Persistencia.cargar('dom_historial_ventas') || [];
+        
+        // 🚀 FILTRO: Solo mostrar ventas que NO han sido devueltas
+        const resultados = historial.filter(venta => 
+            !venta.devuelta && // Venta activa
+            venta.productoNombre.toLowerCase().includes(nombreProducto.toLowerCase())
+        );
+
+        // Ordenar por más reciente (usando el ID que es un timestamp)
+        return resultados.sort((a, b) => b.id - a.id);
+    },
+
+    // 🚀 NUEVA FUNCIÓN: Marcar venta como devuelta (Soluciona duplicación)
+    marcarComoDevuelta: function(idVenta) {
+        let historial = Persistencia.cargar('dom_historial_ventas') || [];
+        const index = historial.findIndex(v => v.id === idVenta);
+        
+        if (index !== -1) {
+            historial[index].devuelta = true; // ✅ MARCA LÓGICA
+            Persistencia.guardar('dom_historial_ventas', historial);
+            console.log(`✅ Venta ${idVenta} marcada como devuelta en historial.`);
+        }
+    }
+};
