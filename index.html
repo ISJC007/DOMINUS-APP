@@ -93,7 +93,7 @@
 
         <div class="dashboard-cards">
             <div class="card-mini">
-                <small>Caja (Neto)</small>
+                <small>Caja</small>
                 <b id="total-caja">0 Bs</b>
                 <span id="total-usd">$ 0.00</span>
             </div>
@@ -118,18 +118,25 @@
 
     <main id="app-content">
         
-        <section id="view-dashboard" class="app-section">
-            <div class="welcome-card glass">
-                <h2>Bienvenido</h2>
-                <p>Usa el menú inferior para registrar movimientos.</p>
-                <button type="button" class="btn-main" style="margin-top: 20px; background: #2196F3; color: white;" onclick="Controlador.generarCierre()">
-                    📊 Generar Cierre del Día
-                </button>
-            </div>
-            <div class="card-grafica">
-                <canvas id="graficaVentas"></canvas>
-            </div>
-        </section>
+    <section id="view-dashboard" class="app-section">
+    <div class="welcome-card glass">
+        <h2>Bienvenido</h2>
+        <p>Usa el menú inferior para registrar movimientos.</p>
+        <button type="button" class="btn-main" style="margin-top: 20px; background: #2196F3; color: white;" onclick="Controlador.generarCierre()">
+            📊 Generar Cierre del Día
+        </button>
+    </div>
+
+    <div class="card-grafica glass" 
+         onclick="Controlador.rotarGrafica()" 
+         style="cursor: pointer; position: relative; padding: 15px; margin-top: 20px; border-radius: 20px; min-height: 250px;">
+        
+        <div style="position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: rgba(255,255,255,0.4); display: flex; align-items: center; gap: 5px;">
+        </div>
+
+        <canvas id="graficaVentas"></canvas>
+    </div>
+</section>
 
      <section id="view-ventas" class="app-section hidden">
     <div class="card glass">
@@ -173,12 +180,12 @@
 <input type="number" id="v-cantidad" name="v-cantidad" placeholder="Cantidad" value="1" style="margin-bottom: 10px;" autocomplete="off">
         <div id="contenedor-talla" class="hidden" style="margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                <label for="v-talla" style="color: var(--primary); font-size: 0.9em;">Seleccione Talla/Peso:</label>
+                <label for="v-talla" style="color: var(--primary); font-size: 0.9em;">Seleccione Medida:</label>
             </div>
             <select id="v-talla" name="v-talla" class="glass" 
                     style="width: 100%; padding: 10px; border-radius: 8px; background: #222; color: white; border: 1px solid var(--primary);"
                     onchange="Controlador.mostrarStockDisponible(this.value)"> 
-                <option value="">Seleccione Talla...</option>
+                <option value="">Seleccione Medida...</option>
             </select>
         </div>
 
@@ -200,7 +207,7 @@
             <option value="Efectivo $">Efectivo $</option>
             <option value="Pago Móvil">Pago Móvil</option>
             <option value="Punto de Venta">Punto de Venta</option>
-            <option value="Fiao">Fiao (Deuda)</option>
+            <option value="Fiao">Crédito</option>
             <option value="Biopago">Biopago</option>
         </select>
         
@@ -342,13 +349,15 @@
 
 <script src="JS/frases.js"></script>
 <script src="JS/Offline.js"></script>
-<script src="JS/Seguridad.js"></script> <script src="JS/Servicios.js"></script>
-<script src="JS/Conversor.js"></script>
-<script src="JS/Inventario.js"></script>
-<script src="JS/Controlador.js"></script>
-<script src="JS/scaner.js"></script>
+<script src="JS/Seguridad.js"></script> 
+<script src="JS/Servicios.js"></script>
 
+<script src="JS/Interfaz.js"></script> <script src="JS/Conversor.js"></script>
+<script src="JS/Inventario.js"></script>
 <script src="JS/Ventas.js"></script> 
+<script src="JS/Controlador.js"></script> <script src="JS/scaner.js"></script>
+<script src="JS/Teclado.js"></script>
+
 <script src="JS/Main.js"></script>
 
 <script>
@@ -356,7 +365,6 @@
         navigator.serviceWorker.register('./sw.js');
     }
 </script>
-<script src="JS/Teclado.js"></script>
 
 </body>
 </html>

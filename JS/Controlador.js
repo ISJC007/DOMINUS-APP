@@ -1,5 +1,7 @@
 let tallasTemporales = {}; // o el valor inicial correcto
 let miGrafica = null;
+let modoGraficaActual = 0;
+
 const modalEleccion = {
     abrir: function(config) {
         this.cerrar();
@@ -134,21 +136,29 @@ const InterfazDevoluciones = {
     },
 
     // 🚀 LÓGICA DE INTERCAMBIO (Devuelve stock y abre nueva venta)
-    prepararCambio: function(venta) {
-        // 1. Devolver producto al inventario (Llama a tu función `devolver` que ya está OK)
-        Inventario.devolver(venta.productoNombre, venta.cantidadVenta, venta.tallaElegida);
-        
-        // 2. Marcar venta como devuelta en el historial permanente
-        if (typeof HistorialDevoluciones !== 'undefined') {
-            HistorialDevoluciones.marcarComoDevuelta(venta.id);
-        }
-        
-        notificar("✅ Venta verificada. Ahora seleccione el nuevo producto.", "exito");
-        
-        // 3. 🔥 CLAVE: Abrir el modal de venta normal para que el usuario elija el nuevo producto
-        if (typeof Interfaz.abrirModalVenta === 'function') {
-            Interfaz.abrirModalVenta();
-        }
+   prepararCambio: function(venta) {
+    // 1. Devolver stock (Ya lo tienes)
+    Inventario.devolver(venta.productoNombre, venta.cantidadVenta, venta.tallaElegida);
+    
+    // 2. Marcar como devuelta (Ya lo tienes)
+    if (typeof HistorialDevoluciones !== 'undefined') {
+        HistorialDevoluciones.marcarComoDevuelta(venta.id);
+    }
+
+    // 🛡️ BLINDAJE: Guardar el crédito en la memoria global de la App
+    // Esto asegura que la función registrarVenta() que blindamos antes aplique el descuento
+    window.creditoDevolucion = {
+        montoBs: venta.montoTotal,
+        idOriginal: venta.id,
+        productoDevuelto: venta.producto
+    };
+    
+    notificar(`✅ Crédito de Bs. ${venta.montoTotal} aplicado para el cambio.`, "exito");
+    
+    // 3. Abrir modal de venta normal
+    if (typeof Interfaz.abrirModalVenta === 'function') {
+        Interfaz.abrirModalVenta();
+    }
     }
 };
 
@@ -178,12 +188,12 @@ const Controlador = {
                     tallasDisponibles,
                     (tallaElegida) => {
                         // Después de elegir talla, pedir precio
-                        this.pedirPrecioYRegistrarVenta(producto, tallaElegida);
+                        Interfaz.pedirPrecioYRegistrarVenta(producto, tallaElegida);
                     }
                 );
             } else {
                 // Si no tiene tallas, pedir precio directamente
-                this.pedirPrecioYRegistrarVenta(producto, null);
+                Interfaz.pedirPrecioYRegistrarVenta(producto, null);
             }
             
         } else {
@@ -196,7 +206,7 @@ const Controlador = {
                 `El código <b>${codigo}</b> no existe. ¿Deseas registrarlo ahora?`,
                 () => {
                     // Abrir el modal de crear producto nuevo
-                    this.modalRecargaRapida("", codigo);
+                    Interfaz.modalRecargaRapida("", codigo);
                 },
                 null,
                 "Sí, registrar",
@@ -205,15 +215,21 @@ const Controlador = {
             );
         }
     },
-    
 ejecutarVenta() {
-    const p = document.getElementById('v-producto').value;
-    const m = parseFloat(document.getElementById('v-monto').value);
-    const mon = document.getElementById('v-moneda').value;
-    const met = document.getElementById('v-metodo').value;
-    const cli = document.getElementById('v-cliente').value;
-    const cantInput = document.getElementById('v-cantidad');
-    const cantidad = cantInput ? parseFloat(cantInput.value) : 1;
+    // 1. CAPTURA DE DATOS (Mantenemos tu lógica impecable)
+    const inputProducto = document.getElementById('v-producto');
+    const inputMonto = document.getElementById('v-monto');
+    const inputCant = document.getElementById('v-cantidad');
+    const inputCli = document.getElementById('v-cliente');
+    const inputMon = document.getElementById('v-moneda');
+    const inputMet = document.getElementById('v-metodo');
+    
+    const p = inputProducto ? inputProducto.value : '';
+    const m = inputMonto ? parseFloat(inputMonto.value) : NaN;
+    const mon = inputMon ? inputMon.value : 'USD';
+    const met = inputMet ? inputMet.value : 'Efectivo';
+    const cli = inputCli ? inputCli.value : '';
+    const cantidad = inputCant ? parseFloat(inputCant.value) : 1;
     
     const selectTalla = document.getElementById('v-talla');
     const divTalla = document.getElementById('contenedor-talla'); 
@@ -222,6 +238,13 @@ ejecutarVenta() {
     const inputCom = document.getElementById('v-comision');
     const comFinal = inputCom ? (parseFloat(inputCom.value) || 0) : 0;
 
+    const btnPunto = document.getElementById('btn-modo-punto');
+    const esServicio = btnPunto ? btnPunto.classList.contains('activo-punto') : false;
+
+    // 🛡️ REGLA DE ORO: ¿Estamos validando inventario?
+    const modoLibre = (typeof Inventario !== 'undefined' && Inventario.activo === false);
+
+    // 2. VALIDACIONES DE SEGURIDAD
     if(!p || isNaN(m)) {
         return notificar("Falta producto o monto", "error");
     }
@@ -230,35 +253,48 @@ ejecutarVenta() {
         return notificar("Para un fiao necesito el nombre", "fiao");
     }
 
-    if (divTalla && !divTalla.classList.contains('hidden')) {
-        if (!tallaElegida || tallaElegida === "") {
+    // 🛡️ VALIDACIÓN CONSCIENTE DE TALLAS:
+    // Si el modo libre está activo, NO bloqueamos por falta de talla/peso.
+    if (!modoLibre && divTalla && !divTalla.classList.contains('hidden')) {
+        if (!tallaElegida || tallaElegida === "" || tallaElegida === "null") {
             return notificar("Selecciona una talla/peso", "error");
         }
     }
 
-    const btnPunto = document.getElementById('btn-modo-punto');
-    const esServicio = btnPunto ? btnPunto.classList.contains('activo-punto') : false;
-        
-    // 1. AÑADIR AL CARRITO (Ya no guarda en el historial directo)
-    Ventas.prepararParaCarrito(p, m, mon, met, cli, comFinal, esServicio, cantidad, tallaElegida);
+    // 3. PROCESAMIENTO
+    if (typeof Ventas !== 'undefined' && typeof Ventas.prepararParaCarrito === 'function') {
+        // Pasamos los datos al carrito. 
+        // 💡 Importante: Ventas.prepararParaCarrito deberá saber si restar stock o no después.
+        Ventas.prepararParaCarrito(p, m, mon, met, cli, comFinal, esServicio, cantidad, tallaElegida);
+    } else {
+        return notificar("Error interno del sistema", "error");
+    }
     
-    // 2. Aprender producto (El cerebro aprende al añadir al carrito)
-    if (typeof Inventario !== 'undefined' && typeof Inventario.aprenderDeVenta === 'function') {
+    // El cerebro aprende solo si no es un servicio de punto
+    if (!esServicio && typeof Inventario !== 'undefined' && typeof Inventario.aprenderDeVenta === 'function') {
         Inventario.aprenderDeVenta(p, m);
     }
     
-    // 3. Limpiamos SOLO producto, monto y cantidad para seguir escaneando el siguiente
-    document.getElementById('v-producto').value = '';
-    document.getElementById('v-monto').value = '';
-    if(cantInput) cantInput.value = '1';
-    if(inputCom && esServicio) inputCom.value = '';
+    // 4. LIMPIEZA Y UX
+    if (inputProducto) inputProducto.value = '';
+    if (inputMonto) inputMonto.value = '';
+    if (inputCant) inputCant.value = '1';
     
-    if (esServicio) Interfaz.alternarModoPunto();
+    if (divTalla) divTalla.classList.add('hidden');
+    if (selectTalla) selectTalla.innerHTML = '<option value="">Seleccione Talla...</option>';
     
-    // 4. Actualizamos la vista de la cesta
-   this.renderCarrito();
-    document.getElementById('v-producto').focus(); // 👈 El cursor vuelve aquí para el siguiente escaneo
-    notificar("🛒 Añadido", "stock");
+    if (inputCom && esServicio) inputCom.value = '';
+    if (esServicio && typeof Interfaz !== 'undefined') Interfaz.alternarModoPunto();
+    
+    if (typeof this.renderCarrito === 'function') {
+        this.renderCarrito();
+    }
+    
+    if (inputProducto) inputProducto.focus(); 
+    
+    // Notificación personalizada según el modo
+    const msj = modoLibre ? "🛒 Añadido (Modo Libre)" : "🛒 Añadido a la cuenta";
+    notificar(msj, "stock");
 },
 
 // 👇 NUEVA: Dibuja la lista temporal en pantalla
@@ -269,33 +305,50 @@ renderCarrito() {
 
     if (!contenedor || !Ventas.carrito) return;
 
-    contenedor.innerHTML = '';
-
+    // 🛡️ Blindaje: Si no hay nada, limpiamos y salimos rápido
     if (Ventas.carrito.length === 0) {
-        contenedor.innerHTML = '<p style="text-align:center; opacity:0.5; font-size:0.9em;">La cuenta está vacía</p>';
-        totalBsDiv.innerText = '0.00 Bs';
-        totalUsdDiv.innerText = '$0.00';
+        contenedor.innerHTML = '<p style="text-align:center; opacity:0.5; font-size:0.9em; padding:20px;">🛒 La cuenta está vacía</p>';
+        if (totalBsDiv) totalBsDiv.innerText = '0.00 Bs';
+        if (totalUsdDiv) totalUsdDiv.innerText = '$0.00';
         return;
     }
 
+    // 🚀 MEJORA DE RENDIMIENTO: Construimos todo el HTML en una variable y lo inyectamos UNA sola vez
+    let htmlCarrito = '';
+
     Ventas.carrito.forEach((item, index) => {
         const nombreMostrar = item.tallaEscogida ? `${item.p} (${item.tallaEscogida})` : item.p;
-        contenedor.innerHTML += `
-            <div style="display:flex; justify-content:space-between; background:rgba(0,0,0,0.2); padding:10px; margin-bottom:5px; border-radius:8px; border-left: 3px solid var(--primary); align-items:center;">
+        
+        // 🛡️ INDICADOR DE MODO: Si NO valida inventario, ponemos un aviso visual
+        // Usamos la propiedad 'validarInventario' que añadimos en prepararParaCarrito
+        const esModoLibre = (item.validarInventario === false);
+        const iconoModo = esModoLibre ? '<span style="color:#ff9800; font-size:0.8em;"> [🔓 MODO LIBRE]</span>' : '';
+        const bordeLateral = esModoLibre ? '3px solid #ff9800' : '3px solid var(--primary)';
+
+        htmlCarrito += `
+            <div style="display:flex; justify-content:space-between; background:rgba(0,0,0,0.2); padding:10px; margin-bottom:8px; border-radius:8px; border-left: ${bordeLateral}; align-items:center; animation: fadeIn 0.3s ease;">
                 <div style="flex-grow:1;">
-                    <b style="font-size:0.95em;">${item.cant}x ${nombreMostrar}</b><br>
+                    <b style="font-size:0.95em; color: ${esModoLibre ? '#ff9800' : 'white'};">${item.cant}x ${nombreMostrar}${iconoModo}</b><br>
                     <small style="opacity:0.8">${item.totalBs.toLocaleString('es-VE')} Bs / $${item.totalUSD.toFixed(2)}</small>
                 </div>
-                <button onclick="Controlador.eliminarDelCarrito(${index})" style="background:#ff4d4d; color:white; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; font-weight:bold;">X</button>
+                <button onclick="Controlador.eliminarDelCarrito(${index})" 
+                        style="background:rgba(255, 77, 77, 0.2); color:#ff4d4d; border:1px solid #ff4d4d; padding:8px 12px; border-radius:5px; cursor:pointer; font-weight:bold; transition: 0.2s;"
+                        onmouseover="this.style.background='#ff4d4d'; this.style.color='white';"
+                        onmouseout="this.style.background='rgba(255, 77, 77, 0.2)'; this.style.color='#ff4d4d';">
+                    X
+                </button>
             </div>
         `;
     });
 
-    const totalBs = Ventas.obtenerTotalVentaActual();
-    const totalUsd = totalBs / Conversor.tasaActual;
+    contenedor.innerHTML = htmlCarrito;
 
-    totalBsDiv.innerText = `${totalBs.toLocaleString('es-VE')} Bs`;
-    totalUsdDiv.innerText = `$${totalUsd.toFixed(2)}`;
+    // 💰 CÁLCULO DE TOTALES
+    const totalBs = Ventas.obtenerTotalVentaActual();
+    const totalUsd = totalBs / (Conversor.tasaActual || 1);
+
+    if (totalBsDiv) totalBsDiv.innerText = `${totalBs.toLocaleString('es-VE')} Bs`;
+    if (totalUsdDiv) totalUsdDiv.innerText = `$${totalUsd.toFixed(2)}`;
 },
 
 // 👇 NUEVA: Permite borrar si se equivocaron
@@ -304,26 +357,84 @@ eliminarDelCarrito(index) {
     this.renderCarrito();
 },
 
-// 👇 NUEVA: El botón gigante que cobra todo de una vez
 ejecutarCobroFinal() {
-    if (Ventas.carrito.length === 0) return notificar("La cuenta está vacía", "error");
+    // 1. Verificación: ¿Hay productos en la lista?
+    if (Ventas.carrito.length === 0) {
+        return notificar("La cuenta está vacía", "error");
+    }
 
+    // 2. Procesamiento en el motor (Aquí se decide si se resta stock o no según cada item)
     const exito = Ventas.procesarCobroCarrito();
 
     if (exito) {
-        // Refrescar toda la interfaz real
-        Interfaz.actualizarDashboard();
-        Interfaz.renderInventario(); 
-        if (Interfaz.renderHistorial) Interfaz.renderHistorial();
+        // --- 🚀 FASE DE ACTUALIZACIÓN ---
+        // Solo refrescamos el inventario visual si el sistema está en modo activo
+        if (typeof Interfaz !== 'undefined') {
+            if (typeof Interfaz.actualizarDashboard === 'function') Interfaz.actualizarDashboard();
+            if (typeof Interfaz.renderInventario === 'function') Interfaz.renderInventario();
+        }
+
+        // --- 🧼 FASE DE LIMPIEZA DE INTERFAZ ---
+        // Reseteamos los campos para que el siguiente cliente sea una hoja en blanco
+        const idInputsALimpiar = ['v-cliente', 'v-producto', 'v-monto', 'v-cantidad', 'v-comision'];
+        idInputsALimpiar.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                // La cantidad siempre vuelve a 1 por comodidad, el resto se vacía
+                el.value = (id === 'v-cantidad') ? '1' : '';
+            }
+        });
+
+        // Volver a los valores por defecto de los selectores
+        const metodoPago = document.getElementById('v-metodo');
+        if (metodoPago) metodoPago.value = 'Efectivo $'; 
+
+        const moneda = document.getElementById('v-moneda');
+        if (moneda) moneda.value = 'USD';
+
+        // Ocultar elementos que solo se usan en casos específicos
+        const elementosAUltimar = [
+            'wrapper-cliente', 
+            'wrapper-comision', 
+            'contenedor-talla', 
+            'v-info-stock'
+        ];
         
-        // Limpiar cliente y método
-        document.getElementById('v-cliente').value = '';
-        this.limpiarSeleccionVenta();
-        
-        // Limpiar la cesta visual
-        this.renderCarrito();
+        elementosAUltimar.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (id === 'v-info-stock') {
+                    el.innerText = ''; 
+                } else {
+                    el.classList.add('hidden');
+                }
+            }
+        });
+
+        // 🛡️ Blindaje: Asegurar que el "Modo Punto" (comisión) se apague visualmente
+        const btnPunto = document.getElementById('btn-modo-punto');
+        if (btnPunto) btnPunto.classList.remove('activo-punto');
+
+        // --- 🛒 RESETEO DEL CARRITO ---
+        // Limpiamos la memoria visual y lógica de la cesta actual
+        if (typeof this.limpiarSeleccionVenta === 'function') this.limpiarSeleccionVenta();
+        this.renderCarrito(); 
+
+        // --- 🔊 FEEDBACK Y FOCO ---
+        // Sonido de éxito para que el vendedor sepa que ya terminó (UX auditiva)
+        const audioExito = new Audio('AUDIO/success.mp3'); 
+        audioExito.play().catch(() => {
+            console.warn("Audio de éxito no disponible.");
+        });
+
+        // Devolver el cursor al campo de producto (listo para el siguiente escaneo/nombre)
+        const inputProd = document.getElementById('v-producto');
+        if (inputProd) inputProd.focus();
         
         notificar("✅ ¡Venta Cobrada con Éxito!", "exito");
+
+    } else {
+        notificar("❌ Error: No se pudo procesar el cobro", "error");
     }
 },
 
@@ -484,88 +595,114 @@ limpiarFormularioInventario: function() {
         // Si tienes una función para refrescar la UI de tallas, llámala aquí:
         // if (typeof Interfaz !== 'undefined' && Interfaz.renderTallasTemporales) Interfaz.renderTallasTemporales();
     },
-  ejecutarGasto() {
-    const d = document.getElementById('g-desc').value;
-    const m = parseFloat(document.getElementById('g-monto').value);
-    const mon = document.getElementById('g-moneda').value;
+ejecutarGasto() {
+    const inputDesc = document.getElementById('g-desc');
+    const inputMonto = document.getElementById('g-monto');
+    const inputMon = document.getElementById('g-moneda');
+
+    const d = inputDesc ? inputDesc.value.trim() : '';
+    const m = inputMonto ? parseFloat(inputMonto.value) : NaN;
+    const mon = inputMon ? inputMon.value : 'USD';
     
-    if(!d || isNaN(m)) {
-        notificar("❌ Faltan datos o el monto es inválido", "error");
+    // 1. Validación de seguridad
+    if(!d || isNaN(m) || m <= 0) {
+        notificar("❌ Escribe una descripción y un monto válido", "error");
         return;
     }
 
-    // 🚀 INTEGRACIÓN: Actualizado con parámetros personalizados
-   Interfaz.confirmarAccion(
+    // 2. Confirmación Consciente
+    Interfaz.confirmarAccion(
         "Registrar Gasto",
         `¿Confirmar gasto de ${m} ${mon} por: "${d}"?`,
         () => {                
+            // 🚀 Llamada al motor de datos
             Ventas.registrarGasto(d, m, mon);
             
-            // Limpiar formulario
-            document.getElementById('g-desc').value = '';
-            document.getElementById('g-monto').value = '';
+            // 🧼 Limpiar formulario con seguridad
+            if (inputDesc) inputDesc.value = '';
+            if (inputMonto) inputMonto.value = '';
             
-            // Actualizar vista
-            Interfaz.actualizarDashboard();
-            notificar("💸 Gasto registrado correctamente");
+            // 🔄 Sincronización Total
+            if (typeof Interfaz !== 'undefined') {
+                Interfaz.actualizarDashboard();
+                // IMPORTANTE: Refrescamos la lista de gastos para que aparezca el nuevo
+                if (typeof Interfaz.renderGastos === 'function') {
+                    Interfaz.renderGastos(); 
+                }
+            }
+            
+            notificar("💸 Gasto registrado correctamente", "exito");
         },
-       null, // 🚀 CORRECCIÓN: Acción al cancelar
+        null, 
         "Sí, registrar",
         "Cancelar",
-        false
+        false // No es una acción destructiva (color azul/verde)
     );
 },
 
 guardarEnInventario() { 
-    const n = document.getElementById('inv-nombre').value;
+    // 1. Captura y Normalización
+    const nombreRaw = document.getElementById('inv-nombre').value.trim();
     const cStr = document.getElementById('inv-cant').value;
     const pStr = document.getElementById('inv-precio').value;
     
     const unidadElemento = document.getElementById('inv-unidad');
     const u = unidadElemento ? unidadElemento.value : 'Und';
 
-    // ✅ CORRECCIÓN: Usar notificar en lugar de alert
-    if(!n || !cStr) {
-        notificar("❌ Falta nombre o cantidad", "error");
-        return;
+    // 2. Validaciones Críticas
+    if(!nombreRaw || !cStr) {
+        return notificar("❌ Falta nombre o cantidad", "error");
     }
 
-    // Convertimos a float para soportar Kg y Lts con decimales
     const c = parseFloat(cStr);
     const p = parseFloat(pStr) || 0;
 
+    // 3. Validación de Integridad de Tallas/Desglose
     const tieneTallas = Object.keys(tallasTemporales).length > 0;
-    const tallasParaGuardar = tieneTallas ? {...tallasTemporales} : null;
-
+    
     if (tieneTallas) {
         const sumaTallas = Object.values(tallasTemporales).reduce((a, b) => a + b, 0);
-        // Usamos una pequeña tolerancia para evitar errores de decimales en JS
+        // Tolerancia para decimales (importante para Kg o Lts)
         if (Math.abs(sumaTallas - c) > 0.01) {
-            // ✅ CORRECCIÓN: Usar notificar en lugar de alert
-            notificar(`❌ Error: El stock total es ${c}, pero las tallas suman ${sumaTallas}. Deben ser iguales.`, "error");
-            return;
+            return notificar(`❌ Error: El stock total es ${c}, pero el desglose suma ${sumaTallas.toFixed(2)}.`, "error");
         }
     }
 
-    Inventario.guardar(n, c, p, u, tallasParaGuardar); 
-
-    // Limpiar campos
-    document.getElementById('inv-nombre').value = '';
-    document.getElementById('inv-cant').value = '';
-    document.getElementById('inv-precio').value = '';
-    if(unidadElemento) unidadElemento.value = 'Und';
-    tallasTemporales = {};
-
-    Interfaz.renderInventario();
+    // 4. PERSISTENCIA INTELIGENTE (Escudo de Identidad)
+    // Pasamos el nombre tal cual para mostrar, pero el "motor" debe normalizarlo
+    const tallasParaGuardar = tieneTallas ? {...tallasTemporales} : null;
     
-    // ✅ OPCIONAL: Notificar éxito
-    notificar(`✅ Producto "${n}" guardado correctamente.`);
+    // Llamada al método estático de la clase Inventario
+    const exito = Inventario.guardar(nombreRaw, c, p, u, tallasParaGuardar); 
+
+    if(exito) {
+        // 5. Limpieza de Interfaz
+        document.getElementById('inv-nombre').value = '';
+        document.getElementById('inv-cant').value = '';
+        document.getElementById('inv-precio').value = '';
+        if(unidadElemento) unidadElemento.value = 'Und';
+        
+        // Limpiamos la variable global de tallas para el siguiente producto
+        tallasTemporales = {};
+
+        // 6. Actualización Visual
+        if (typeof Interfaz !== 'undefined' && Interfaz.renderInventario) {
+            Interfaz.renderInventario();
+        }
+        
+        notificar(`✅ Producto "${nombreRaw}" guardado con éxito.`, "exito");
+    }
 },
 
-mostrarStockDisponible: function(talla) { //informa al usuario cuanto queda de esa talla antes de vender//
+mostrarStockDisponible: function(talla) {
     const nombreProd = document.getElementById('v-producto').value;
     const infoStock = document.getElementById('v-info-stock');
+    const inputCant = document.getElementById('v-cantidad');
+    const btnAnadir = document.getElementById('btn-anadir-carrito') || document.querySelector('button[onclick*="ejecutarVenta"]');
     
+    // 🛡️ CLAVE: ¿El sistema debe validar el inventario o está en modo libre?
+    const validacionActiva = (typeof Inventario !== 'undefined' && Inventario.activo === true);
+
     if (!nombreProd || !talla) {
         if(infoStock) infoStock.innerText = "";
         return;
@@ -574,106 +711,143 @@ mostrarStockDisponible: function(talla) { //informa al usuario cuanto queda de e
     const p = Inventario.productos.find(prod => prod.nombre.toLowerCase() === nombreProd.trim().toLowerCase());
     
     if (p && p.tallas) {
-        const cantidad = p.tallas[talla] || 0;
+        const stockDisponible = parseFloat(p.tallas[talla]) || 0;
+        const cantSolicitada = inputCant ? parseFloat(inputCant.value) || 1 : 1;
         const unidad = p.unidad || "Und";
         
         if(infoStock) {
-            infoStock.innerText = ` Stock: ${cantidad} ${unidad}`;
-            infoStock.style.color = cantidad > 0 ? "#4caf50" : "#ff5252";
+            infoStock.innerText = ` Stock: ${stockDisponible} ${unidad}`;
+            
+            // 🛡️ LÓGICA CONSCIENTE:
+            // Si el inventario está APAGADO, siempre permitimos (puede vender 1000 aunque haya 0)
+            // Si el inventario está PRENDIDO, validamos existencias.
+            const puedeVender = !validacionActiva || (stockDisponible > 0 && stockDisponible >= cantSolicitada);
+
+            if (puedeVender) {
+                infoStock.style.color = validacionActiva ? "#4caf50" : "#ff9800"; // Verde si valida, Naranja si está en modo libre
+                if (!validacionActiva) infoStock.innerText += " (Modo Libre)";
+                
+                if(btnAnadir) {
+                    btnAnadir.disabled = false;
+                    btnAnadir.style.opacity = "1";
+                    btnAnadir.style.cursor = "pointer";
+                }
+            } else {
+                // Solo entra aquí si Inventario.activo es TRUE y no hay stock
+                infoStock.style.color = "#ff5252"; // Rojo
+                infoStock.innerText += (stockDisponible <= 0) ? " (AGOTADO)" : " (INSUFICIENTE)";
+
+                if(btnAnadir) {
+                    btnAnadir.disabled = true;
+                    btnAnadir.style.opacity = "0.5";
+                    btnAnadir.style.cursor = "not-allowed";
+                }
+            }
         }
     }
 },
 
-    editarPrecioRapido(id, nuevoPrecio) {
+editarPrecioRapido(id, nuevoPrecio) {
+    // 1. Buscamos el producto (usamos == por si el ID viene como string desde el HTML)
     const producto = Inventario.productos.find(p => p.id == id);
     
     if (producto) {
-        producto.precio = nuevoPrecio === "" ? 0 : parseFloat(nuevoPrecio);
+        // 2. Validación de entrada: si está vacío es 0, si no, lo convertimos a número
+        const precioLimpio = nuevoPrecio === "" ? 0 : parseFloat(nuevoPrecio);
+
+        // 3. Verificamos que sea un número válido antes de asignar
+        if (isNaN(precioLimpio)) {
+            return notificar("❌ Precio inválido", "error");
+        }
+
+        // 4. Aplicamos el cambio
+        producto.precio = precioLimpio;
         
-        Persistencia.guardar('dom_inventario', Inventario.productos);
+        // 5. Usamos el "Guardián de Datos" para guardar y refrescar todo el sistema
+        Inventario.sincronizar();
         
-        console.log(`Precio de ${producto.nombre} actualizado a: ${producto.precio} Bs`);
+        // Log para depuración interna
+        console.log(`✅ Precio de ${producto.nombre} actualizado a: ${producto.precio} USD`);
     }
 },
     
  // Aceptamos el nombre del cliente en lugar del ID
 abonar(nombreCliente) {
-    // 1. Buscamos al cliente en lugar de una deuda específica
-    const deudasCliente = Ventas.deudas.filter(d => d.cliente === nombreCliente);
+    // 1. Buscamos deudas normalizando el nombre (Escudo de Identidad)
+    const nombreBusqueda = nombreCliente.trim().toLowerCase();
+    const deudasCliente = Ventas.deudas.filter(d => 
+        (d.cliente || "").trim().toLowerCase() === nombreBusqueda
+    );
     
     if (deudasCliente.length === 0) return notificar("No se encontraron deudas para este cliente", "error");
 
-    // 2. Calculamos el total en USD agrupado para mostrarlo en el modal
+    // 2. Calculamos totales para mostrar la verdad financiera
     const totalUSD = deudasCliente.reduce((sum, d) => sum + parseFloat(d.montoUSD || 0), 0);
     const totalBs = totalUSD * Conversor.tasaActual;
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    // Estilos igual que antes...
     overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
 
     overlay.innerHTML = `
-        <div class="card glass" style="max-width:380px; width:100%; border:1px solid var(--primary); padding:25px; border-radius:20px; text-align:center; color:white;">
+        <div class="card glass" style="max-width:380px; width:100%; border:1px solid var(--primary); padding:25px; border-radius:20px; text-align:center; color:white; animation: fadeIn 0.3s ease;">
             <span style="font-size:2.5em;">🤝</span>
             <h3 style="color:var(--primary); margin:10px 0;">Registrar Abono</h3>
             <p style="font-size:0.9em; opacity:0.8; margin-bottom:5px;">Cliente: <strong>${nombreCliente}</strong></p>
             <p style="font-size:1.1em; color:var(--primary); margin-bottom:15px; font-weight:bold;">
-                Debe: $${totalUSD.toFixed(2)} (${totalBs.toLocaleString('es-VE')} Bs)
+                Saldo Pendiente: $${totalUSD.toFixed(2)} (${totalBs.toLocaleString('es-VE')} Bs)
             </p>
             
             <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
-                <input type="number" id="monto-abono" placeholder="¿Cuánto paga?" 
-                       style="width:100%; padding:12px; border-radius:10px; border:1px solid var(--primary); background:rgba(0,0,0,0.2); color:white; font-size:1.1em; text-align:center;">
+                <input type="number" id="monto-abono" placeholder="¿Cuánto paga?" inputmode="decimal"
+                       style="width:100%; padding:14px; border-radius:10px; border:1px solid var(--primary); background:rgba(0,0,0,0.3); color:white; font-size:1.2em; text-align:center; outline:none;">
                 
-                <select id="moneda-abono" style="width:100%; padding:10px; border-radius:10px; background:#222; color:white; border:1px solid #444;">
+                <select id="moneda-abono" style="width:100%; padding:12px; border-radius:10px; background:#1a1a1a; color:white; border:1px solid #444; font-size:1em;">
                     <option value="Bs">Bolívares (Bs)</option>
                     <option value="USD">Dólares ($)</option>
                 </select>
 
-                <select id="metodo-abono" style="width:100%; padding:10px; border-radius:10px; background:#222; color:white; border:1px solid #444;">
-                    <option value="Pago Móvil">Pago Móvil</option>
+                <select id="metodo-abono" style="width:100%; padding:12px; border-radius:10px; background:#1a1a1a; color:white; border:1px solid #444; font-size:1em;">
                     <option value="Efectivo">Efectivo</option>
+                    <option value="Pago Móvil">Pago Móvil</option>
                     <option value="Punto">Punto de Venta</option>
                     <option value="Biopago">Biopago</option>
                 </select>
             </div>
 
             <div style="display:flex; gap:10px;">
-                <button id="btn-cerrar-abono" class="btn-main" style="background:#444; flex:1">Cerrar</button>
-                <button id="btn-guardar-abono" class="btn-main" style="flex:1">Confirmar</button>
+                <button id="btn-cerrar-abono" class="btn-main" style="background:#555; flex:1; padding:12px;">Cerrar</button>
+                <button id="btn-guardar-abono" class="btn-main" style="flex:1; padding:12px; font-weight:bold;">Confirmar</button>
             </div>
         </div>
     `;
 
     document.body.appendChild(overlay);
 
-    // --- MAGIA: Lógica de los botones ---
-    
-    // 1. Botón Cerrar
-    document.getElementById('btn-cerrar-abono').addEventListener('click', () => {
-        document.body.removeChild(overlay);
-    });
+    // MEJORA: Autofocus inmediato para rapidez de uso
+    const inputMonto = document.getElementById('monto-abono');
+    setTimeout(() => inputMonto.focus(), 100);
 
-    // 2. Botón Confirmar
-    document.getElementById('btn-guardar-abono').addEventListener('click', () => {
-        const montoRaw = document.getElementById('monto-abono').value;
-        const monto = parseFloat(montoRaw);
+    // 1. Lógica de Cerrar mejorada
+    document.getElementById('btn-cerrar-abono').onclick = () => overlay.remove();
+
+    // 2. Lógica de Confirmar
+    document.getElementById('btn-guardar-abono').onclick = () => {
+        const monto = parseFloat(inputMonto.value);
         const moneda = document.getElementById('moneda-abono').value;
         const metodo = document.getElementById('metodo-abono').value;
 
         if (!monto || monto <= 0) return notificar("Ingrese un monto válido", "error");
 
-        // Llama a tu función lógica existente
+        // Ejecutamos el motor lógico
         const resultado = Ventas.abonarDeudaPorCliente(nombreCliente, monto, moneda, metodo);
 
         if (resultado) {
-            // Refrescar vista
-            Interfaz.renderFiaos();
-            // Cerrar modal
-            document.body.removeChild(overlay);
-            notificar(`Abono de ${monto} ${moneda} registrado`, "exito");
+            if (typeof Interfaz !== 'undefined') Interfaz.renderFiaos();
+            overlay.remove();
+            notificar(`¡Abono de ${monto}${moneda === 'USD' ? '$' : 'Bs'} registrado!`, "exito");
         }
-    });
+    };
 },
 
 // --- 2. MODIFICADO PARA ELIMINAR TODO EL TOTAL DEL CLIENTE ---
@@ -752,28 +926,51 @@ eliminarInv(id) {
         Interfaz.toggleClienteField('Efectivo $');
     },
 
-generarCierre: function() { //llama para hacer el cierre del dia//
+generarCierre: function() { 
     if (document.getElementById('modal-dinamico')) return;
 
-    const r = Ventas.finalizarJornada();
+    const r = Ventas.finalizarJornada(); // Aquí ya viene el filtro de !devuelta
     const hoy = new Date().toLocaleDateString('es-VE');
-    const texto = `📊 *CIERRE DOMINUS - ${hoy}*\n\n` +
-                  `💵 Efec: ${r.efectivoBS.toLocaleString('es-VE')} Bs / ${r.efectivoUSD} $\n` +
-                  `📱 Dig: ${r.digital.toLocaleString('es-VE')} Bs\n` +
-                  `📉 Gastos: ${r.gastos.toLocaleString('es-VE')} Bs\n\n` +
-                  `✅ *Total Neto:* ${r.balanceNeto.toLocaleString('es-VE')} Bs`;
+    
+    // Cálculos estadísticos extra
+    const totalVentas = r.conteoVentas || 0;
+    const ticketPromedioBs = totalVentas > 0 ? (r.balanceNeto / totalVentas).toFixed(2) : 0;
+
+    // Estructura del Mensaje de WhatsApp (Con Emojis y Formato)
+    let texto = `📊 *REPORTE DOMINUS - ${hoy}*\n`;
+    texto += `━━━━━━━━━━━━━━━━━━\n\n`;
+    
+    texto += `🛍️ *ACTIVIDAD:* \n`;
+    texto += `• Ventas realizadas: ${totalVentas}\n`;
+    texto += `• Ticket Promedio: ${ticketPromedioBs} Bs\n\n`;
+
+    texto += `💵 *EFECTIVO EN CAJA:* \n`;
+    texto += `• Bolívares: ${r.efectivoBS.toLocaleString('es-VE')} Bs\n`;
+    texto += `• Dólares: ${r.efectivoUSD} $\n\n`;
+
+    texto += `📱 *DINERO DIGITAL:* \n`;
+    texto += `• Pago Móvil: ${r.detalle.pagoMovil.toLocaleString('es-VE')} Bs\n`;
+    texto += `• Punto/Biopago: ${(r.detalle.punto + r.detalle.biopago).toLocaleString('es-VE')} Bs\n`;
+    texto += `• Total Digital: ${r.digital.toLocaleString('es-VE')} Bs\n\n`;
+
+    texto += `📉 *EGRESOS:* \n`;
+    texto += `• Gastos Hoy: ${r.gastos.toLocaleString('es-VE')} Bs\n`;
+    texto += `• Comisiones: ${r.detalle.comisiones.toLocaleString('es-VE')} Bs\n\n`;
+
+    texto += `━━━━━━━━━━━━━━━━━━\n`;
+    texto += `✅ *TOTAL NETO DEL DÍA:* \n`;
+    texto += `💰 *${r.balanceNeto.toLocaleString('es-VE')} Bs*`;
 
     modalEleccion.abrir({
-        titulo: "📊 Finalizar Día",
-        mensaje: "¿Cómo deseas exportar el reporte?",
+        titulo: "📊 Finalizar Jornada",
+        mensaje: "¿Cómo deseas exportar el reporte detallado?",
         botones: [
             { 
-                texto: "📱 Enviar a WhatsApp", 
+                texto: "📱 WhatsApp Detallado", 
                 clase: "btn-whatsapp",
                 accion: () => {
                     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
-                    // 🚀 Mantenemos el flujo, pero ahora limpiará más datos
-                    setTimeout(() => { this.preguntarLimpieza(); }, 1500);
+                    setTimeout(() => { this.preguntarLimpieza(); }, 2000);
                 }
             },
             { 
@@ -781,8 +978,7 @@ generarCierre: function() { //llama para hacer el cierre del dia//
                 clase: "btn-pdf",
                 accion: () => { 
                     this.generarPDF();
-                    // 🚀 Opcional: También preguntar limpieza después de generar PDF
-                    setTimeout(() => { this.preguntarLimpieza(); }, 1000);
+                    setTimeout(() => { this.preguntarLimpieza(); }, 1500);
                 } 
             }
         ]
@@ -961,46 +1157,94 @@ if (serviciosPendientes.length > 0) {
         });
     }, 
 
-    renderizarGrafica() {
-        const canvas = document.getElementById('graficaVentas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const ventas = Persistencia.cargar('dom_ventas') || [];
-        const hoy = new Date().toLocaleDateString('es-VE');
-        const vHoy = ventas.filter(v => v.fecha === hoy);
-        
-        const datosPorHora = new Array(24).fill(0);
-        vHoy.forEach(v => {
-            if (v.hora) {
-                const hora = parseInt(v.hora.split(':')[0]);
-                datosPorHora[hora] += (Number(v.montoBs) || 0);
-            }
-        });
+   rotarGrafica() {
+    // Ciclo infinito: 0 -> 1 -> 2 -> 0...
+    modoGraficaActual = (modoGraficaActual + 1) % 3;
+    
+    // Feedback táctil para que el usuario sienta el cambio
+    if (navigator.vibrate) navigator.vibrate(50);
+    
+    this.renderizarGrafica();
+},
 
-        if (miGrafica) miGrafica.destroy();
+renderizarGrafica() {
+    const canvas = document.getElementById('graficaVentas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const hoy = new Date().toLocaleDateString('es-VE');
+    const t = Conversor.tasaActual || 1;
 
-        miGrafica = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: Array.from({length: 24}, (_, i) => `${i}:00`),
-                datasets: [{
-                    label: 'Ventas Bs',
-                    data: datosPorHora,
-                    borderColor: '#ffd700', // Dorado Dominus
-                    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { 
-                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
+    // --- CONFIGURACIÓN SEGÚN EL MODO DEL CICLO ---
+    let fuente = [];
+    let color = '#ffd700'; // Dorado (Ventas)
+    let titulo = 'Ventas Hoy (Bs)';
+
+    if (modoGraficaActual === 1) {
+        fuente = Persistencia.cargar('dom_gastos') || [];
+        color = '#ff4444'; // Rojo (Gastos)
+        titulo = 'Gastos Hoy (Bs)';
+    } else if (modoGraficaActual === 2) {
+        fuente = Persistencia.cargar('dom_fiaos') || [];
+        color = '#ffa500'; // Naranja (Fiaos)
+        titulo = 'Fiaos Hoy (Bs)';
+    } else {
+        fuente = Persistencia.cargar('dom_ventas') || [];
     }
-}
+
+    // --- PROCESAMIENTO DE DATOS ---
+    const datosHoy = fuente.filter(i => i.fecha === hoy);
+    const datosPorHora = new Array(24).fill(0);
+
+    datosHoy.forEach(item => {
+        if (item.hora) {
+            const h = parseInt(item.hora.split(':')[0]);
+            const monto = (modoGraficaActual === 2) 
+                ? (parseFloat(item.montoUSD) * t || 0) 
+                : (parseFloat(item.montoBs) || 0);
+            datosPorHora[h] += monto;
+        }
+    });
+
+    if (miGrafica) miGrafica.destroy();
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, 250);
+    gradient.addColorStop(0, color + '55');
+    gradient.addColorStop(1, color + '00');
+
+    miGrafica = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+            datasets: [{
+                label: titulo, // El título cambia en el tooltip
+                data: datosPorHora,
+                borderColor: color,
+                backgroundColor: gradient,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0 // Más limpio, solo se ve al tocar
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                // Añadimos un título pequeño flotante opcional
+                title: {
+                    display: true,
+                    text: titulo,
+                    color: color,
+                    font: { size: 14, weight: 'bold' },
+                    padding: { bottom: 10 }
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
+                x: { grid: { display: false }, ticks: { maxRotation: 0 } }
+            }
+        }
+    });
+ }
+
+};

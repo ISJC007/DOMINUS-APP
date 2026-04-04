@@ -119,19 +119,100 @@ const Seguridad = {
     },
 
     // 4. FUNCIÓN PARA AJUSTES
-    prepararCambioPIN() {
-        const pinActual = prompt("🔐 Para seguridad, ingrese su PIN ACTUAL:");
-        if (pinActual === this.getClave()) {
-            const nuevoPin = prompt("✨ Ingrese su NUEVO PIN (mínimo 4 números):");
-            if (nuevoPin && nuevoPin.length >= 4) {
-                this.setClave(nuevoPin);
-            } else {
-                alert("❌ PIN inválido.");
-                this.vibrar(300);
+async prepararCambioPIN() {
+    // 1. Validar PIN Actual
+    const validado = await this.solicitarPINPersonalizado("🔒 Ingrese PIN ACTUAL", 4);
+    if (!validado) return; // Si cancela, no hace nada
+
+    // 2. Pedir Nuevo PIN
+    const nuevoPin = await this.solicitarPINPersonalizado("✨ Ingrese NUEVO PIN", 4, true);
+    if (!nuevoPin) return;
+
+    // 3. Confirmar Nuevo PIN
+    const confirmacion = await this.solicitarPINPersonalizado("✅ Confirme NUEVO PIN", 4, true);
+    if (!confirmacion) return;
+
+    // --- LÓGICA DE VALIDACIÓN FINAL ---
+    if (nuevoPin === confirmacion) {
+        this.setClave(nuevoPin);
+        
+        // Notificación de Éxito
+        notificar("PIN actualizado con éxito", "exito");
+        
+        // Feedback táctil y auditivo (Opcional)
+        this.vibrar(100); 
+        console.log("🔐 PIN de DOMINUS actualizado.");
+    } else {
+        // Notificación de Error
+        notificar("Los PIN no coinciden", "error");
+        
+        // Feedback de error (Vibración de rechazo)
+        this.vibrar([100, 50, 100, 50, 100]);
+        
+        // Reintentar automáticamente para que el flujo sea fluido
+        setTimeout(() => this.prepararCambioPIN(), 2000);
+    }
+},
+
+// Una versión genérica de tu solicitarPIN para reusar en cambios de clave
+solicitarPINPersonalizado(titulo, largo = 4, devolverValor = false) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.98); z-index: 30000;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column; backdrop-filter: blur(10px);
+        `;
+
+        overlay.innerHTML = `
+            <div style="text-align: center; width: 80%; max-width: 300px;">
+                <h2 style="color: #ffd700; margin-bottom: 5px; font-family: sans-serif;">DOMINUS</h2>
+                <p style="color: white; opacity: 0.7; margin-bottom: 20px; font-family: sans-serif;">${titulo}</p>
+                <input type="password" id="pin-dinamico" 
+                       inputmode="numeric" pattern="[0-9]*" maxlength="${largo}"
+                       style="width: 100%; background: transparent; border: none; 
+                              border-bottom: 2px solid #ffd700; color: white; 
+                              font-size: 3rem; text-align: center; outline: none;">
+                <div id="pin-error-dinamico" style="color: #ff4444; margin-top: 15px; height: 20px; font-family: sans-serif;"></div>
+                <button id="btn-cancelar-pin" style="margin-top: 30px; background: none; border: 1px solid #444; color: #888; padding: 5px 15px; border-radius: 5px; cursor: pointer;">Cancelar</button>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        const input = document.getElementById('pin-dinamico');
+        const errorDiv = document.getElementById('pin-error-dinamico');
+        const btnCancel = document.getElementById('btn-cancelar-pin');
+        
+        input.focus();
+
+        btnCancel.onclick = () => {
+            overlay.remove();
+            resolve(null);
+        };
+
+        input.oninput = () => {
+            if (input.value.length === largo) {
+                const valorCapturado = input.value;
+                
+                // Si es solo para validar el actual
+                if (!devolverValor) {
+                    if (valorCapturado === this.getClave()) {
+                        overlay.remove();
+                        resolve(true);
+                    } else {
+                        this.vibrar([100, 50, 100, 50, 100]);
+                        input.value = "";
+                        errorDiv.innerText = "PIN INCORRECTO";
+                        setTimeout(() => errorDiv.innerText = "", 1500);
+                    }
+                } else {
+                    // Si es para capturar un valor nuevo
+                    overlay.remove();
+                    resolve(valorCapturado);
+                }
             }
-        } else {
-            alert("❌ El PIN no coincide.");
-            this.vibrar([100, 50, 100, 50, 100]);
-        }
+        };
+    });
     }
 };

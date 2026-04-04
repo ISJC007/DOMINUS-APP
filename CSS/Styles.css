@@ -252,13 +252,29 @@ select option {
 }
 
 .card-grafica {
-    margin: 15px;
+    margin: 20px 15px; /* Un poco más de aire arriba */
     padding: 15px;
     background: var(--card-bg);
-    border-radius: 15px;
-    height: 200px;
+    backdrop-filter: blur(12px); /* Efecto de desenfoque detrás del cristal */
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 20px; /* Bordes más modernos y redondeados */
+    height: 250px; /* Subimos a 250px para que la gráfica respire mejor */
     position: relative;
     max-width: calc(100% - 30px);
+    border: 1px solid rgba(255, 255, 255, 0.05); /* Un borde sutil para definir la forma */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); /* Sombra para dar elevación */
+    transition: transform 0.2s ease; /* Pequeño efecto al tocar */
+}
+
+/* Efecto visual cuando el usuario toca la gráfica */
+.card-grafica:active {
+    transform: scale(0.98);
+}
+
+/* Aseguramos que el canvas use todo el espacio interno */
+#graficaVentas {
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .hidden { display: none !important; }

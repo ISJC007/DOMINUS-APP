@@ -20,21 +20,28 @@ const Inventario = {
 
     // ... dentro de objeto Inventario ...
 recargarRapido(nombre, cantidad, tallaElegida) {
-    const p = this.productos.find(prod => prod.nombre === nombre);
-    if (!p) return;
+    // 1. Buscamos el producto (Usa toLowerCase para evitar fallos por una mayúscula)
+    const p = this.productos.find(prod => prod.nombre.toLowerCase() === nombre.toLowerCase());
+    if (!p) return notificar("❌ Producto no encontrado", "error");
 
-    // 💡 EL CAMBIO: Forzar que sea número antes de sumar
+    // 2. Forzar número y limpiar entrada
     const numCantidad = parseFloat(cantidad) || 0;
 
-    p.cantidad += numCantidad;
+    // 3. SUMA CON PRECISIÓN (Máximo 3 decimales para Kg/Lts)
+    p.cantidad = Number((p.cantidad + numCantidad).toFixed(3));
 
-    if (tallaElegida && p.tallas && p.tallas[tallaElegida] !== undefined) {
-        p.tallas[tallaElegida] += numCantidad;
+    // 4. ACTUALIZACIÓN DE TALLA (Si aplica)
+    if (tallaElegida && p.tallas) {
+        // Usamos (|| 0) por si la talla existe en el objeto pero es null/undefined
+        const cantidadPreviaTalla = parseFloat(p.tallas[tallaElegida]) || 0;
+        p.tallas[tallaElegida] = Number((cantidadPreviaTalla + numCantidad).toFixed(2));
     }
 
+    // 5. PERSISTENCIA Y RENDER
+    // Como sincronizar() ya llama a Interfaz.renderInventario(), ahorramos líneas
     this.sincronizar();
-    if (typeof Interfaz !== 'undefined') Interfaz.renderInventario();
-    notificar(`✅ Stock de "${nombre}" actualizado.`);
+    
+    notificar(`✅ Stock de "${p.nombre}" actualizado (+${numCantidad})`);
 },
 
 actualizar(nombreOriginal, nuevoNombre, nuevaCantidad, nuevoPrecio, nuevaUnidad, nuevasTallas, nuevoMinimo) {
@@ -136,86 +143,118 @@ actualizar(nombreOriginal, nuevoNombre, nuevaCantidad, nuevoPrecio, nuevaUnidad,
     }
 },
 
+// Método para chequear salud del stock
+chequearSaludStock(producto) {
+    const stock = producto.cantidad;
+    const min = producto.stockMinimo || 3;
+
+    if (stock <= 0) {
+        notificar(`🚨 AGOTADO: ${producto.nombre}`, "error");
+        return "agotado";
+    } 
+    if (stock <= min) {
+        notificar(`⚠️ STOCK BAJO: ${producto.nombre} (${stock})`, "stock");
+        return "bajo";
+    }
+    return "ok";
+},
+
     // 🛠️ MEJORADO: Ahora suma decimales correctamente y actualiza sin romper
- guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null, codigo = "") { // 👈 NUEVO: Parámetro codigo
-        if (!nombre) return; 
+guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null, codigo = "") {
+    if (!nombre) return; 
+    
+    const nombreLimpio = nombre.trim();
+    // 1. Escudo de Identidad: Buscamos si ya existe (sin importar mayúsculas)
+    const index = this.productos.findIndex(p => p.nombre.toLowerCase() === nombreLimpio.toLowerCase());
+    
+    // Normalización de números
+    const precioFinal = (precio === "" || precio === null) ? 0 : parseFloat(precio);
+    const nuevaCant = parseFloat(cantidad) || 0;
+
+    if (index !== -1) {
+        // --- PRODUCTO EXISTENTE: Actualizar ---
+        const p = this.productos[index];
+
+        // Suma de stock con redondeo de precisión
+        p.cantidad = Number((p.cantidad + nuevaCant).toFixed(3));
+
+        // Actualización selectiva de metadatos
+        if (precioFinal > 0) p.precio = precioFinal;
+        p.unidad = unidad;
+        if (codigo) p.codigo = codigo; // Solo actualiza si viene un código
         
-        const nombreLimpio = nombre.trim();
-        // Buscar por nombre para ver si ya existe
-        const index = this.productos.findIndex(p => p.nombre.toLowerCase() === nombreLimpio.toLowerCase());
-        const precioFinal = (precio === "" || precio === null) ? 0 : parseFloat(precio);
-        const nuevaCant = parseFloat(cantidad) || 0;
-
-        if (index !== -1) {
-            // --- PRODUCTO EXISTENTE: Actualizar ---
-            
-            // 1. SUMAR LA CANTIDAD (Evitando errores de decimales largos)
-            this.productos[index].cantidad += nuevaCant;
-            if (unidad === 'Kg' || unidad === 'Lts') {
-                this.productos[index].cantidad = parseFloat(this.productos[index].cantidad.toFixed(3));
-            }
-
-            // 2. Solo actualiza el precio si le pusiste uno nuevo mayor a 0
-            if (precioFinal > 0) {
-                this.productos[index].precio = precioFinal;
-            }
-            this.productos[index].unidad = unidad;
-            this.productos[index].codigo = codigo; // 👈 NUEVO: Actualizar código
-            
-            // 3. Sumar tallas si existen
-            if (tallas) {
-                if (!this.productos[index].tallas) this.productos[index].tallas = {};
-                Object.keys(tallas).forEach(t => {
-                    const cantTallaRecarga = parseFloat(tallas[t]) || 0;
-                    this.productos[index].tallas[t] = (this.productos[index].tallas[t] || 0) + cantTallaRecarga;
-                });
-            }
-            notificar(`Stock actualizado: +${nuevaCant} ${unidad}`, "stock");
-        } else {
-            // --- PRODUCTO NUEVO ---
-            
-            // Generar ID ÚNICO para asegurar integridad de datos
-            const nuevoId = Date.now() + Math.random();
-            
-            this.productos.push({
-                id: nuevoId,
-                nombre: nombreLimpio,
-                cantidad: nuevaCant,
-                precio: precioFinal,
-                unidad: unidad,
-                codigo: codigo, // 👈 NUEVO: Guardar código
-                // Definir stock mínimo automático según unidad
-                stockMinimo: (unidad === 'Kg' || unidad === 'Lts') ? 1.5 : 3,
-                tallas: tallas || {}
+        // Fusión inteligente de tallas
+        if (tallas) {
+            if (!p.tallas) p.tallas = {};
+            Object.keys(tallas).forEach(t => {
+                const cantRecarga = parseFloat(tallas[t]) || 0;
+                p.tallas[t] = Number(((p.tallas[t] || 0) + cantRecarga).toFixed(2));
             });
-            notificar("📦 Nuevo producto registrado", "stock");
         }
+        notificar(`Stock actualizado: +${nuevaCant} ${unidad}`, "stock");
+    } else {
+        // --- PRODUCTO NUEVO ---
+        const nuevoId = Date.now() + Math.random(); // ID único robusto
         
-        // Guardar cambios en localStorage
-        this.sincronizar(); 
-    },
+        this.productos.push({
+            id: nuevoId,
+            nombre: nombreLimpio,
+            cantidad: nuevaCant,
+            precio: precioFinal,
+            unidad: unidad,
+            codigo: codigo,
+            // Alerta automática: 1.5 para pesados, 3 para unidades
+            stockMinimo: (unidad === 'Kg' || unidad === 'Lts') ? 1.5 : 3,
+            tallas: tallas || {}
+        });
+        notificar("📦 Nuevo producto registrado", "stock");
+    }
+    
+    // Guardar en persistencia
+    this.sincronizar(); 
+},
 
-    eliminar(id) {
-        this.productos = this.productos.filter(p => p.id !== Number(id));
+   eliminar(id) {
+    // Usamos != para que compare sin importar si es string o número
+    // pero manteniendo la seguridad del filtro
+    const totalAntes = this.productos.length;
+    this.productos = this.productos.filter(p => p.id != id);
+    
+    if (this.productos.length < totalAntes) {
         this.sincronizar();
-        notificar("Producto eliminado del inventario", "error");
-    },
+        notificar("🗑️ Producto eliminado permanentemente", "error");
+    }
+},
 
     // --- LÓGICA DE CONTROL Y SINCRONIZACIÓN ---
 
-   sincronizar() {
-        this.productos = this.productos.filter(p => p && p.nombre);
-        // Guardar antes de renderizar para asegurar persistencia
-        Persistencia.guardar('dom_inventario', this.productos);
+  sincronizar() {
+    // 1. FILTRO DE INTEGRIDAD
+    // Eliminamos cualquier registro corrupto (que no tenga nombre o sea null)
+    // Esto evita que el 1.40 MB de tu archivo crezca con datos vacíos.
+    this.productos = this.productos.filter(p => p && p.nombre && p.id);
 
-        if (typeof Interfaz !== 'undefined' && Interfaz.renderInventario) {
-            Interfaz.renderInventario();
-        }
-        
-        // 💡 NOTA: Eliminamos la lógica de alertas de aquí 
-        // porque se repiten mucho al guardar. 
-        // Las alertas ahora están en registrarVenta().
-    },
+    // 2. GUARDADO EN DISCO (LocalStorage)
+    // Usamos el nombre de la llave que definiste para el inventario
+    try {
+        Persistencia.guardar('dom_inventario', this.productos);
+    } catch (error) {
+        console.error("Error al persistir el inventario:", error);
+        notificar("❌ Error de memoria al guardar inventario", "error");
+        return;
+    }
+
+    // 3. ACTUALIZACIÓN DE VISTA
+    // Si la Interfaz está cargada, redibujamos la lista automáticamente
+    if (typeof Interfaz !== 'undefined' && Interfaz.renderInventario) {
+        Interfaz.renderInventario();
+    }
+    
+    // NOTA PARA JOHANDER:
+    // Las alertas de "Stock Bajo" no las ponemos aquí para no 
+    // interrumpir el flujo cuando estás cargando mercancía nueva.
+    // Esas alertas saltarán solo cuando se reste stock en las ventas.
+},
 
    buscarPorCodigo: function(codigo) {
         return this.productos.find(prod => prod.codigo === codigo);

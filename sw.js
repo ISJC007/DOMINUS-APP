@@ -1,6 +1,6 @@
 /**
  * ARCHIVO: sw.js
- * VERSIÓN: 3.2.7 (Final Blindada)
+ * VERSIÓN: 3.3.8 (Casi Ultimate Blindada)
  */
 
 const CACHE_NAME = 'DOMINUS-3.2.7'; 
