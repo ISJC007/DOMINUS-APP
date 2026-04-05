@@ -1,3 +1,4 @@
+const registrosSilencio = {}; 
 const Inventario = {
     activo: true,
     productos: [],
@@ -93,35 +94,47 @@ devolver(nombre, cantidad, tallaElegida = null) {
 
 // Método para chequear salud del stock
 chequearSaludStock(producto) {
-    // 1. Forzar números para evitar errores de comparación string vs number
+    const nombreKey = producto.nombre.toLowerCase().trim();
     const stock = parseFloat(producto.cantidad) || 0;
     const unidad = producto.unidad || 'Und';
-    
-    // 2. Lógica inteligente: Si no tiene mínimo definido, usamos 1.5 para peso y 3 para unidades
     const min = parseFloat(producto.stockMinimo) || (unidad === 'Kg' || unidad === 'Lts' ? 1.5 : 3);
 
-    // 🚨 ESTADO: AGOTADO (Prioridad Máxima)
+    // 1. Si el stock sube (reposición), quitamos el bozal al centinela
+    if (stock > min) {
+        registrosSilencio[nombreKey] = false;
+        return "ok";
+    }
+
+    // 2. ESTADO: AGOTADO (Prioridad 1)
     if (stock <= 0) {
-        notificar(`🚨 AGOTADO: ${producto.nombre}`, "error");
-        console.warn(`DOMINUS: ${producto.nombre} se ha quedado sin existencias.`);
+        // Solo avisar si no hemos avisado que está agotado ya
+        if (registrosSilencio[nombreKey] !== 'agotado_avisado') {
+            notificar(`🚨 AGOTADO: ${producto.nombre}`, "error");
+            registrosSilencio[nombreKey] = 'agotado_avisado';
+        }
         return "agotado";
     } 
 
-    // ⚠️ ESTADO: STOCK BAJO
+    // 3. ESTADO: STOCK BAJO (Prioridad 2)
     if (stock <= min) {
-        // Personalizamos el mensaje según la unidad para que se vea más profesional
+        // 🔥 LA CLAVE: Si ya avisamos que está "bajo", no digas nada más
+        if (registrosSilencio[nombreKey] === 'bajo_avisado' || registrosSilencio[nombreKey] === 'agotado_avisado') {
+            return "bajo"; 
+        }
+
         const mensaje = (unidad === 'Kg' || unidad === 'Lts') 
             ? `⚠️ STOCK BAJO: ${producto.nombre} (${stock.toFixed(3)} ${unidad})`
             : `⚠️ STOCK BAJO: ${producto.nombre} (${Math.round(stock)} ${unidad})`;
             
         notificar(mensaje, "stock");
+        
+        // Bloqueamos futuros gritos para este producto
+        registrosSilencio[nombreKey] = 'bajo_avisado';
         return "bajo";
     }
 
-    // ✅ ESTADO: SALUDABLE
     return "ok";
 },
-
     // 🛠️ MEJORADO: Ahora suma decimales correctamente y actualiza sin romper
 guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null, codigo = "", minManual = null) {
     if (!nombre) return; 

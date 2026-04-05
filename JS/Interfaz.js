@@ -1,22 +1,34 @@
 const Interfaz = { //muestra todo en pantalla lo que se clickea//
 
-  mostrarSelectorEscaner: function() {
+mostrarSelectorEscaner: function() {
     this.confirmarAccion(
-        "Método de Escaneo",
-        "¿Qué método deseas usar para gestionar tu inventario?",
+        "Método de Gestión",
+        "¿Qué dispositivo vas a utilizar?",
         () => {                
-            // Acción al confirmar (OK): Láser
-            // 🚀 CAMBIO: Llamamos al objeto Scanner pasándole el callback
+            // LÁSER
             Scanner.iniciarBusquedaEscannerLaser((codigo) => this.procesarCodigoEscaneado(codigo));
         },
         () => {                
-            // Acción al cancelar: Cámara
-            // 🚀 CAMBIO: Llamamos al objeto Scanner pasándole el callback
-            Scanner.iniciarEscannerCamara((codigo) => this.procesarCodigoEscaneado(codigo));
+            // CELULAR -> Segundo Nivel
+            this.confirmarAccion(
+                "Modo Cámara",
+                "¿Escanear en vivo o tomar foto?",
+                () => {
+                    // EN VIVO
+                    Scanner.iniciarEscannerCamara((codigo) => this.procesarCodigoEscaneado(codigo));
+                },
+                () => {
+                    // FOTO
+                    // Si cancela la foto, llamamos de nuevo a mostrarSelectorEscaner() 🔄
+                    Scanner.procesarFoto(
+                        (codigo) => this.procesarCodigoEscaneado(codigo),
+                        () => this.mostrarSelectorEscaner() 
+                    );
+                },
+                "Escaneo Vivo", "Tomar Foto"
+            );
         },
-        "Láser", // Texto botón confirmar
-        "Cámara", // Texto botón cancelar
-        false // No es peligroso
+        "Láser", "Cámara"
     );
 },
 
@@ -235,42 +247,45 @@ mostrarModalEntrada: function(titulo, mensaje, placeholder, onAceptar) {
 
 // 🔥 FUNCIÓN MODIFICADA
 confirmarAccion(titulo, mensaje, onConfirmar, onCancelar = null, textoConfirmar = "Sí, proceder", textoCancelar = "No, cancelar", esPeligroso = false) {
-        const uniqueId = Date.now();
-        const btnAbortarId = `btn-abortar-${uniqueId}`;
-        const btnProcederId = `btn-proceder-${uniqueId}`;
-        
-        const colorPrimario = esPeligroso ? "#ff4444" : "#4caf50";
-        const icono = esPeligroso ? "⚠️" : "❓";
+    const uniqueId = Date.now();
+    const btnAbortarId = `btn-abortar-${uniqueId}`;
+    const btnProcederId = `btn-proceder-${uniqueId}`;
+    
+    const colorPrimario = esPeligroso ? "#ff4444" : "#4caf50";
+    const icono = esPeligroso ? "⚠️" : "❓";
 
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px;";
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px;";
 
-        overlay.innerHTML = `
-            <div class="card glass" style="max-width:320px; width:100%; text-align:center; border:1px solid ${colorPrimario}; padding:25px; border-radius:20px;">
-                <span style="font-size:3em;">${icono}</span>
-                <h3 style="color:#ffffff; margin:10px 0;">${titulo}</h3>
-                <p style="color:white; opacity:0.9; margin-bottom:20px;">${mensaje}</p>
-                <div style="display:flex; gap:10px;">
-                    <button id="${btnAbortarId}" class="btn-main" style="background:#444; flex:1">${textoCancelar}</button>
-                    <button id="${btnProcederId}" class="btn-main" style="background:${colorPrimario}; flex:1">${textoConfirmar}</button>
-                </div>
+    overlay.innerHTML = `
+        <div class="card glass" style="max-width:320px; width:100%; text-align:center; border:1px solid ${colorPrimario}; padding:25px; border-radius:20px;">
+            <span style="font-size:3em;">${icono}</span>
+            <h3 style="color:#ffffff; margin:10px 0;">${titulo}</h3>
+            <p style="color:white; opacity:0.9; margin-bottom:20px;">${mensaje}</p>
+            <div style="display:flex; gap:10px;">
+                <button id="${btnAbortarId}" class="btn-main" style="background:#444; flex:1">${textoCancelar}</button>
+                <button id="${btnProcederId}" class="btn-main" style="background:${colorPrimario}; flex:1">${textoConfirmar}</button>
             </div>
-        `;
+        </div>
+    `;
 
-        document.body.appendChild(overlay);
+    document.body.appendChild(overlay);
 
-        document.getElementById(btnAbortarId).onclick = () => {
-            if (onCancelar) onCancelar(); // 👈 Ejecutar acción al cancelar
-            overlay.remove();
-        };
+    document.getElementById(btnAbortarId).onclick = () => {
+        // Primero removemos el modal actual 🗑️
+        overlay.remove();
+        // Luego ejecutamos la acción secundaria (que puede abrir otro modal)
+        if (onCancelar) onCancelar(); 
+    };
 
-        document.getElementById(btnProcederId).onclick = () => {
-            onConfirmar();
-            overlay.remove();
-        };
-
-    },
+    document.getElementById(btnProcederId).onclick = () => {
+        // Primero removemos el modal actual 🗑️
+        overlay.remove();
+        // Luego ejecutamos la acción principal
+        onConfirmar();
+    };
+},
 
     cambiarSeccion: function(id) {
         console.log("Cambiando a:", id);

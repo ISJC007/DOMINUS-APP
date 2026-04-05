@@ -42,9 +42,11 @@ obtenerTotalVentaActual() {
 },
 
 procesarCobroCarrito() {
+    // 1. Validación de carrito vacío
     if (this.carrito.length === 0) {
         // 🔊 SONIDO DE ERROR (Carrito vacío)
         if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
+        if (typeof notificar === 'function') notificar("⚠️ El carrito está vacío", "error");
         return false;
     }
 
@@ -52,26 +54,44 @@ procesarCobroCarrito() {
     const totalItems = this.carrito.length;
 
     try {
+        // 🚀 BUCLE DE PROCESAMIENTO
         this.carrito.forEach(item => {
             if (item && item.p) {
+                /* LLAMADO A REGISTRAR VENTA:
+                   Pasamos un último parámetro en 'true' para indicar que es una venta 
+                   por lote (carrito) y que debe silenciar las alertas de stock individuales.
+                */
                 this.registrarVenta(
-                    item.p, item.m, item.mon, item.met, item.cli, 
-                    item.com || 0, item.esServicio || false, 
-                    item.cant || 1, item.tallaEscogida || null
+                    item.p, 
+                    item.m, 
+                    item.mon, 
+                    item.met, 
+                    item.cli, 
+                    item.com || 0, 
+                    item.esServicio || false, 
+                    item.cant || 1, 
+                    item.tallaEscogida || null,
+                    true // <--- 🔥 FLAG DE SILENCIO (Para evitar la repetición de voz)
                 );
             }
         });
 
-        // 🔊 SONIDO DE ÉXITO (Venta completada)
+        // 🔊 SONIDO DE ÉXITO (Venta completada - Suena una sola vez al final)
         if (typeof DominusAudio !== 'undefined') DominusAudio.play('exito');
 
+        // 📢 NOTIFICACIÓN FINAL
         if (modoLibre) {
             console.log("⚠️ Cobro procesado en MODO LIBRE.");
-            notificar(`✨ Venta de ${totalItems} ítems lista (Modo Libre)`);
+            if (typeof notificar === 'function') {
+                notificar(`✨ Venta de ${totalItems} ítems lista (Modo Libre)`, "info");
+            }
         } else {
-            notificar(`✨ Venta de ${totalItems} ítems procesada con éxito`, "exito");
+            if (typeof notificar === 'function') {
+                notificar(`✨ Venta de ${totalItems} ítems procesada con éxito`, "exito");
+            }
         }
 
+        // 🧹 LIMPIEZA
         this.carrito = []; 
         return true;
 
@@ -81,7 +101,9 @@ procesarCobroCarrito() {
         // 🔊 SONIDO DE ERROR (Fallo técnico)
         if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
         
-        notificar("Error al procesar el cobro. Revisa el historial.", "error");
+        if (typeof notificar === 'function') {
+            notificar("Error al procesar el cobro. Revisa el historial.", "error");
+        }
         return false;
     }
 },
@@ -169,7 +191,7 @@ quitarSplash() {
 
     
 
-registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, tallaEscogida = null) {
+registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, tallaEscogida = null, esVentaMasiva = false) {
     const tasa = Conversor.tasaActual || 1;
     const precioBase = Number(m) || 0;
     const cantidadVendida = Number(cant) || 0;
@@ -205,8 +227,11 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
 
         Inventario.sincronizar();
         
-        // 🚀 LLAMADA AL CENTINELA (Sonará 'stockBajo' si cruza el límite)
-        Inventario.chequearSaludStock(inv);
+        // 🚀 LLAMADA AL CENTINELA (Solo suena si NO es venta masiva)
+        // Esto evita que si vendes 5 cosas bajas de stock, suenen 5 voces a la vez.
+        if (!esVentaMasiva) {
+            Inventario.chequearSaludStock(inv);
+        }
     }
 
     // 2. CÁLCULOS FINANCIEROS
@@ -259,12 +284,11 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
     if (met === 'Fiao') this.deudas = db; else this.historial = db;
 
     // 5. EFECTO SONORO DE VENTA 🔊
-    if (typeof DominusAudio !== 'undefined') {
-        // Si no es un fiao, suena el dinero entrando
+    // 🚀 CAMBIO: Solo suena si NO es venta masiva para evitar ruidos encimados.
+    if (!esVentaMasiva && typeof DominusAudio !== 'undefined') {
         if (met !== 'Fiao') {
             DominusAudio.play('add'); 
         } else {
-            // Si es fiao, un sonido de éxito más sutil o el mismo success
             DominusAudio.play('success');
         }
     }

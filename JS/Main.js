@@ -154,23 +154,24 @@ const notificar = (msj, tipo = 'exito') => {
                 DominusAudio.play('error');
                 break;
             case 'stock':
-                DominusAudio.play('stockBajo');
+                // 🤫 SILENCIO: Se elimina la llamada a DominusAudio.play('stockBajo');
+                // Solo registramos en consola para que no grite.
+                console.warn("DOMINUS (Silencio de Stock):", msj);
                 break;
             case 'gasto':
-                // Si quieres un sonido específico para gastos, si no, usa success
-                DominusAudio.play('success'); 
+                DominusAudio.play('add'); 
                 break;
             case 'fiao':
-                DominusAudio.play('success');
+                DominusAudio.play('add');
                 break;
             default:
-                // Para 'exito' y otros casos generales
-                DominusAudio.play('success');
+                DominusAudio.play('add');
                 break;
         }
     }
 
     // 2. Gestión de la interfaz (Toast)
+    // El visual lo dejamos para que sepas que pasó, pero no hará ruido.
     const viejo = document.querySelector(`.toast-${tipo}`);
     if(viejo) viejo.remove();
 
