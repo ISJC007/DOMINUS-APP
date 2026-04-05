@@ -16,7 +16,18 @@ const Seguridad = {
     },
 
     // 2. LÓGICA DE INICIO (Con control de tiempo)
-    async iniciarProteccion() {
+   async iniciarProteccion() {
+        // 1. PRIMERO: Verificar si el usuario logueado quiere usar PIN
+        // Buscamos en la sesión que creó Usuario.js
+        const sesion = Persistencia.cargar('dom_sesion_activa');
+        
+        // Si no hay sesión o el usuario explícitamente dijo que NO quiere PIN, salimos.
+        if (!sesion || !sesion.perfil || sesion.perfil.usaPin === false) {
+            console.log("🔓 Seguridad: El usuario desactivó el PIN o no ha iniciado sesión.");
+            return true; 
+        }
+
+        // 2. SEGUNDO: Control de tiempo (los 5 minutos)
         const ultimaVez = localStorage.getItem('dom_ultima_auth');
         const ahora = Date.now();
         const cincoMinutos = 5 * 60 * 1000;
@@ -26,17 +37,8 @@ const Seguridad = {
             return true; 
         }
 
-        // COMENTADO TEMPORALMENTE PARA DESARROLLO LOCAL (Evita errores de dominio)
-        // const soportaBiometria = window.PublicKeyCredential && 
-        //                          await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        const soportaBiometria = false; 
-
-        let resultado = false;
-        if (soportaBiometria) {
-            resultado = await this.autenticarBiometrico();
-        } else {
-            resultado = await this.solicitarPIN();
-        }
+        // 3. TERCERO: Si llegamos aquí, es porque SÍ quiere PIN y ya pasó el tiempo
+        let resultado = await this.solicitarPIN();
 
         if (resultado) {
             localStorage.setItem('dom_ultima_auth', Date.now());

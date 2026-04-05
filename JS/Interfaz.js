@@ -714,7 +714,7 @@ generarFilaFiaoAgrupada(c) {
                 <div class="fiao-actions">
                     <span class="monto-bs">${montoBsDisplay} Bs</span>
                     <div class="action-buttons">
-                        <a href="${urlWhatsapp}" target="_blank" class="btn-whatsapp" title="Cobrar por WhatsApp">📲</a>
+                        <a href="${urlWhatsapp}" target="_blank" class="btn-whatsapp btn-redondo-wa" title="Cobrar por WhatsApp">📲</a>
                         <button class="btn-abonar" onclick="Ventas.abrirProcesoAbono('${c.cliente}')">Abonar</button>
                     </div>
                 </div>
@@ -733,7 +733,6 @@ generarFilaFiaoAgrupada(c) {
                                 <span class="detail-price">$${Number(d.montoUSD).toFixed(2)}</span>
                                 <div class="detail-btns">
                                     <button class="btn-edit-small" onclick="Ventas.editarDeudaEspecifica(${d.id})" title="Editar monto">✏️</button>
-                                    
                                     <button class="btn-delete-small" onclick="Ventas.eliminarRegistroEspecifico(${d.id})" title="Eliminar registro">🗑️</button>
                                 </div>
                             </div>
@@ -753,29 +752,29 @@ renderInventario() {
     const generarHTMLItem = (p) => {
         const unidad = p.unidad || 'Und';
         const stockActual = parseFloat(p.cantidad) || 0;
+        const minConfigurado = parseFloat(p.stockMinimo) || (p.unidad === 'Kg' || p.unidad === 'Lts' ? 1.5 : 3);
         
-        // --- LÓGICA DE ESTADOS ---
+        // --- LÓGICA DE ESTADOS MEJORADA ---
         const estaVacio = stockActual <= 0;
-        const esBajo = stockActual <= (p.stockMinimo || 3);
+        const esBajo = stockActual <= minConfigurado;
         
-        // Colores y Estilos dinámicos
         let colorStock = 'var(--primary)';
-        let bordeStyle = '';
-        let opacidad = 'opacity: 1;';
+        let bordeStyle = 'border: 1px solid rgba(255,255,255,0.1);';
+        let fondoAlerta = 'rgba(255,255,255,0.05)';
         let etiquetaAlerta = '';
 
         if (estaVacio) {
-            colorStock = '#ff4444'; // Rojo para agotado
-            bordeStyle = 'border: 1px solid rgba(255, 68, 68, 0.4);';
-            opacidad = 'opacity: 0.85;'; // Un poco más tenue para diferenciar
-            etiquetaAlerta = '<span style="background:#ff4444; color:white; padding:2px 6px; border-radius:4px; font-size:10px; margin-left:8px; vertical-align: middle;">VACÍO</span>';
+            colorStock = '#ff4444';
+            bordeStyle = 'border: 1px solid #ff4444;';
+            fondoAlerta = 'rgba(255, 68, 68, 0.1)';
+            etiquetaAlerta = `<span style="background:#ff4444; color:white; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold; margin-left:8px;">SIN STOCK</span>`;
         } else if (esBajo) {
-            colorStock = '#ff9800'; // Naranja para stock bajo
-            bordeStyle = 'border: 1px solid rgba(255, 152, 0, 0.4);';
-            etiquetaAlerta = ' ⚠️';
+            colorStock = '#ff9800';
+            bordeStyle = 'border: 1px solid #ff9800;';
+            fondoAlerta = 'rgba(255, 152, 0, 0.1)';
+            etiquetaAlerta = `<span style="background:#ff9800; color:white; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold; margin-left:8px;">REABASTECER</span>`;
         }
 
-        // Renderizado de Tallas
         let htmlTallas = "";
         if (p.tallas && Object.keys(p.tallas).length > 0) {
             htmlTallas = `
@@ -783,7 +782,7 @@ renderInventario() {
                     ${Object.entries(p.tallas)
                         .filter(([t, c]) => c > 0)
                         .map(([t, c]) => `
-                            <span style="font-size: 10px; background: rgba(255,255,255,0.05); color: #ccc; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); font-family: monospace;">
+                            <span style="font-size: 10px; background: rgba(255,255,255,0.08); color: #ddd; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); font-family: monospace;">
                                 ${t}:<b>${c}</b>
                             </span>
                         `).join('')}
@@ -791,11 +790,11 @@ renderInventario() {
         }
 
         return `
-            <div class="item-lista glass" style="margin-bottom:8px; display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 12px; ${bordeStyle} ${opacidad}">
+            <div class="item-lista glass" style="margin-bottom:10px; display: flex; justify-content: space-between; align-items: center; padding: 14px; border-radius: 15px; ${bordeStyle} background: ${fondoAlerta};">
                 <div style="flex: 1;">
                     <strong style="color: white; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px;">${p.nombre}</strong> ${etiquetaAlerta}<br>
                     <small style="color: ${colorStock}; font-weight: bold; font-size: 0.85em;">
-                        Stock: ${stockActual} ${unidad}
+                        Disponible: ${stockActual} ${unidad}
                     </small>
                     ${htmlTallas}
                 </div>
@@ -805,28 +804,35 @@ renderInventario() {
                         <span style="position: absolute; left: 6px; top: 50%; transform: translateY(-50%); color: #4caf50; font-size: 0.75em; font-weight: bold;">$</span>
                         <input type="number" value="${p.precio}" step="0.01" 
                             onchange="Controlador.editarPrecioRapido('${p.id}', this.value)" 
-                            style="width: 65px; background: rgba(0,0,0,0.3); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 6px; text-align: right; font-weight: bold; padding: 6px 4px 6px 14px; outline: none;">
+                            style="width: 70px; background: rgba(0,0,0,0.4); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 8px; text-align: right; font-weight: bold; padding: 8px 6px 8px 14px; outline: none;">
                     </div>
 
-                    <button class="btn-mini" onclick="Interfaz.modalRecargaRapida('${p.nombre}')" style="background: rgba(76, 175, 80, 0.1); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.4);" title="Añadir stock">➕</button>
-                    <button class="btn-mini" onclick="Controlador.prepararEdicionInventario('${p.nombre}')" style="background: rgba(33, 150, 243, 0.1); color: #2196f3; border: 1px solid rgba(33, 150, 243, 0.4);" title="Editar">✏️</button>
-                    <button class="btn-mini" onclick="Controlador.eliminarInv('${p.id}')" style="background: rgba(244, 67, 54, 0.1); color: #f44336; border: 1px solid rgba(244, 67, 54, 0.4);" title="Borrar">🗑️</button>
+                    <button class="btn-mini" onclick="Interfaz.modalRecargaRapida('${p.nombre}')" style="background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid #4caf50;" title="Añadir stock">➕</button>
+                    <button class="btn-mini" onclick="Controlador.prepararEdicionInventario('${p.nombre}')" style="background: rgba(33, 150, 243, 0.2); color: #2196f3; border: 1px solid #2196f3;" title="Editar">✏️</button>
                 </div>
             </div>`;
     };
 
     const dibujarItems = (prods) => {
         if (prods.length === 0) {
-            lista.innerHTML = `<p style="color: #666; text-align: center; padding: 30px; font-style: italic;">Sin coincidencias en el inventario.</p>`;
+            lista.innerHTML = `<p style="color: #666; text-align: center; padding: 30px; font-style: italic;">Sin coincidencias.</p>`;
             return;
         }
-        lista.innerHTML = prods.map(p => generarHTMLItem(p)).join('');
+
+        // 🚀 MEJORA: Ordenar para que lo AGOTADO y BAJO salga arriba
+        const prodsOrdenados = [...prods].sort((a, b) => {
+            const minA = a.stockMinimo || (a.unidad === 'Kg' ? 1.5 : 3);
+            const minB = b.stockMinimo || (b.unidad === 'Kg' ? 1.5 : 3);
+            const alertaA = a.cantidad <= minA ? 1 : 0;
+            const alertaB = b.cantidad <= minB ? 1 : 0;
+            return alertaB - alertaA; // Los 1 (alertas) suben
+        });
+
+        lista.innerHTML = prodsOrdenados.map(p => generarHTMLItem(p)).join('');
     };
 
-    // Dibujamos inicialmente
     dibujarItems(Inventario.productos);
 
-    // Buscador en tiempo real
     const buscador = document.getElementById('busqueda-real-inv');
     if(buscador) {
         buscador.oninput = (e) => {

@@ -146,30 +146,34 @@ function CerrarGestorTallas() { //confirma las tallas para cerrar el modal-//Cie
 }
 
 const notificar = (msj, tipo = 'exito') => {
-    const viejo = document.querySelector('.toast-exito');
+    // Solo removemos si es del mismo tipo para no encimar mensajes iguales, 
+    // pero permitimos que convivan un 'exito' y un 'stock'
+    const viejo = document.querySelector(`.toast-${tipo}`);
     if(viejo) viejo.remove();
 
     const toast = document.createElement('div');
-    toast.className = `toast-exito toast-${tipo}`;
+    toast.className = `toast-general toast-${tipo}`; // Cambié la clase base
     
     const iconos = {
         exito: '✨',
         gasto: '📉',
         stock: '📦',
         fiao: '🤝',
-        error: '⚠️'
+        error: '❌',
+        alerta: '⚠️'
     };
 
     toast.innerHTML = `<span>${iconos[tipo] || '✅'}</span> ${msj}`;
+    
+    // Estilo para que si hay varios, se apilen (opcional, según tu CSS)
     document.body.appendChild(toast);
     
     setTimeout(() => toast.classList.add('show'), 10);
     setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 400);
-    }, 2500);
+    }, 3500); // 3.5s para que dé tiempo de leer si hay varias
 };
-
 
 
 document.addEventListener('DOMContentLoaded', () => { 

@@ -353,87 +353,79 @@ renderCarrito() {
 
 // 👇 NUEVA: Permite borrar si se equivocaron
 eliminarDelCarrito(index) {
-    Ventas.carrito.splice(index, 1);
-    this.renderCarrito();
+    // 🛡️ Verificamos que el índice exista antes de cortar
+    if (Ventas.carrito[index]) {
+        Ventas.carrito.splice(index, 1);
+        this.renderCarrito();
+        // Notificación sutil (opcional)
+        console.log("🗑️ Item removido del carrito.");
+    }
 },
 
 ejecutarCobroFinal() {
     // 1. Verificación: ¿Hay productos en la lista?
     if (Ventas.carrito.length === 0) {
+        if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
         return notificar("La cuenta está vacía", "error");
     }
 
-    // 2. Procesamiento en el motor (Aquí se decide si se resta stock o no según cada item)
+    // 2. Procesamiento en el motor
     const exito = Ventas.procesarCobroCarrito();
 
     if (exito) {
         // --- 🚀 FASE DE ACTUALIZACIÓN ---
-        // Solo refrescamos el inventario visual si el sistema está en modo activo
         if (typeof Interfaz !== 'undefined') {
             if (typeof Interfaz.actualizarDashboard === 'function') Interfaz.actualizarDashboard();
             if (typeof Interfaz.renderInventario === 'function') Interfaz.renderInventario();
         }
 
         // --- 🧼 FASE DE LIMPIEZA DE INTERFAZ ---
-        // Reseteamos los campos para que el siguiente cliente sea una hoja en blanco
         const idInputsALimpiar = ['v-cliente', 'v-producto', 'v-monto', 'v-cantidad', 'v-comision'];
         idInputsALimpiar.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                // La cantidad siempre vuelve a 1 por comodidad, el resto se vacía
                 el.value = (id === 'v-cantidad') ? '1' : '';
             }
         });
 
-        // Volver a los valores por defecto de los selectores
+        // Valores por defecto
         const metodoPago = document.getElementById('v-metodo');
         if (metodoPago) metodoPago.value = 'Efectivo $'; 
 
         const moneda = document.getElementById('v-moneda');
         if (moneda) moneda.value = 'USD';
 
-        // Ocultar elementos que solo se usan en casos específicos
-        const elementosAUltimar = [
-            'wrapper-cliente', 
-            'wrapper-comision', 
-            'contenedor-talla', 
-            'v-info-stock'
-        ];
-        
+        // Ocultar elementos específicos
+        const elementosAUltimar = ['wrapper-cliente', 'wrapper-comision', 'contenedor-talla', 'v-info-stock'];
         elementosAUltimar.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                if (id === 'v-info-stock') {
-                    el.innerText = ''; 
-                } else {
-                    el.classList.add('hidden');
-                }
+                id === 'v-info-stock' ? el.innerText = '' : el.classList.add('hidden');
             }
         });
 
-        // 🛡️ Blindaje: Asegurar que el "Modo Punto" (comisión) se apague visualmente
+        // 🛡️ Blindaje visual de Modo Punto
         const btnPunto = document.getElementById('btn-modo-punto');
         if (btnPunto) btnPunto.classList.remove('activo-punto');
 
         // --- 🛒 RESETEO DEL CARRITO ---
-        // Limpiamos la memoria visual y lógica de la cesta actual
         if (typeof this.limpiarSeleccionVenta === 'function') this.limpiarSeleccionVenta();
         this.renderCarrito(); 
 
-        // --- 🔊 FEEDBACK Y FOCO ---
-        // Sonido de éxito para que el vendedor sepa que ya terminó (UX auditiva)
-        const audioExito = new Audio('AUDIO/success.mp3'); 
-        audioExito.play().catch(() => {
-            console.warn("Audio de éxito no disponible.");
-        });
+        // --- 🔊 FEEDBACK AUDITIVO (Caja Registradora) ---
+        // Usamos nuestro nuevo módulo centralizado
+        if (typeof DominusAudio !== 'undefined') {
+            DominusAudio.play('exito'); 
+        }
 
-        // Devolver el cursor al campo de producto (listo para el siguiente escaneo/nombre)
+        // Devolver foco al producto para el siguiente cliente
         const inputProd = document.getElementById('v-producto');
         if (inputProd) inputProd.focus();
         
         notificar("✅ ¡Venta Cobrada con Éxito!", "exito");
 
     } else {
+        if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
         notificar("❌ Error: No se pudo procesar el cobro", "error");
     }
 },
@@ -929,34 +921,27 @@ eliminarInv(id) {
 generarCierre: function() { 
     if (document.getElementById('modal-dinamico')) return;
 
-    const r = Ventas.finalizarJornada(); // Aquí ya viene el filtro de !devuelta
+    const r = Ventas.finalizarJornada(); 
     const hoy = new Date().toLocaleDateString('es-VE');
     
-    // Cálculos estadísticos extra
     const totalVentas = r.conteoVentas || 0;
     const ticketPromedioBs = totalVentas > 0 ? (r.balanceNeto / totalVentas).toFixed(2) : 0;
 
-    // Estructura del Mensaje de WhatsApp (Con Emojis y Formato)
     let texto = `📊 *REPORTE DOMINUS - ${hoy}*\n`;
     texto += `━━━━━━━━━━━━━━━━━━\n\n`;
-    
     texto += `🛍️ *ACTIVIDAD:* \n`;
     texto += `• Ventas realizadas: ${totalVentas}\n`;
     texto += `• Ticket Promedio: ${ticketPromedioBs} Bs\n\n`;
-
     texto += `💵 *EFECTIVO EN CAJA:* \n`;
     texto += `• Bolívares: ${r.efectivoBS.toLocaleString('es-VE')} Bs\n`;
     texto += `• Dólares: ${r.efectivoUSD} $\n\n`;
-
     texto += `📱 *DINERO DIGITAL:* \n`;
     texto += `• Pago Móvil: ${r.detalle.pagoMovil.toLocaleString('es-VE')} Bs\n`;
     texto += `• Punto/Biopago: ${(r.detalle.punto + r.detalle.biopago).toLocaleString('es-VE')} Bs\n`;
     texto += `• Total Digital: ${r.digital.toLocaleString('es-VE')} Bs\n\n`;
-
     texto += `📉 *EGRESOS:* \n`;
     texto += `• Gastos Hoy: ${r.gastos.toLocaleString('es-VE')} Bs\n`;
     texto += `• Comisiones: ${r.detalle.comisiones.toLocaleString('es-VE')} Bs\n\n`;
-
     texto += `━━━━━━━━━━━━━━━━━━\n`;
     texto += `✅ *TOTAL NETO DEL DÍA:* \n`;
     texto += `💰 *${r.balanceNeto.toLocaleString('es-VE')} Bs*`;
@@ -967,7 +952,8 @@ generarCierre: function() {
         botones: [
             { 
                 texto: "📱 WhatsApp Detallado", 
-                clase: "btn-whatsapp",
+                // CAMBIO AQUÍ: Añadimos la clase de diseño largo
+                clase: "btn-whatsapp btn-cierre-wa", 
                 accion: () => {
                     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
                     setTimeout(() => { this.preguntarLimpieza(); }, 2000);

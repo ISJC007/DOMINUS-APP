@@ -6,101 +6,96 @@ const Ventas = {
 
     // 👈 NUEVA FUNCIÓN: Guarda en el carrito temporal
 prepararParaCarrito(p, m, mon, met, cli, com, esServicio, cant, tallaEscogida) {
-    const tasa = Conversor.tasaActual;
-    const precioBase = Number(m);
-    let cantidadFinal = Number(cant);
+    const tasa = Conversor.tasaActual || 1;
+    const precioBase = parseFloat(m) || 0;
+    let cantidadFinal = parseFloat(cant) || 0;
 
     // 📦 LÓGICA DE PACAS / BULTOS
-    // Si la tallaEscogida contiene la palabra "Paca" o "Bulto"
-    // Ejemplo: "Paca (24)"
     if (tallaEscogida && tallaEscogida.toLowerCase().includes('paca')) {
-        // Extraemos el número entre paréntesis. Ejemplo: "Paca (24)" -> 24
         const unidadesPorPaca = parseInt(tallaEscogida.match(/\d+/)) || 1;
-        cantidadFinal = unidadesPorPaca * Number(cant);
-        console.log(`📦 Detectada Paca de ${unidadesPorPaca}. Total unidades: ${cantidadFinal}`);
+        cantidadFinal = unidadesPorPaca * cantidadFinal;
     }
 
     const validarEsteItem = (typeof Inventario !== 'undefined' && Inventario.activo === true && !esServicio);
 
-    const montoBs = (mon === 'BS') ? (precioBase * Number(cant)) : (precioBase * Number(cant)) * tasa;
-    const montoUSD = (mon === 'USD') ? (precioBase * Number(cant)) : (precioBase * Number(cant)) / tasa;
+    const montoBs = (mon === 'BS') ? (precioBase * cantidadFinal) : (precioBase * cantidadFinal) * tasa;
+    const montoUSD = (mon === 'USD') ? (precioBase * cantidadFinal) : (precioBase * cantidadFinal) / tasa;
+
+    // 🔊 SONIDO DE ESCÁNER (Feedback inmediato al añadir)
+    if (typeof DominusAudio !== 'undefined') DominusAudio.play('add');
 
     this.carrito.push({
-        p, 
-        m, 
-        mon, 
-        met, 
-        cli, 
-        com, 
-        esServicio, 
-        cant: cantidadFinal, // <--- Aquí mandamos la cantidad real desglosada
+        p, m, mon, met, cli, com, esServicio,
+        cant: cantidadFinal,
         tallaEscogida,
         totalBs: Number(montoBs.toFixed(2)),
         totalUSD: Number(montoUSD.toFixed(2)),
         validarInventario: validarEsteItem 
     });
 
-    notificar(`🛒 ${p} añadido al carrito`);
+    notificar(`🛒 ${p} añadido`);
     return this.carrito;
 },
 
-    // 👈 NUEVA FUNCIÓN: Suma el total
-    obtenerTotalVentaActual() {
-        return this.carrito.reduce((acc, item) => acc + item.totalBs, 0);
-    },
+obtenerTotalVentaActual() {
+    return this.carrito.reduce((acc, item) => acc + (parseFloat(item.totalBs) || 0), 0);
+},
 
-    // 👈 NUEVA FUNCIÓN: El motor que pasa el carrito al historial
 procesarCobroCarrito() {
-    if (this.carrito.length === 0) return false;
+    if (this.carrito.length === 0) {
+        // 🔊 SONIDO DE ERROR (Carrito vacío)
+        if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
+        return false;
+    }
 
-    // 🛡️ REGLA DE ORO: Capturamos el estado del inventario AL MOMENTO de iniciar el cobro
     const modoLibre = (typeof Inventario !== 'undefined' && Inventario.activo === false);
+    const totalItems = this.carrito.length;
 
     try {
         this.carrito.forEach(item => {
             if (item && item.p) {
-                // 🚀 PROCESAMIENTO: Enviamos el item a registrarVenta
-                // Importante: registrarVenta DEBE recibir el parámetro modoLibre 
-                // o consultar Inventario.activo internamente.
                 this.registrarVenta(
-                    item.p, 
-                    item.m, 
-                    item.mon, 
-                    item.met, 
-                    item.cli, 
-                    item.com || 0,
-                    item.esServicio || false, 
-                    item.cant || 1, 
-                    item.tallaEscogida || null
+                    item.p, item.m, item.mon, item.met, item.cli, 
+                    item.com || 0, item.esServicio || false, 
+                    item.cant || 1, item.tallaEscogida || null
                 );
             }
         });
 
-        // 🛡️ UX: Notificación final diferenciada
+        // 🔊 SONIDO DE ÉXITO (Venta completada)
+        if (typeof DominusAudio !== 'undefined') DominusAudio.play('exito');
+
         if (modoLibre) {
-            console.log("⚠️ Cobro procesado en MODO LIBRE (Sin afectar stock).");
+            console.log("⚠️ Cobro procesado en MODO LIBRE.");
+            notificar(`✨ Venta de ${totalItems} ítems lista (Modo Libre)`);
+        } else {
+            notificar(`✨ Venta de ${totalItems} ítems procesada con éxito`, "exito");
         }
 
-        this.carrito = []; // Vaciamos solo si el proceso terminó sin errores
+        this.carrito = []; 
         return true;
+
     } catch (error) {
         console.error("❌ Error crítico al procesar el cobro:", error);
+        
+        // 🔊 SONIDO DE ERROR (Fallo técnico)
+        if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
+        
         notificar("Error al procesar el cobro. Revisa el historial.", "error");
         return false;
     }
 },
 
-    async init() {
-        // --- REGISTRO Y ACTUALIZACIÓN AUTOMÁTICA DEL SW ---
+  async init() {
+        // --- REGISTRO Y ACTUALIZACIÓN DEL SW ---
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js')
             .then(reg => {
-                console.log('Dominus: SW registrado', reg);
+                console.log('Dominus: SW registrado');
                 reg.addEventListener('updatefound', () => {
                     const newWorker = reg.installing;
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            console.log('🔄 Nueva versión disponible. Recargando automáticamente...');
                             window.location.reload();
                         }
                     });
@@ -108,123 +103,123 @@ procesarCobroCarrito() {
             })
             .catch(err => console.error('Dominus: SW fallo', err));
         }
-        // ---------------------------------------------------
 
-        // 1. Carga de datos base (Inalterado)
+        // 1. Carga de datos base
         this.historial = Persistencia.cargar('dom_ventas') || [];
         this.deudas = Persistencia.cargar('dom_fiaos') || [];
         this.gastos = Persistencia.cargar('dom_gastos') || [];
 
         if (typeof Inventario !== 'undefined') Inventario.init();
 
-        // 2. INYECCIÓN DE FRASES AL AZAR (Inalterado)
+        // 2. INYECCIÓN DE FRASES AL AZAR
         if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
             const indice = Math.floor(Math.random() * bancoFrases.length);
             const fraseElegida = bancoFrases[indice];
-
             const txtFrase = document.getElementById('frase-splash');
             const txtAutor = document.getElementById('autor-splash');
-
             if (txtFrase && txtAutor) {
                 txtFrase.innerText = `"${fraseElegida.texto}"`;
                 txtAutor.innerText = `— ${fraseElegida.autor}`;
             }
         }
 
-        // --- VERIFICACIÓN DE SEGURIDAD (Punto #3) ---
-        const accesoConcedido = await Seguridad.iniciarProteccion();
+        // --- EL NUEVO FLUJO DE CONTROL ---
+        
+        // Primero: ¿Quién es el usuario?
+        const haySesion = Usuario.init();
 
-        if (!accesoConcedido) {
-            alert("Acceso denegado.");
-            location.reload();
-            return;
-        }
+        if (haySesion) {
+            // Segundo: Si el usuario existe, ¿tiene PIN?
+            const accesoConcedido = await Seguridad.iniciarProteccion();
 
-        // 3. CONTROL DEL SPLASH (Solo inicia si hubo acceso)
-        setTimeout(() => {
-            const splash = document.getElementById('splash-screen');
-            if (splash) {
-                splash.classList.add('splash-fade-out');
-                setTimeout(() => {
-                    splash.style.display = 'none';
-                    if (typeof Interfaz !== 'undefined') Interfaz.show('dashboard');
-                }, 800);
+            if (accesoConcedido) {
+                // Tercero: Si el PIN es correcto, entramos de una vez
+                this.quitarSplash();
+            } else {
+                alert("Acceso denegado.");
+                location.reload();
             }
-        }, 5000);
+        }
+        // Nota: Si no hay sesión, Usuario.init ya mostró el Login sobre el Splash.
+    },
+
+    // Función auxiliar para una salida fluida
+    quitarSplash() {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.classList.add('splash-fade-out');
+            setTimeout(() => {
+                splash.style.display = 'none';
+                if (typeof Interfaz !== 'undefined') Interfaz.show('dashboard');
+            }, 600); // 600ms es suficiente para que la animación se vea bien
+        }
     },
 
     
 
 registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, tallaEscogida = null) {
-    const tasa = Conversor.tasaActual;
-    const precioBase = Number(m);
-    const cantidadVendida = Number(cant);
+    const tasa = Conversor.tasaActual || 1;
+    const precioBase = Number(m) || 0;
+    const cantidadVendida = Number(cant) || 0;
 
-    // 🛡️ REGLA DE ORO: ¿Debemos alterar el stock físico?
+    // 🛡️ REGLA DE ORO
     const debeTocarStock = (typeof Inventario !== 'undefined' && Inventario.activo === true && !esServicio);
 
-    // 1. Lógica de Inventario (Stock)
+    // 1. LÓGICA DE INVENTARIO (Unificada)
     const nombreLimpio = p.trim().toLowerCase();
     const inv = Inventario.productos.find(i => i.nombre.toLowerCase() === nombreLimpio);
 
     if (inv && debeTocarStock) {
         let cantidadARestarGlobal = cantidadVendida;
         
-        // Manejo de conversiones (Kg/Lts)
+        // Conversiones inteligentes (g, ml, kg, l)
         if ((inv.unidad === 'Kg' || inv.unidad === 'Lts') && tallaEscogida) {
             const medida = tallaEscogida.toLowerCase();
+            const valorMedida = parseFloat(medida) || 0;
             if (medida.includes('g') || medida.includes('ml')) {
-                cantidadARestarGlobal = (parseFloat(medida) / 1000) * cantidadVendida;
+                cantidadARestarGlobal = (valorMedida / 1000) * cantidadVendida;
             } else if (medida.includes('kg') || medida.includes('l')) {
-                cantidadARestarGlobal = parseFloat(medida) * cantidadVendida;
+                cantidadARestarGlobal = valorMedida * cantidadVendida;
             }
         }
 
-        // --- RESTA CON ESCUDO DE PRECISIÓN ---
-        // Aplicamos toFixed(3) antes de volver a convertir a Number para evitar basura decimal
+        // Resta con precisión
         inv.cantidad = Number((inv.cantidad - cantidadARestarGlobal).toFixed(3));
 
-        // Restamos de la variante específica (Talla)
+        // Tallas: Solo restamos si NO es una conversión de peso/volumen (evita descontar doble)
         if (inv.tallas && tallaEscogida && inv.tallas[tallaEscogida] !== undefined) {
-            const stockTallaPrevio = parseFloat(inv.tallas[tallaEscogida]) || 0;
-            // No permitimos stock de talla negativo en el objeto
-            inv.tallas[tallaEscogida] = Math.max(0, Number((stockTallaPrevio - cantidadVendida).toFixed(2)));
+            // Si es peso, restamos la unidad (ej: 1 bolsa de 500g). Si es ropa, restamos 1 unidad.
+            inv.tallas[tallaEscogida] = Math.max(0, Number((inv.tallas[tallaEscogida] - cantidadVendida).toFixed(2)));
         }
 
-        // Sincronización única: Guarda en LocalStorage y redibuja la lista Glass
         Inventario.sincronizar();
-
-        // --- SISTEMA DE ALERTAS ---
-        const minimoAlerta = inv.stockMinimo || ((inv.unidad === 'Kg' || inv.unidad === 'Lts') ? 0.5 : 3);
         
-        if (inv.cantidad <= 0) {
-            notificar(`❌ AGOTADO: ${inv.nombre}`, "error");
-        } else if (inv.cantidad <= minimoAlerta) {
-            notificar(`⚠️ STOCK BAJO: ${inv.nombre} (${inv.cantidad} ${inv.unidad})`, "stock");
-        }
+        // 🚀 LLAMADA AL CENTINELA (Unificado)
+        // Eliminamos las notificaciones manuales de aquí y usamos la centralizada
+        Inventario.chequearSaludStock(inv);
 
-    } else if (!esServicio && !debeTocarStock && inv) {
-        console.log(`ℹ️ DOMINUS: Venta de "${p}" en Modo Libre (No afecta stock).`);
     }
 
-    // 2. Cálculos Financieros y APLICACIÓN DE CRÉDITO
+    // 2. CÁLCULOS FINANCIEROS (Corregido: Evitar división por cero)
     let montoAjustado = precioBase;
     let idRef = null;
 
     if (window.creditoDevolucion && window.creditoDevolucion.montoBs > 0) {
-        // Si hay un crédito por devolución, se descuenta del precio
-        montoAjustado = Math.max(0, precioBase - (window.creditoDevolucion.montoBs / cantidadVendida));
+        const divisor = cantidadVendida > 0 ? cantidadVendida : 1;
+        montoAjustado = Math.max(0, precioBase - (window.creditoDevolucion.montoBs / divisor));
         idRef = window.creditoDevolucion.idOriginal;
     }
 
-    const montoUSD = (mon === 'USD') ? (montoAjustado * cantidadVendida) : (montoAjustado * cantidadVendida) / tasa;
     const montoBs = (mon === 'BS') ? (montoAjustado * cantidadVendida) : (montoAjustado * cantidadVendida) * tasa;
+    const montoUSD = (mon === 'USD') ? (montoAjustado * cantidadVendida) : (montoAjustado * cantidadVendida) / tasa;
+    
+    // Comisión (La de tu papá 🤝)
     const montoComision = (Number(montoBs) * (Number(com) / 100));
     const montoAEntregar = esServicio ? (montoBs - montoComision) : 0;
 
-    // 3. Estructura de la Venta
+    // 3. ESTRUCTURA DE VENTA
     const datosVenta = {
-        id: Date.now(),
+        id: Date.now() + Math.random(), // Más seguro contra duplicados rápidos
         fecha: new Date().toLocaleDateString('es-VE'),
         hora: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
         producto: esServicio ? `PUNTO: ${p}` : (tallaEscogida ? `${p} (${tallaEscogida})` : p),
@@ -246,29 +241,18 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
         idReferenciaCambio: idRef 
     };
 
-    // 4. PERSISTENCIA FINANCIERA
-    if (met === 'Fiao') {
-        let fiaos = Persistencia.cargar('dom_fiaos') || [];
-        fiaos.push(datosVenta);
-        Persistencia.guardar('dom_fiaos', fiaos);
-        this.deudas = fiaos;
-    } else {
-        let historial = Persistencia.cargar('dom_ventas') || [];
-        historial.push(datosVenta);
-        Persistencia.guardar('dom_ventas', historial);
-        this.historial = historial;
-    }
+    // 4. PERSISTENCIA
+    const storageKey = (met === 'Fiao') ? 'dom_fiaos' : 'dom_ventas';
+    let db = Persistencia.cargar(storageKey) || [];
+    db.push(datosVenta);
+    Persistencia.guardar(storageKey, db);
+    
+    if (met === 'Fiao') this.deudas = db; else this.historial = db;
 
-    // Historial para devoluciones futuras
-    if (typeof HistorialDevoluciones !== 'undefined') {
-        HistorialDevoluciones.registrarVentaParaHistorial(datosVenta);
-    }
-
-    // Limpiar el crédito usado
+    // Limpieza de estados globales
     window.creditoDevolucion = null;
 
-    // Actualizar gráficas si existen
-    if (typeof Controlador !== 'undefined' && typeof Controlador.renderizarGrafica === 'function') {
+    if (typeof Controlador !== 'undefined' && Controlador.renderizarGrafica) {
         Controlador.renderizarGrafica();
     }
 

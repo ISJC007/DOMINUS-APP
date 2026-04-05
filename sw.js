@@ -3,7 +3,7 @@
  * VERSIÓN: 3.3.8 (Casi Ultimate Blindada)
  */
 
-const CACHE_NAME = 'DOMINUS-3.2.7'; 
+const CACHE_NAME = 'DOMINUS-3.3.9'; 
 
 const ASSETS = [
   './', 
@@ -17,17 +17,31 @@ const ASSETS = [
   'https://cdn.rawgit.com/serratus/quaggaJS/0420d5e/dist/quagga.min.js',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap',
 
-  // --- TUS SCRIPTS (Respetando Mayúsculas del HTML) ---
+  // --- TUS SCRIPTS ---
   'JS/frases.js',
   'JS/Offline.js',     
   'JS/Seguridad.js',
   'JS/Servicios.js',
+  'JS/Audio.js',       // 👈 ¡No olvides registrar tu nuevo módulo!
   'JS/Conversor.js',
   'JS/Inventario.js',
   'JS/Controlador.js',
   'JS/scaner.js',
   'JS/Ventas.js',
   'JS/Main.js',
+  'JS/Interfaz.js',    // 👈 Asegúrate de que esté aquí si lo usas
+
+  // --- 🔊 CARPETA DE AUDIO (Imprescindible para el Offline) ---
+  'AUDIO/add.mp3',
+  'AUDIO/success.mp3',
+  'AUDIO/error.mp3',
+  'AUDIO/scanner.mp3',
+  'AUDIO/bienvenida_dia.mp3',
+  'AUDIO/bienvenida_tarde.mp3',
+  'AUDIO/bienvenida_noche.mp3',
+  'AUDIO/resumen_ventas.mp3',
+  'AUDIO/stock_bajo.mp3',
+  'AUDIO/base_datos.mp3',
 
   // --- RECURSOS VISUALES ---
   'IMG/icon-192.png',
