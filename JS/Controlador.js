@@ -163,58 +163,76 @@ const InterfazDevoluciones = {
 };
 
 const Controlador = {
-
-    procesarCodigoEscaneado: function(codigo) {
-        // 💡 EFECTO SONIDO
+procesarCodigoEscaneado: function(codigo) {
+    // 💡 EFECTO SONIDO (Usando tu lógica o el módulo Scanner si lo tienes centralizado)
+    if (typeof DominusAudio !== 'undefined') {
+        DominusAudio.play('scan');
+    } else {
         const audio = new Audio('AUDIO/scan.mp3'); 
         audio.play().catch(e => console.log("Sonido no reproducido", e));
+    }
+    
+    // 🚀 Efecto visual
+    Scanner.efectoFlash();
+    
+    // Buscamos en el motor de Inventario
+    const producto = Inventario.buscarPorCodigo(codigo);
+    
+    if (producto) {
+        notificar(`✅ Escaneado: ${producto.nombre}`);
         
-        // 🚀 Llamamos a efectoFlash a través del objeto Scanner
-        Scanner.efectoFlash();
-        
-        const producto = Inventario.buscarPorCodigo(codigo);
-        
-        if (producto) {
-            notificar(`✅ Escaneado: ${producto.nombre}`);
+        // 🚀 LÓGICA DE VENTA: Si existe, procedemos a vender
+        if (producto.tallas && Object.keys(producto.tallas).length > 0) {
+            const tallasDisponibles = Object.keys(producto.tallas);
             
-            // 🚀 LÓGICA DE VENTA CON TALLAS Y CONFIRMACIÓN
-            if (producto.tallas && Object.keys(producto.tallas).length > 0) {
-                const tallasDisponibles = Object.keys(producto.tallas);
-                
-                // Pedir talla
-                this.mostrarModalTallas(
-                    "Seleccionar Talla",
-                    `¿Qué talla vender de ${producto.nombre}?`,
-                    tallasDisponibles,
-                    (tallaElegida) => {
-                        // Después de elegir talla, pedir precio
-                        Interfaz.pedirPrecioYRegistrarVenta(producto, tallaElegida);
-                    }
-                );
-            } else {
-                // Si no tiene tallas, pedir precio directamente
-                Interfaz.pedirPrecioYRegistrarVenta(producto, null);
-            }
-            
-        } else {
-            // 🚀 Producto no encontrado -> Registrar Nuevo
-            notificar(`⚠️ Producto no encontrado: ${codigo}`, "error");
-            
-            // Preguntar si quiere registrarlo
-            this.confirmarAccion(
-                "Producto Nuevo",
-                `El código <b>${codigo}</b> no existe. ¿Deseas registrarlo ahora?`,
-                () => {
-                    // Abrir el modal de crear producto nuevo
-                    Interfaz.modalRecargaRapida("", codigo);
-                },
-                null,
-                "Sí, registrar",
-                "No",
-                false
+            this.mostrarModalTallas(
+                "Seleccionar Talla",
+                `¿Qué talla vender de ${producto.nombre}?`,
+                tallasDisponibles,
+                (tallaElegida) => {
+                    Interfaz.pedirPrecioYRegistrarVenta(producto, tallaElegida);
+                }
             );
+        } else {
+            // Si no tiene tallas (como la Harina PAN), directo al precio
+            Interfaz.pedirPrecioYRegistrarVenta(producto, null);
         }
-    },
+        
+    } else {
+        // 🚀 CASO HARINA PAN: El código no existe en DOMINUS
+        notificar(`⚠️ Código nuevo: ${codigo}`, "info");
+        
+        this.confirmarAccion(
+            "Producto Nuevo",
+            `El código <b>${codigo}</b> no existe en tu inventario.<br>¿Deseas registrar este producto ahora?`,
+            () => {
+                // 1. Limpiamos cualquier rastro de edición previa
+                this.limpiarFormularioInventario(); 
+
+                // 2. Ponemos el código en el input que creamos en el Paso 1
+                const inputCod = document.getElementById('inv-codigo');
+                if (inputCod) inputCod.value = codigo;
+
+                // 3. Movemos el foco al nombre para que solo tengas que escribir "Harina PAN"
+                const inputNombre = document.getElementById('inv-nombre');
+                if (inputNombre) {
+                    setTimeout(() => inputNombre.focus(), 400);
+                }
+
+                // 4. Avisamos al usuario
+                notificar("Completa los datos para registrar", "info");
+                
+                // 5. Scroll suave al formulario de creación
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            },
+            null,
+            "Registrar",
+            "Cancelar",
+            false
+        );
+    }
+},
+
 ejecutarVenta() {
     // 1. CAPTURA DE DATOS (Mantenemos tu lógica impecable)
     const inputProducto = document.getElementById('v-producto');
@@ -509,17 +527,23 @@ prepararEdicionInventario: function(nombreProducto) {
     const p = Inventario.productos.find(prod => prod.nombre === nombreProducto);
     if (!p) return notificar("Producto no encontrado", "error");
 
-    // Llenar el formulario superior
+    // 🚀 NUEVO: Llenar el campo de código de barras (el que pusimos de primero)
+    const inputCodigo = document.getElementById('inv-codigo');
+    if (inputCodigo) inputCodigo.value = p.codigo || "";
+
+    // Llenar el resto del formulario
     document.getElementById('inv-nombre').value = p.nombre;
     document.getElementById('inv-cant').value = p.cantidad;
     document.getElementById('inv-precio').value = p.precio;
-    if(document.getElementById('inv-unidad')) document.getElementById('inv-unidad').value = p.unidad;
+    
+    if(document.getElementById('inv-unidad')) {
+        document.getElementById('inv-unidad').value = p.unidad;
+    }
 
     // Cargar tallas temporales para edición
     if (p.tallas) {
         tallasTemporales = {...p.tallas};
-        // 💡 Llama aquí a tu función que refresca visualmente las tallas si tienes una
-        // Interfaz.renderTallasTemporales(); 
+        // Si tienes una función para refrescar la lista de tallas en el modal, llámala aquí
     }
 
     // Cambiar el estilo del botón guardar para indicar modo edición
@@ -527,14 +551,17 @@ prepararEdicionInventario: function(nombreProducto) {
     if (btnGuardar) {
         btnGuardar.innerText = "💾 Actualizar";
         btnGuardar.style.background = "#2196F3"; // Color azul
-        // Cambiamos la función del botón temporalmente
         btnGuardar.setAttribute("onclick", `Controlador.actualizarProducto('${p.nombre}')`);
     }
     
     notificar(`Editando: ${p.nombre}`);
+    
+    // 💡 UX: Hacer scroll hacia arriba para ver el formulario cargado
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 },
 
 actualizarProducto: function(nombreOriginal) {
+    const cod = document.getElementById('inv-codigo').value.trim(); // 🚀 Capturamos código
     const n = document.getElementById('inv-nombre').value;
     const cStr = document.getElementById('inv-cant').value;
     const pStr = document.getElementById('inv-precio').value;
@@ -556,11 +583,11 @@ actualizarProducto: function(nombreOriginal) {
         }
     }
 
-    // LLAMADA A LA LÓGICA DE INVENTARIO
-    Inventario.actualizar(nombreOriginal, n, c, p, u, tallasParaGuardar);
+    // 🚀 CAMBIO CLAVE: Pasamos el código al método actualizar
+    // Nota: Asegúrate de que tu función Inventario.actualizar acepte el código como último parámetro
+    Inventario.actualizar(nombreOriginal, n, c, p, u, tallasParaGuardar, cod);
 
-    // --- IMPORTANTE: Restaurar el botón Guardar ---
-    this.limpiarFormularioInventario(); // 💡 Asegúrate de tener esta función para limpiar
+    this.limpiarFormularioInventario(); 
     
     Interfaz.renderInventario();
     notificar("✅ Producto actualizado");
@@ -633,7 +660,8 @@ ejecutarGasto() {
 },
 
 guardarEnInventario() { 
-    // 1. Captura y Normalización
+    // 1. Captura y Normalización (Añadimos el código)
+    const codigo = document.getElementById('inv-codigo').value.trim(); // 🚀 NUEVO
     const nombreRaw = document.getElementById('inv-nombre').value.trim();
     const cStr = document.getElementById('inv-cant').value;
     const pStr = document.getElementById('inv-precio').value;
@@ -649,35 +677,30 @@ guardarEnInventario() {
     const c = parseFloat(cStr);
     const p = parseFloat(pStr) || 0;
 
-    // 3. Validación de Integridad de Tallas/Desglose
+    // 3. Validación de Integridad de Tallas
     const tieneTallas = Object.keys(tallasTemporales).length > 0;
-    
     if (tieneTallas) {
         const sumaTallas = Object.values(tallasTemporales).reduce((a, b) => a + b, 0);
-        // Tolerancia para decimales (importante para Kg o Lts)
         if (Math.abs(sumaTallas - c) > 0.01) {
             return notificar(`❌ Error: El stock total es ${c}, pero el desglose suma ${sumaTallas.toFixed(2)}.`, "error");
         }
     }
 
-    // 4. PERSISTENCIA INTELIGENTE (Escudo de Identidad)
-    // Pasamos el nombre tal cual para mostrar, pero el "motor" debe normalizarlo
     const tallasParaGuardar = tieneTallas ? {...tallasTemporales} : null;
     
-    // Llamada al método estático de la clase Inventario
-    const exito = Inventario.guardar(nombreRaw, c, p, u, tallasParaGuardar); 
+    // 🚀 CAMBIO CLAVE: Ahora le pasamos el 'codigo' a la función guardar
+    const exito = Inventario.guardar(nombreRaw, c, p, u, tallasParaGuardar, codigo); 
 
     if(exito) {
-        // 5. Limpieza de Interfaz
+        // 5. Limpieza de Interfaz (Incluimos el código)
+        document.getElementById('inv-codigo').value = ''; // 🚀 Limpiamos código
         document.getElementById('inv-nombre').value = '';
         document.getElementById('inv-cant').value = '';
         document.getElementById('inv-precio').value = '';
         if(unidadElemento) unidadElemento.value = 'Und';
         
-        // Limpiamos la variable global de tallas para el siguiente producto
         tallasTemporales = {};
 
-        // 6. Actualización Visual
         if (typeof Interfaz !== 'undefined' && Interfaz.renderInventario) {
             Interfaz.renderInventario();
         }

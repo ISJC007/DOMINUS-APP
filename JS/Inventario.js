@@ -35,7 +35,8 @@ recargarRapido(nombre, cantidad, tallaElegida) {
     this.chequearSaludStock(p); // El centinela valida si ya salió de alerta
 },
 
-actualizar(nOriginal, nNuevo, nCant, nPrecio, nUnidad, nTallas, nMin) {
+// Añadimos 'nCodigo' al final de los parámetros
+actualizar(nOriginal, nNuevo, nCant, nPrecio, nUnidad, nTallas, nMin, nCodigo) {
     const p = this.productos.find(prod => prod.nombre === nOriginal);
     if (!p) return;
 
@@ -45,7 +46,9 @@ actualizar(nOriginal, nNuevo, nCant, nPrecio, nUnidad, nTallas, nMin) {
     p.unidad = nUnidad;
     p.tallas = nTallas;
     
-    // Solo actualiza si nMin trae algo, si no, mantiene el anterior o el de migración
+    // 🚀 NUEVO: Actualizamos el código de barras también
+    if (nCodigo !== undefined) p.codigo = nCodigo.trim();
+
     if (nMin !== undefined && nMin !== "") p.stockMinimo = parseFloat(nMin);
 
     this.sincronizar();

@@ -928,3 +928,12 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     top: 0;
     left: 0;
 }
+
+#contenedor-camara video {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+}
+#contenedor-camara canvas {
+    display: none; /* Oculta el canvas de dibujo de Quagga si estorba */
+}

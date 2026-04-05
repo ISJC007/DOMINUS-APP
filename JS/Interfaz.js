@@ -775,6 +775,10 @@ renderInventario() {
             etiquetaAlerta = `<span style="background:#ff9800; color:white; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold; margin-left:8px;">REABASTECER</span>`;
         }
 
+        // 🚀 NUEVO: Mostrar el código de barras si existe
+        let htmlCodigo = p.codigo ? 
+            `<div style="font-family: monospace; font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 2px;">ID: ${p.codigo}</div>` : '';
+
         let htmlTallas = "";
         if (p.tallas && Object.keys(p.tallas).length > 0) {
             htmlTallas = `
@@ -792,7 +796,8 @@ renderInventario() {
         return `
             <div class="item-lista glass" style="margin-bottom:10px; display: flex; justify-content: space-between; align-items: center; padding: 14px; border-radius: 15px; ${bordeStyle} background: ${fondoAlerta};">
                 <div style="flex: 1;">
-                    <strong style="color: white; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px;">${p.nombre}</strong> ${etiquetaAlerta}<br>
+                    <strong style="color: white; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px;">${p.nombre}</strong> ${etiquetaAlerta}
+                    ${htmlCodigo} <br>
                     <small style="color: ${colorStock}; font-weight: bold; font-size: 0.85em;">
                         Disponible: ${stockActual} ${unidad}
                     </small>
