@@ -86,74 +86,86 @@ procesarCobroCarrito() {
     }
 },
 
-  async init() {
-        // --- REGISTRO Y ACTUALIZACIÓN DEL SW ---
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-            .then(reg => {
-                console.log('Dominus: SW registrado');
-                reg.addEventListener('updatefound', () => {
-                    const newWorker = reg.installing;
-                    newWorker.addEventListener('statechange', () => {
-                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            window.location.reload();
-                        }
-                    });
+ async init() {
+    // --- REGISTRO Y ACTUALIZACIÓN DEL SW ---
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js')
+        .then(reg => {
+            console.log('Dominus: SW registrado');
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        window.location.reload();
+                    }
                 });
-            })
-            .catch(err => console.error('Dominus: SW fallo', err));
+            });
+        })
+        .catch(err => console.error('Dominus: SW fallo', err));
+    }
+
+    // 1. Carga de datos base
+    this.historial = Persistencia.cargar('dom_ventas') || [];
+    this.deudas = Persistencia.cargar('dom_fiaos') || [];
+    this.gastos = Persistencia.cargar('dom_gastos') || [];
+
+    if (typeof Inventario !== 'undefined') Inventario.init();
+
+    // 2. INYECCIÓN DE FRASES AL AZAR
+    if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
+        const indice = Math.floor(Math.random() * bancoFrases.length);
+        const fraseElegida = bancoFrases[indice];
+        const txtFrase = document.getElementById('frase-splash');
+        const txtAutor = document.getElementById('autor-splash');
+        if (txtFrase && txtAutor) {
+            txtFrase.innerText = `"${fraseElegida.texto}"`;
+            txtAutor.innerText = `— ${fraseElegida.autor}`;
         }
+    }
 
-        // 1. Carga de datos base
-        this.historial = Persistencia.cargar('dom_ventas') || [];
-        this.deudas = Persistencia.cargar('dom_fiaos') || [];
-        this.gastos = Persistencia.cargar('dom_gastos') || [];
+    // --- EL NUEVO FLUJO DE CONTROL ---
+    
+    // Primero: ¿Quién es el usuario?
+    const haySesion = Usuario.init();
 
-        if (typeof Inventario !== 'undefined') Inventario.init();
+    if (haySesion) {
+        // Segundo: Si el usuario existe, ¿tiene PIN?
+        const accesoConcedido = await Seguridad.iniciarProteccion();
 
-        // 2. INYECCIÓN DE FRASES AL AZAR
-        if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
-            const indice = Math.floor(Math.random() * bancoFrases.length);
-            const fraseElegida = bancoFrases[indice];
-            const txtFrase = document.getElementById('frase-splash');
-            const txtAutor = document.getElementById('autor-splash');
-            if (txtFrase && txtAutor) {
-                txtFrase.innerText = `"${fraseElegida.texto}"`;
-                txtAutor.innerText = `— ${fraseElegida.autor}`;
+        if (accesoConcedido) {
+            // 🚀 INYECCIÓN DE AUDIO: Saludamos según la hora (mañana, tarde o noche)
+            // Solo sonará una vez al día gracias a la lógica que pusimos en Audio.js
+            if (typeof DominusAudio !== 'undefined') {
+                DominusAudio.saludarSegunHora();
             }
+
+            // Tercero: Si el PIN es correcto, entramos de una vez
+            this.quitarSplash();
+        } else {
+            // 🔊 Sonido de error si el PIN falla varias veces (opcional)
+            if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
+            
+            alert("Acceso denegado.");
+            location.reload();
         }
+    }
+},
 
-        // --- EL NUEVO FLUJO DE CONTROL ---
-        
-        // Primero: ¿Quién es el usuario?
-        const haySesion = Usuario.init();
-
-        if (haySesion) {
-            // Segundo: Si el usuario existe, ¿tiene PIN?
-            const accesoConcedido = await Seguridad.iniciarProteccion();
-
-            if (accesoConcedido) {
-                // Tercero: Si el PIN es correcto, entramos de una vez
-                this.quitarSplash();
-            } else {
-                alert("Acceso denegado.");
-                location.reload();
-            }
-        }
-        // Nota: Si no hay sesión, Usuario.init ya mostró el Login sobre el Splash.
-    },
-
-    // Función auxiliar para una salida fluida
-    quitarSplash() {
-        const splash = document.getElementById('splash-screen');
-        if (splash) {
-            splash.classList.add('splash-fade-out');
-            setTimeout(() => {
-                splash.style.display = 'none';
-                if (typeof Interfaz !== 'undefined') Interfaz.show('dashboard');
-            }, 600); // 600ms es suficiente para que la animación se vea bien
-        }
-    },
+// Función auxiliar para una salida fluida
+quitarSplash() {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        splash.classList.add('splash-fade-out');
+        setTimeout(() => {
+            splash.style.display = 'none';
+            if (typeof Interfaz !== 'undefined') Interfaz.show('dashboard');
+            
+            // 🔊 Opcional: Sonido sutil de "Éxito" al entrar al Dashboard
+            // if (typeof DominusAudio !== 'undefined') DominusAudio.play('success');
+            
+        }, 600); 
+    }
+},
 
     
 
@@ -186,21 +198,18 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
         // Resta con precisión
         inv.cantidad = Number((inv.cantidad - cantidadARestarGlobal).toFixed(3));
 
-        // Tallas: Solo restamos si NO es una conversión de peso/volumen (evita descontar doble)
+        // Tallas: Solo restamos si NO es una conversión de peso/volumen
         if (inv.tallas && tallaEscogida && inv.tallas[tallaEscogida] !== undefined) {
-            // Si es peso, restamos la unidad (ej: 1 bolsa de 500g). Si es ropa, restamos 1 unidad.
             inv.tallas[tallaEscogida] = Math.max(0, Number((inv.tallas[tallaEscogida] - cantidadVendida).toFixed(2)));
         }
 
         Inventario.sincronizar();
         
-        // 🚀 LLAMADA AL CENTINELA (Unificado)
-        // Eliminamos las notificaciones manuales de aquí y usamos la centralizada
+        // 🚀 LLAMADA AL CENTINELA (Sonará 'stockBajo' si cruza el límite)
         Inventario.chequearSaludStock(inv);
-
     }
 
-    // 2. CÁLCULOS FINANCIEROS (Corregido: Evitar división por cero)
+    // 2. CÁLCULOS FINANCIEROS
     let montoAjustado = precioBase;
     let idRef = null;
 
@@ -219,7 +228,7 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
 
     // 3. ESTRUCTURA DE VENTA
     const datosVenta = {
-        id: Date.now() + Math.random(), // Más seguro contra duplicados rápidos
+        id: Date.now() + Math.random(),
         fecha: new Date().toLocaleDateString('es-VE'),
         hora: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
         producto: esServicio ? `PUNTO: ${p}` : (tallaEscogida ? `${p} (${tallaEscogida})` : p),
@@ -248,6 +257,17 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
     Persistencia.guardar(storageKey, db);
     
     if (met === 'Fiao') this.deudas = db; else this.historial = db;
+
+    // 5. EFECTO SONORO DE VENTA 🔊
+    if (typeof DominusAudio !== 'undefined') {
+        // Si no es un fiao, suena el dinero entrando
+        if (met !== 'Fiao') {
+            DominusAudio.play('add'); 
+        } else {
+            // Si es fiao, un sonido de éxito más sutil o el mismo success
+            DominusAudio.play('success');
+        }
+    }
 
     // Limpieza de estados globales
     window.creditoDevolucion = null;

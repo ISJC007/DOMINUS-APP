@@ -146,13 +146,36 @@ function CerrarGestorTallas() { //confirma las tallas para cerrar el modal-//Cie
 }
 
 const notificar = (msj, tipo = 'exito') => {
-    // Solo removemos si es del mismo tipo para no encimar mensajes iguales, 
-    // pero permitimos que convivan un 'exito' y un 'stock'
+    // 1. Lógica de Audio Centralizada 🔊
+    if (typeof DominusAudio !== 'undefined') {
+        switch (tipo) {
+            case 'error':
+            case 'alerta':
+                DominusAudio.play('error');
+                break;
+            case 'stock':
+                DominusAudio.play('stockBajo');
+                break;
+            case 'gasto':
+                // Si quieres un sonido específico para gastos, si no, usa success
+                DominusAudio.play('success'); 
+                break;
+            case 'fiao':
+                DominusAudio.play('success');
+                break;
+            default:
+                // Para 'exito' y otros casos generales
+                DominusAudio.play('success');
+                break;
+        }
+    }
+
+    // 2. Gestión de la interfaz (Toast)
     const viejo = document.querySelector(`.toast-${tipo}`);
     if(viejo) viejo.remove();
 
     const toast = document.createElement('div');
-    toast.className = `toast-general toast-${tipo}`; // Cambié la clase base
+    toast.className = `toast-general toast-${tipo}`; 
     
     const iconos = {
         exito: '✨',
@@ -165,14 +188,13 @@ const notificar = (msj, tipo = 'exito') => {
 
     toast.innerHTML = `<span>${iconos[tipo] || '✅'}</span> ${msj}`;
     
-    // Estilo para que si hay varios, se apilen (opcional, según tu CSS)
     document.body.appendChild(toast);
     
     setTimeout(() => toast.classList.add('show'), 10);
     setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 400);
-    }, 3500); // 3.5s para que dé tiempo de leer si hay varias
+    }, 3500); 
 };
 
 

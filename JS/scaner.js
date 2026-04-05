@@ -18,8 +18,9 @@ const Scanner = {
         inputScanner.onchange = (e) => {
             const codigo = e.target.value;
             if (codigo) {
-                // 🔊 Sonido de escáner desde nuestro módulo central
+                // 🔊 Sonido de escáner al detectar éxito
                 if (typeof DominusAudio !== 'undefined') DominusAudio.play('scan');
+                
                 callbackProcesar(codigo);
             }
             e.target.value = '';
@@ -70,7 +71,6 @@ const Scanner = {
                 target: contenedorCamara,
                 constraints: { 
                     facingMode: "environment",
-                    // 💡 MEJORA: Forzamos una resolución decente para códigos pequeños
                     width: { min: 640 },
                     height: { min: 480 }
                 }
@@ -78,10 +78,12 @@ const Scanner = {
             decoder : { 
                 readers : ["ean_reader", "code_128_reader", "code_39_reader"] 
             },
-            // 💡 MEJORA: Localizador ayuda a encontrar el código en la imagen
             locate: true
         }, function(err) {
             if (err) {
+                // 🔊 Sonido de error si la cámara no abre
+                if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
+                
                 if (typeof notificar === 'function') notificar("❌ Error de cámara", "error");
                 contenedorCamara.style.display = 'none';
                 btnCerrar.remove();
@@ -94,12 +96,12 @@ const Scanner = {
         Quagga.onDetected((result) => {
             const codigo = result.codeResult.code;
             
-            // 🛑 Detenemos para evitar lecturas múltiples
             Quagga.stop();
             contenedorCamara.style.display = 'none';
             btnCerrar.remove();
             if (contenidoPrincipal) contenidoPrincipal.style.filter = 'none';
             
+            // ⚡ Efecto visual
             this.efectoFlash();
             
             // 🔊 Sonido de escáner CENTRALIZADO
