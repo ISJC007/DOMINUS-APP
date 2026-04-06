@@ -1,41 +1,61 @@
 let tallasTemporales = {}; // o el valor inicial correcto
 let miGrafica = null;
 let modoGraficaActual = 0;
-
 const modalEleccion = {
     abrir: function(config) {
-        this.cerrar();
+        // 1. Limpieza inmediata sin animaciones para evitar conflictos de IDs
+        const modalPrevio = document.getElementById('modal-dinamico');
+        if (modalPrevio) modalPrevio.remove();
 
         const html = `
             <div id="modal-dinamico" class="modal-eleccion active">
-                <div class="eleccion-content">
+                <div class="eleccion-content glass">
                     <h3 style="color:var(--primary); margin-bottom:10px;">${config.titulo}</h3>
                     <p style="color:white; opacity:0.8; margin-bottom:20px;">${config.mensaje}</p>
                     <div id="contenedor-inputs-modal"></div>
-                    <div id="btns-dinamicos" class="btns-eleccion">
-                        </div>
-                    <button class="btn-no" onclick="modalEleccion.cerrar()" style="margin-top:15px; width:100%;">Cancelar</button>
+                    <div id="btns-dinamicos" class="btns-eleccion" style="display: flex; flex-direction: column; gap: 10px;">
+                    </div>
+                    <button class="btn-no" onclick="modalEleccion.cerrar()" style="margin-top:15px; width:100%; opacity: 0.7;">Cancelar</button>
                 </div>
             </div>`;
         
         document.body.insertAdjacentHTML('beforeend', html);
         
+        // 2. Referencia al contenedor de botones
+        const contenedorBtns = document.getElementById('btns-dinamicos');
+
         config.botones.forEach(btn => {
             const b = document.createElement('button');
+            
+            // Si no pasas clase, usa 'btn-si', si no, usa la que pases (ej. 'btn-main')
             b.className = btn.clase || 'btn-si';
             b.innerHTML = btn.texto;
+            
+            // 🔥 CLAVE: Aplicar estilos directos (colores, márgenes, etc.)
+            if (btn.style) {
+                b.style.cssText = btn.style;
+            }
+
             b.onclick = () => { 
+                // Ejecutamos la acción
                 btn.accion(); 
+                // Solo cerramos si no se pide explícitamente mantenerlo (para submenús)
                 if(!btn.mantener) modalEleccion.cerrar(); 
             };
-            document.getElementById('btns-dinamicos').appendChild(b);
+            
+            contenedorBtns.appendChild(b);
         });
     },
-    cerrar: () => {
+
+    cerrar: function() {
         const m = document.getElementById('modal-dinamico');
         if(m) {
+            m.classList.remove('active');
             m.style.opacity = '0';
-            setTimeout(() => m.remove(), 300);
+            // Esperamos a que termine la transición de CSS antes de borrar del DOM
+            setTimeout(() => {
+                if(m) m.remove();
+            }, 300);
         }
     }
 };
@@ -163,28 +183,28 @@ const InterfazDevoluciones = {
 };
 
 const Controlador = {
+// Dentro de Controlador.js
+// --- REEMPLAZA ESTA FUNCIÓN EN Controlador.js ---
+
 procesarCodigoEscaneado: function(codigo) {
-    // 💡 EFECTO SONIDO (Usando tu lógica o el módulo Scanner si lo tienes centralizado)
-    if (typeof DominusAudio !== 'undefined') {
-        DominusAudio.play('scan');
-    } else {
-        const audio = new Audio('AUDIO/scan.mp3'); 
-        audio.play().catch(e => console.log("Sonido no reproducido", e));
+    if (typeof DominusAudio !== 'undefined') DominusAudio.play('scan');
+    if (typeof Scanner !== 'undefined' && Scanner.efectoFlash) Scanner.efectoFlash();
+    
+    // 1. SIEMPRE intentar "pegar" el código en el input de Inventario si estamos en esa sección
+    const inputInv = document.getElementById('inv-codigo');
+    if (inputInv) {
+        inputInv.value = codigo;
+        inputInv.dispatchEvent(new Event('input', { bubbles: true }));
     }
-    
-    // 🚀 Efecto visual
-    Scanner.efectoFlash();
-    
-    // Buscamos en el motor de Inventario
-    const producto = Inventario.buscarPorCodigo(codigo);
+
+    const producto = Inventario.productos.find(p => p.codigo === codigo);
     
     if (producto) {
         notificar(`✅ Escaneado: ${producto.nombre}`);
         
-        // 🚀 LÓGICA DE VENTA: Si existe, procedemos a vender
+        // Lógica de ventas (Tallas, precios, etc.)
         if (producto.tallas && Object.keys(producto.tallas).length > 0) {
             const tallasDisponibles = Object.keys(producto.tallas);
-            
             this.mostrarModalTallas(
                 "Seleccionar Talla",
                 `¿Qué talla vender de ${producto.nombre}?`,
@@ -194,41 +214,33 @@ procesarCodigoEscaneado: function(codigo) {
                 }
             );
         } else {
-            // Si no tiene tallas (como la Harina PAN), directo al precio
             Interfaz.pedirPrecioYRegistrarVenta(producto, null);
         }
-        
     } else {
-        // 🚀 CASO HARINA PAN: El código no existe en DOMINUS
-        notificar(`⚠️ Código nuevo: ${codigo}`, "info");
+        // Lógica para productos NUEVOS (Tu código actual está perfecto aquí)
+        notificar(`⚠️ El código ${codigo} no existe`, "info");
         
         this.confirmarAccion(
-            "Producto Nuevo",
-            `El código <b>${codigo}</b> no existe en tu inventario.<br>¿Deseas registrar este producto ahora?`,
+            "Producto No Registrado",
+            `El código <b>${codigo}</b> no está en el inventario...`,
             () => {
-                // 1. Limpiamos cualquier rastro de edición previa
-                this.limpiarFormularioInventario(); 
-
-                // 2. Ponemos el código en el input que creamos en el Paso 1
-                const inputCod = document.getElementById('inv-codigo');
-                if (inputCod) inputCod.value = codigo;
-
-                // 3. Movemos el foco al nombre para que solo tengas que escribir "Harina PAN"
-                const inputNombre = document.getElementById('inv-nombre');
-                if (inputNombre) {
-                    setTimeout(() => inputNombre.focus(), 400);
-                }
-
-                // 4. Avisamos al usuario
-                notificar("Completa los datos para registrar", "info");
+                const btnInv = document.querySelector('[onclick*="mostrarSeccion(\'inventario\')"]') || 
+                               document.querySelector('[onclick*="inventario"]');
+                if(btnInv) btnInv.click();
                 
-                // 5. Scroll suave al formulario de creación
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                setTimeout(() => {
+                    const inputInvCarga = document.getElementById('inv-codigo');
+                    if (inputInvCarga) {
+                        inputInvCarga.value = codigo; 
+                        inputInvCarga.focus();
+                        inputInvCarga.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    if (typeof Inventario.gestionarEscaneo === 'function') {
+                        Inventario.gestionarEscaneo(codigo);
+                    }
+                }, 500);
             },
-            null,
-            "Registrar",
-            "Cancelar",
-            false
+            null, "Ir a Inventario", "Cancelar"
         );
     }
 },
@@ -523,15 +535,29 @@ ejecutarCobroFinal() {
     };
 },
 
-prepararEdicionInventario: function(nombreProducto) {
-    const p = Inventario.productos.find(prod => prod.nombre === nombreProducto);
-    if (!p) return notificar("Producto no encontrado", "error");
+prepararEdicionInventario: function(identificador) {
+    // 🔍 BUSQUEDA INTELIGENTE: Busca por nombre O por código
+    const p = Inventario.productos.find(prod => 
+        prod.nombre === identificador || (prod.codigo && prod.codigo === identificador)
+    );
 
-    // 🚀 NUEVO: Llenar el campo de código de barras (el que pusimos de primero)
+    // Si no existe, es un PRODUCTO NUEVO (Registro)
+    if (!p) {
+        notificar("🆕 Producto nuevo detectado", "info");
+        this.limpiarFormularioInventario(); // Función que limpie los inputs
+        const inputCodigo = document.getElementById('inv-codigo');
+        if (inputCodigo) {
+            inputCodigo.value = identificador; // Pegamos el código escaneado
+            inputCodigo.style.border = "2px solid var(--primary)";
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+    }
+
+    // --- SI EL PRODUCTO EXISTE (Edición) ---
     const inputCodigo = document.getElementById('inv-codigo');
     if (inputCodigo) inputCodigo.value = p.codigo || "";
 
-    // Llenar el resto del formulario
     document.getElementById('inv-nombre').value = p.nombre;
     document.getElementById('inv-cant').value = p.cantidad;
     document.getElementById('inv-precio').value = p.precio;
@@ -540,23 +566,16 @@ prepararEdicionInventario: function(nombreProducto) {
         document.getElementById('inv-unidad').value = p.unidad;
     }
 
-    // Cargar tallas temporales para edición
-    if (p.tallas) {
-        tallasTemporales = {...p.tallas};
-        // Si tienes una función para refrescar la lista de tallas en el modal, llámala aquí
-    }
+    if (p.tallas) { tallasTemporales = {...p.tallas}; }
 
-    // Cambiar el estilo del botón guardar para indicar modo edición
     const btnGuardar = document.querySelector('button[onclick="Controlador.guardarEnInventario()"]');
     if (btnGuardar) {
         btnGuardar.innerText = "💾 Actualizar";
-        btnGuardar.style.background = "#2196F3"; // Color azul
+        btnGuardar.style.background = "#2196F3";
         btnGuardar.setAttribute("onclick", `Controlador.actualizarProducto('${p.nombre}')`);
     }
     
     notificar(`Editando: ${p.nombre}`);
-    
-    // 💡 UX: Hacer scroll hacia arriba para ver el formulario cargado
     window.scrollTo({ top: 0, behavior: 'smooth' });
 },
 
@@ -594,6 +613,7 @@ actualizarProducto: function(nombreOriginal) {
 },
 
 limpiarFormularioInventario: function() {
+        document.getElementById('inv-codigo').value = '';
         document.getElementById('inv-nombre').value = '';
         document.getElementById('inv-cant').value = '';
         document.getElementById('inv-precio').value = '';

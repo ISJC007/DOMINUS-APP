@@ -1,37 +1,28 @@
 const Interfaz = { //muestra todo en pantalla lo que se clickea//
 
-mostrarSelectorEscaner: function() {
-    this.confirmarAccion(
-        "Método de Gestión",
-        "¿Qué dispositivo vas a utilizar?",
-        () => {                
-            // LÁSER
-            Scanner.iniciarBusquedaEscannerLaser((codigo) => this.procesarCodigoEscaneado(codigo));
-        },
-        () => {                
-            // CELULAR -> Segundo Nivel
-            this.confirmarAccion(
-                "Modo Cámara",
-                "¿Escanear en vivo o tomar foto?",
-                () => {
-                    // EN VIVO
-                    Scanner.iniciarEscannerCamara((codigo) => this.procesarCodigoEscaneado(codigo));
-                },
-                () => {
-                    // FOTO
-                    // Si cancela la foto, llamamos de nuevo a mostrarSelectorEscaner() 🔄
-                    Scanner.procesarFoto(
-                        (codigo) => this.procesarCodigoEscaneado(codigo),
-                        () => this.mostrarSelectorEscaner() 
-                    );
-                },
-                "Escaneo Vivo", "Tomar Foto"
-            );
-        },
-        "Láser", "Cámara"
-    );
-},
+// --- REEMPLAZA ESTA FUNCIÓN EN Interfaz.js ---
 
+mostrarSelectorEscaner: function(esVenta = true) {
+    if (typeof Scanner !== 'undefined' && Scanner.prepararMenu) {
+        Scanner.prepararMenu(esVenta);
+    } else {
+        // MEJORA: El respaldo ahora también usa el sistema de botones de DOMINUS
+        this.confirmarAccion(
+            "Método de Gestión",
+            "¿Qué dispositivo vas a utilizar?",
+            () => Scanner.iniciarBusquedaEscannerLaser((c) => {
+                // Usamos una función anónima para decidir el destino
+                if(esVenta) Controlador.procesarCodigoEscaneado(c);
+                else Inventario.gestionarEscaneo(c);
+            }),
+            () => Scanner.iniciarEscannerCamara((c) => {
+                if(esVenta) Controlador.procesarCodigoEscaneado(c);
+                else Inventario.gestionarEscaneo(c);
+            }),
+            "Láser", "Cámara"
+        );
+    }
+},
 // 🚀 NUEVA FUNCIÓN AUXILIAR: Pide precio y registra
 pedirPrecioYRegistrarVenta: function(producto, tallaElegida) {
     
@@ -769,7 +760,6 @@ renderInventario() {
         const stockActual = parseFloat(p.cantidad) || 0;
         const minConfigurado = parseFloat(p.stockMinimo) || (p.unidad === 'Kg' || p.unidad === 'Lts' ? 1.5 : 3);
         
-        // --- LÓGICA DE ESTADOS MEJORADA ---
         const estaVacio = stockActual <= 0;
         const esBajo = stockActual <= minConfigurado;
         
@@ -790,9 +780,8 @@ renderInventario() {
             etiquetaAlerta = `<span style="background:#ff9800; color:white; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold; margin-left:8px;">REABASTECER</span>`;
         }
 
-        // 🚀 NUEVO: Mostrar el código de barras si existe
         let htmlCodigo = p.codigo ? 
-            `<div style="font-family: monospace; font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 2px;">ID: ${p.codigo}</div>` : '';
+            `<div style="font-family: monospace; font-size: 11px; color: rgba(255,255,255,0.5); background: rgba(255,215,0,0.1); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px;">🆔 ${p.codigo}</div>` : '';
 
         let htmlTallas = "";
         if (p.tallas && Object.keys(p.tallas).length > 0) {
@@ -809,26 +798,35 @@ renderInventario() {
         }
 
         return `
-            <div class="item-lista glass" style="margin-bottom:10px; display: flex; justify-content: space-between; align-items: center; padding: 14px; border-radius: 15px; ${bordeStyle} background: ${fondoAlerta};">
-                <div style="flex: 1;">
-                    <strong style="color: white; text-transform: uppercase; font-size: 0.9em; letter-spacing: 0.5px;">${p.nombre}</strong> ${etiquetaAlerta}
-                    ${htmlCodigo} <br>
-                    <small style="color: ${colorStock}; font-weight: bold; font-size: 0.85em;">
-                        Disponible: ${stockActual} ${unidad}
-                    </small>
-                    ${htmlTallas}
-                </div>
+            <div class="item-lista glass" style="margin-bottom:12px; display: flex; flex-direction: column; padding: 14px; border-radius: 15px; ${bordeStyle} background: ${fondoAlerta}; gap: 10px;">
                 
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <div style="position: relative;">
-                        <span style="position: absolute; left: 6px; top: 50%; transform: translateY(-50%); color: #4caf50; font-size: 0.75em; font-weight: bold;">$</span>
-                        <input type="number" value="${p.precio}" step="0.01" 
-                            onchange="Controlador.editarPrecioRapido('${p.id}', this.value)" 
-                            style="width: 70px; background: rgba(0,0,0,0.4); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 8px; text-align: right; font-weight: bold; padding: 8px 6px 8px 14px; outline: none;">
+                <div style="width: 100%;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <strong style="color: white; text-transform: uppercase; font-size: 0.95em; letter-spacing: 0.5px; flex: 1;">${p.nombre}</strong>
+                        ${etiquetaAlerta}
                     </div>
+                    ${htmlCodigo}
+                </div>
 
-                    <button class="btn-mini" onclick="Interfaz.modalRecargaRapida('${p.nombre}')" style="background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid #4caf50;" title="Añadir stock">➕</button>
-                    <button class="btn-mini" onclick="Controlador.prepararEdicionInventario('${p.nombre}')" style="background: rgba(33, 150, 243, 0.2); color: #2196f3; border: 1px solid #2196f3;" title="Editar">✏️</button>
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
+                    <div style="flex: 1;">
+                        <small style="color: ${colorStock}; font-weight: bold; font-size: 0.85em; display: block;">
+                            Disponible: ${stockActual} ${unidad}
+                        </small>
+                        ${htmlTallas}
+                    </div>
+                    
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <div style="position: relative;">
+                            <span style="position: absolute; left: 6px; top: 50%; transform: translateY(-50%); color: #4caf50; font-size: 0.75em; font-weight: bold;">$</span>
+                            <input type="number" value="${p.precio}" step="0.01" 
+                                onchange="Controlador.editarPrecioRapido('${p.nombre}', this.value)" 
+                                style="width: 65px; background: rgba(0,0,0,0.4); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 8px; text-align: right; font-weight: bold; padding: 6px 6px 6px 14px; outline: none; font-size: 0.9em;">
+                        </div>
+
+                        <button class="btn-mini" onclick="Interfaz.modalRecargaRapida('${p.nombre}')" style="background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid #4caf50; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">➕</button>
+                        <button class="btn-mini" onclick="Controlador.prepararEdicionInventario('${p.nombre}')" style="background: rgba(33, 150, 243, 0.2); color: #2196f3; border: 1px solid #2196f3; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">✏️</button>
+                    </div>
                 </div>
             </div>`;
     };
@@ -839,13 +837,12 @@ renderInventario() {
             return;
         }
 
-        // 🚀 MEJORA: Ordenar para que lo AGOTADO y BAJO salga arriba
         const prodsOrdenados = [...prods].sort((a, b) => {
             const minA = a.stockMinimo || (a.unidad === 'Kg' ? 1.5 : 3);
             const minB = b.stockMinimo || (b.unidad === 'Kg' ? 1.5 : 3);
             const alertaA = a.cantidad <= minA ? 1 : 0;
             const alertaB = b.cantidad <= minB ? 1 : 0;
-            return alertaB - alertaA; // Los 1 (alertas) suben
+            return alertaB - alertaA;
         });
 
         lista.innerHTML = prodsOrdenados.map(p => generarHTMLItem(p)).join('');

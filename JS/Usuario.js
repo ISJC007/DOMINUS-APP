@@ -22,107 +22,139 @@ const Usuario = {
             return false; // No hay sesión, el flujo se detiene en el Login
         }
     },
-    
-    // ... (aquí mantienes tus funciones de mostrarLogin, mostrarRegistro, etc.
 
-    // ==========================================
-    // PANTALLA 1: INICIAR SESIÓN
-    // ==========================================
     mostrarLogin() {
-        this.limpiarPantalla();
-        const overlay = this.crearOverlay('overlay-login');
+    this.limpiarPantalla();
+    const overlay = this.crearOverlay('overlay-login');
 
-        overlay.innerHTML = `
-            <div class="glass" style="width: 85%; max-width: 400px; padding: 30px; border-radius: 15px; text-align: center;">
-                <h2 style="color: #ffd700; margin-bottom: 20px;">INICIAR SESIÓN</h2>
+    overlay.innerHTML = `
+        <div class="glass" style="width: 85%; max-width: 400px; padding: 30px; border-radius: 15px; text-align: center;">
+            <h2 style="color: #ffd700; margin-bottom: 20px;">INICIAR SESIÓN</h2>
+            
+            <input type="text" id="login-user" placeholder="Usuario o Correo" class="input-moderno" 
+                   style="width: 100%; margin-bottom: 15px; padding: 12px; box-sizing: border-box;">
+            
+            <div style="position: relative; width: 100%; margin-bottom: 20px;">
+                <input type="password" id="login-pass" placeholder="Contraseña" class="input-moderno" 
+                       style="width: 100%; padding: 12px; padding-right: 45px; box-sizing: border-box;">
                 
-                <input type="text" id="login-user" placeholder="Usuario o Correo" class="input-moderno" style="width: 100%; margin-bottom: 15px; padding: 12px; box-sizing: border-box;">
-                <input type="password" id="login-pass" placeholder="Contraseña" class="input-moderno" style="width: 100%; margin-bottom: 20px; padding: 12px; box-sizing: border-box;">
-                
-                <button id="btn-login" class="btn-main" style="width: 100%; padding: 15px; margin-bottom: 15px;">ENTRAR</button>
-                
-                <p style="color: #aaa; font-size: 0.9em; margin-top: 15px;">
-                    ¿No tienes cuenta? <br>
-                    <span id="link-registro" style="color: #ffd700; cursor: pointer; font-weight: bold; text-decoration: underline;">Regístrate aquí</span>
-                </p>
+                <span id="btn-ver-login" 
+                      style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.2rem; filter: grayscale(1); user-select: none;"
+                      onclick="Usuario.togglePassword('login-pass', 'btn-ver-login')">
+                      👁️
+                </span>
             </div>
-        `;
-        document.body.appendChild(overlay);
+            
+            <button id="btn-login" class="btn-main" style="width: 100%; padding: 15px; margin-bottom: 15px;">ENTRAR</button>
+            
+            <p style="color: #aaa; font-size: 0.9em; margin-top: 15px;">
+                ¿No tienes cuenta? <br>
+                <span id="link-registro" style="color: #ffd700; cursor: pointer; font-weight: bold; text-decoration: underline;">Regístrate aquí</span>
+            </p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
 
-        // Lógica de Login
-        document.getElementById('btn-login').onclick = () => {
-            const u = document.getElementById('login-user').value;
-            const p = document.getElementById('login-pass').value;
-            this.procesarLogin(u, p);
-        };
+    // Lógica de Login
+    document.getElementById('btn-login').onclick = () => {
+        const u = document.getElementById('login-user').value;
+        const p = document.getElementById('login-pass').value;
+        
+        if(!u || !p) return notificar("Ingresa credenciales", "alerta");
+        
+        this.procesarLogin(u, p);
+    };
 
-        // Ir a registro
-        document.getElementById('link-registro').onclick = () => {
-            overlay.remove();
-            this.mostrarRegistro();
-        };
-    },
-
+    // Ir a registro
+  // Busca esta parte en tu mostrarLogin y asegúrate de que esté así:
+document.getElementById('link-registro').onclick = () => {
+    // Primero limpiamos manualmente para estar seguros
+    const actual = document.getElementById('overlay-login');
+    if(actual) actual.remove();
+    
+    this.mostrarRegistro();
+};
+},
     // ==========================================
     // PANTALLA 2: REGISTRO
     // ==========================================
-    mostrarRegistro() {
-        this.limpiarPantalla();
-        const overlay = this.crearOverlay('overlay-registro');
+   mostrarRegistro() {
+    this.limpiarPantalla();
+    const overlay = this.crearOverlay('overlay-registro');
 
-        overlay.innerHTML = `
-            <div class="glass" style="width: 90%; max-width: 450px; padding: 25px; border-radius: 15px; text-align: center; max-height: 90vh; overflow-y: auto;">
-                <h2 style="color: #ffd700; margin-bottom: 20px;">CREAR CUENTA</h2>
-                
-                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <input type="text" id="reg-nombre" placeholder="Nombres" class="input-moderno" style="width: 50%; padding: 10px;">
-                    <input type="text" id="reg-apellido" placeholder="Apellidos" class="input-moderno" style="width: 50%; padding: 10px;">
-                </div>
-                
-                <input type="email" id="reg-correo" placeholder="Correo Electrónico" class="input-moderno" style="width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box;">
-                <input type="text" id="reg-user" placeholder="Nombre de Usuario" class="input-moderno" style="width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box;">
-                
-                <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-                    <input type="password" id="reg-pass1" placeholder="Contraseña" class="input-moderno" style="width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box;">
-                    <input type="password" id="reg-pass2" placeholder="Confirmar Contraseña" class="input-moderno" style="width: 100%; padding: 10px; box-sizing: border-box;">
-                </div>
-
-                <button id="btn-crear-cuenta" class="btn-main" style="width: 100%; padding: 15px;">REGISTRARSE</button>
-                
-                <p id="link-volver-login" style="color: #888; cursor: pointer; margin-top: 15px; font-size: 0.9em;">Volver a Inicio de Sesión</p>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
-        document.getElementById('link-volver-login').onclick = () => {
-            overlay.remove();
-            this.mostrarLogin();
-        };
-
-        document.getElementById('btn-crear-cuenta').onclick = () => {
-            const p1 = document.getElementById('reg-pass1').value;
-            const p2 = document.getElementById('reg-pass2').value;
-            const correo = document.getElementById('reg-correo').value;
-            const usuario = document.getElementById('reg-user').value;
-
-            if (!correo || !usuario) return alert("Faltan datos");
-            if (p1 !== p2) return alert("Las contraseñas no coinciden");
-            if (p1.length < 4) return alert("La contraseña es muy corta");
-
-            // Recolectar datos y pasar a verificación
-            const nuevoPerfil = {
-                nombre: document.getElementById('reg-nombre').value,
-                apellido: document.getElementById('reg-apellido').value,
-                correo: correo,
-                usuario: usuario,
-                pass: p1 // En un sistema real esto se encripta
-            };
+    overlay.innerHTML = `
+        <div class="glass" style="width: 90%; max-width: 450px; padding: 25px; border-radius: 15px; text-align: center; max-height: 90vh; overflow-y: auto;">
+            <h2 style="color: #ffd700; margin-bottom: 20px;">CREAR CUENTA</h2>
             
-            overlay.remove();
-            this.simularEnvioCorreo(nuevoPerfil);
-        };
-    },
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <input type="text" id="reg-nombre" placeholder="Nombres" class="input-moderno" style="width: 50%; padding: 10px;">
+                <input type="text" id="reg-apellido" placeholder="Apellidos" class="input-moderno" style="width: 50%; padding: 10px;">
+            </div>
+            
+            <input type="email" id="reg-correo" placeholder="Correo Electrónico" class="input-moderno" style="width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box;">
+            <input type="text" id="reg-user" placeholder="Nombre de Usuario" class="input-moderno" style="width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box;">
+            
+            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <div style="position: relative; width: 100%; margin-bottom: 10px;">
+                    <input type="password" id="reg-pass1" placeholder="Contraseña" class="input-moderno" 
+                           style="width: 100%; padding: 10px; padding-right: 40px; box-sizing: border-box;">
+                    <span id="ojo-reg-1" 
+                          style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; filter: grayscale(1); user-select: none;"
+                          onclick="Usuario.togglePassword('reg-pass1', 'ojo-reg-1')">👁️</span>
+                </div>
 
+                <div style="position: relative; width: 100%;">
+                    <input type="password" id="reg-pass2" placeholder="Confirmar Contraseña" class="input-moderno" 
+                           style="width: 100%; padding: 10px; padding-right: 40px; box-sizing: border-box;">
+                    <span id="ojo-reg-2" 
+                          style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; filter: grayscale(1); user-select: none;"
+                          onclick="Usuario.togglePassword('reg-pass2', 'ojo-reg-2')">👁️</span>
+                </div>
+            </div>
+
+            <button id="btn-crear-cuenta" class="btn-main" style="width: 100%; padding: 15px;">REGISTRARSE</button>
+            
+            <p id="link-volver-login" style="color: #888; cursor: pointer; margin-top: 15px; font-size: 0.9em;">Volver a Inicio de Sesión</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    document.getElementById('link-volver-login').onclick = () => {
+        overlay.remove();
+        this.mostrarLogin();
+    };
+
+    document.getElementById('btn-crear-cuenta').onclick = () => {
+        const p1 = document.getElementById('reg-pass1').value;
+        const p2 = document.getElementById('reg-pass2').value;
+        const correo = document.getElementById('reg-correo').value;
+        const usuario = document.getElementById('reg-user').value;
+        const nombre = document.getElementById('reg-nombre').value;
+
+        if (!correo || !usuario || !nombre) {
+            return notificar("Faltan datos obligatorios", 'alerta');
+        }
+        
+        if (p1 !== p2) {
+            return notificar("Las contraseñas no coinciden", 'error');
+        }
+        
+        if (p1.length < 4) {
+            return notificar("Contraseña demasiado corta (min. 4)", 'alerta');
+        }
+
+        const nuevoPerfil = {
+            nombre: nombre,
+            apellido: document.getElementById('reg-apellido').value,
+            correo: correo,
+            usuario: usuario,
+            pass: p1 
+        };
+        
+        overlay.remove();
+        this.simularEnvioCorreo(nuevoPerfil);
+    };
+},
     // ==========================================
     // PANTALLA 3: VERIFICACIÓN DE CORREO
     // ==========================================
@@ -136,35 +168,43 @@ const Usuario = {
         this.mostrarVerificacion(perfil, codigoReal);
     },
 
-    mostrarVerificacion(perfil, codigoReal) {
-        const overlay = this.crearOverlay('overlay-verificacion');
+ mostrarVerificacion(perfil, codigoReal) {
+    const overlay = this.crearOverlay('overlay-verificacion');
 
-        overlay.innerHTML = `
-            <div class="glass" style="width: 85%; max-width: 400px; padding: 30px; border-radius: 15px; text-align: center;">
-                <h2 style="color: #ffd700;">VERIFICA TU CORREO</h2>
-                <p style="color: white; opacity: 0.8; margin-bottom: 20px; font-size: 0.9em;">
-                    Hemos enviado un código a:<br><strong style="color:#fff;">${perfil.correo}</strong>
-                </p>
-                
-                <input type="text" id="codigo-input" placeholder="- - - -" maxlength="4" inputmode="numeric"
-                       style="width: 150px; text-align: center; font-size: 2rem; letter-spacing: 10px; padding: 10px; border: none; border-bottom: 2px solid #ffd700; background: transparent; color: white; margin-bottom: 20px; outline: none;">
-                
-                <button id="btn-verificar" class="btn-main" style="width: 100%; padding: 15px;">CONFIRMAR CÓDIGO</button>
-            </div>
-        `;
-        document.body.appendChild(overlay);
+    overlay.innerHTML = `
+        <div class="glass" style="width: 85%; max-width: 400px; padding: 30px; border-radius: 15px; text-align: center;">
+            <h2 style="color: #ffd700;">VERIFICA TU CORREO</h2>
+            <p style="color: white; opacity: 0.8; margin-bottom: 20px; font-size: 0.9em;">
+                Hemos enviado un código a:<br><strong style="color:#fff;">${perfil.correo}</strong>
+            </p>
+            
+            <input type="text" id="codigo-input" placeholder="- - - -" maxlength="4" inputmode="numeric"
+                   style="width: 150px; text-align: center; font-size: 2rem; letter-spacing: 10px; padding: 10px; border: none; border-bottom: 2px solid #ffd700; background: transparent; color: white; margin-bottom: 20px; outline: none;">
+            
+            <button id="btn-verificar" class="btn-main" style="width: 100%; padding: 15px;">CONFIRMAR CÓDIGO</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
 
-        document.getElementById('btn-verificar').onclick = () => {
-            const inputCodigo = document.getElementById('codigo-input').value;
-            if (inputCodigo === codigoReal) {
-                alert("✅ Correo verificado con éxito.");
-                overlay.remove();
-                this.guardarEnBaseDeDatos(perfil);
-            } else {
-                alert("❌ Código incorrecto. Intenta de nuevo.");
-            }
-        };
-    },
+    document.getElementById('btn-verificar').onclick = () => {
+        const inputCodigo = document.getElementById('codigo-input').value;
+        
+        if (inputCodigo === codigoReal) {
+            // Éxito: Notificamos y procedemos
+            notificar("Correo verificado con éxito", 'exito');
+            overlay.remove();
+            this.guardarEnBaseDeDatos(perfil);
+        } else {
+            // Error: El usuario permanece en la pantalla para reintentar
+            notificar("Código incorrecto. Intenta de nuevo.", 'error');
+            
+            // Opcional: Limpiar el input y poner el foco para facilitar el reintento
+            const input = document.getElementById('codigo-input');
+            input.value = '';
+            input.focus();
+        }
+    };
+},
 
     guardarEnBaseDeDatos(perfil) {
         // Obtenemos la BD de usuarios (o creamos una si no existe)
@@ -198,67 +238,149 @@ const Usuario = {
     `;
     document.body.appendChild(overlay);
 
+    // OPCIÓN: SÍ QUIERE PIN
     document.getElementById('btn-si-pin').onclick = () => {
-        const nuevoPin = prompt("Ingresa tu nuevo PIN de 4 dígitos:");
-        if(nuevoPin && nuevoPin.length === 4) {
-            // PRIMERO: Guardamos el PIN físico
-            Persistencia.guardar('dom_seguridad_pin', nuevoPin);
-            
-            // SEGUNDO: Marcamos la preferencia en el perfil
-            this.datos.usaPin = true;
-            Persistencia.guardar(this.sesionActual, { logueado: true, perfil: this.datos });
-            
-            overlay.remove();
-            alert("✅ PIN Activado.");
-            location.reload();
-        } else {
-            alert("PIN no válido. Intenta de nuevo.");
-        }
+        overlay.remove();
+        this.pantallaCapturaPIN("CREAR NUEVO PIN"); // Iniciamos el flujo de doble modal
     };
 
+    // OPCIÓN: NO QUIERE PIN
     document.getElementById('btn-no-pin').onclick = () => {
-        // Marcamos que NO quiere usar PIN
         this.datos.usaPin = false;
         Persistencia.guardar(this.sesionActual, { logueado: true, perfil: this.datos });
         
         overlay.remove();
-        alert("Seguridad desactivada. Puedes activarla en Ajustes.");
-        location.reload();
+        notificar("Seguridad desactivada. Puedes activarla en Ajustes.", 'alerta');
+        setTimeout(() => location.reload(), 1500); // Pausa para que vea el toast
+    };
+},
+
+pantallaCapturaPIN(titulo, primerPin = null) {
+    const overlay = this.crearOverlay('overlay-input-pin');
+
+    overlay.innerHTML = `
+        <div class="glass" style="width: 85%; max-width: 400px; padding: 35px 25px; border-radius: 15px; text-align: center;">
+            <h2 style="color: #ffd700; font-size: 1.2rem; letter-spacing: 1px;">${titulo}</h2>
+            <p style="color: white; opacity: 0.6; margin-bottom: 30px; font-size: 0.9em;">Ingresa 4 dígitos numéricos</p>
+            
+            <div style="position: relative; width: 100%; max-width: 180px; margin: 0 auto 40px; display: flex; justify-content: center; align-items: center;">
+                <input type="password" id="pin-input" placeholder="****" maxlength="4" inputmode="numeric"
+                       style="width: 100%; text-align: center; font-size: 2.8rem; letter-spacing: 12px; padding: 10px 0; border: none; border-bottom: 2px solid #ffd700; background: transparent; color: white; outline: none; box-sizing: border-box; text-indent: 12px;">
+                
+                <span id="ojo-pin" 
+                      style="position: absolute; right: -35px; cursor: pointer; font-size: 1.3rem; filter: grayscale(1); user-select: none; transition: all 0.3s ease; padding: 5px;"
+                      onclick="Usuario.togglePassword('pin-input', 'ojo-pin')">
+                      👁️
+                </span>
+            </div>
+            
+            <button id="btn-continuar-pin" class="btn-main" style="width: 100%; padding: 16px; font-weight: bold; letter-spacing: 1px;">
+                ${primerPin ? 'CONFIRMAR PIN' : 'SIGUIENTE'}
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    const input = document.getElementById('pin-input');
+    input.focus();
+
+    document.getElementById('btn-continuar-pin').onclick = () => {
+        const pinIngresado = input.value;
+
+        if (pinIngresado.length !== 4 || isNaN(pinIngresado)) {
+            this.vibrar([50, 100, 50]);
+            return notificar("El PIN debe ser de 4 números", 'error');
+        }
+
+        overlay.remove();
+
+        if (!primerPin) {
+            // Primer paso: Captura inicial
+            this.pantallaCapturaPIN("CONFIRMA TU PIN", pinIngresado);
+        } else {
+            // Segundo paso: Verificación
+            if (pinIngresado === primerPin) {
+                Persistencia.guardar('dom_seguridad_pin', pinIngresado);
+                this.datos.usaPin = true;
+                Persistencia.guardar(this.sesionActual, { logueado: true, perfil: this.datos });
+                
+                notificar("✅ PIN Activado con éxito", 'exito');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                notificar("Los PIN no coinciden. Reintenta.", 'error');
+                this.vibrar([100, 50, 100, 50, 100]);
+                // Reiniciamos el flujo completo
+                this.pantallaCapturaPIN("CREAR NUEVO PIN"); 
+            }
+        }
     };
 },
     // ==========================================
     // UTILIDADES
     // ==========================================
+   // ==========================================
+    // MEJORA EN PROCESAR LOGIN
+    // ==========================================
+    procesarLogin(usuario, pass) {
+        const baseDatos = Persistencia.cargar(this.dbSimulada) || [];
+        const perfilEncontrado = baseDatos.find(u => 
+            (u.usuario === usuario || u.correo === usuario) && u.pass === pass
+        );
+
+        if (perfilEncontrado) {
+            // Éxito: Guardamos y recargamos
+            Persistencia.guardar(this.sesionActual, { logueado: true, perfil: perfilEncontrado });
+            notificar(`Bienvenido, ${perfilEncontrado.usuario}`, 'exito');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            // Error: Usamos notificar en lugar de alert
+            notificar("Usuario o Contraseña incorrectos.", 'error');
+        }
+    },
+
+    // ==========================================
+    // UTILIDADES MEJORADAS (CON LÓGICA DE OJO 👁️)
+    // ==========================================
+    
+    // Función global para cambiar visibilidad de contraseñas
+   togglePassword(idInput, idIcono) {
+    const input = document.getElementById(idInput);
+    const icono = document.getElementById(idIcono);
+    
+    if (input.type === "password") {
+        input.type = "text";
+        icono.innerText = "👁️"; // Ojo abierto
+        icono.style.filter = "grayscale(0) drop-shadow(0 0 5px #ffd700)"; // Brilla cuando está activo
+    } else {
+        input.type = "password";
+        icono.innerText = "🔒"; // Monito tapándose o puedes usar "🔒" o un ojo con barra si usas iconos pro
+        icono.style.filter = "grayscale(1)"; 
+    }
+},
+
     crearOverlay(id) {
         const overlay = document.createElement('div');
         overlay.id = id;
         overlay.style = `
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 50000;
+            background: rgba(0,0,0,0.92); z-index: 50000;
             display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            animation: fadeIn 0.3s ease;
         `;
         return overlay;
     },
 
-    limpiarPantalla() {
-        const loader = document.querySelector('.loader');
-        if (loader) loader.style.display = 'none';
-        const overlays = document.querySelectorAll('[id^="overlay-"]');
-        overlays.forEach(o => o.remove());
-    },
-
-    procesarLogin(usuario, pass) {
-        const baseDatos = Persistencia.cargar(this.dbSimulada) || [];
-        const perfilEncontrado = baseDatos.find(u => (u.usuario === usuario || u.correo === usuario) && u.pass === pass);
-
-        if (perfilEncontrado) {
-            Persistencia.guardar(this.sesionActual, { logueado: true, perfil: perfilEncontrado });
-            location.reload();
-        } else {
-            alert("Usuario o Contraseña incorrectos.");
-        }
-    }
+   limpiarPantalla() {
+    const loader = document.querySelector('.loader');
+    if (loader) loader.style.display = 'none';
+    
+    // Eliminamos los overlays existentes de golpe para evitar conflictos de ID
+    const overlays = document.querySelectorAll('[id^="overlay-"]');
+    overlays.forEach(o => o.remove()); 
+}
 };
 
 document.addEventListener('DOMContentLoaded', () => Usuario.init());

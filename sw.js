@@ -3,7 +3,7 @@
  * VERSIÓN: 3.3.8 (Casi Ultimate Blindada)
  */
 
-const CACHE_NAME = 'DOMINUS-4.0.1'; 
+const CACHE_NAME = 'DOMINUS-4.1.2.2'; 
 
 const ASSETS = [
   './', 

@@ -201,6 +201,69 @@ guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null, codigo = "", mi
     this.sincronizar(); 
 },
 
+// 🚀 NUEVO: Conecta el Escáner con la lógica de Inventario
+   gestionarEscaneo: function(codigo) {
+    const producto = this.buscarPorCodigo(codigo);
+
+    if (producto) {
+        // Caso A: El producto ya existe -> Recarga rápida
+        if (typeof DominusAudio !== 'undefined') DominusAudio.play('scan');
+        
+        modalEleccion.abrir({
+            titulo: "Reponer Stock",
+            mensaje: `Vas a recargar stock de: <b>${producto.nombre}</b><br>Stock actual: ${producto.cantidad} ${producto.unidad}`,
+            botones: [
+                {
+                    texto: "➕ Recargar",
+                    clase: "btn-si",
+                    accion: () => {
+                        const cant = prompt(`¿Cuánto vas a sumar a ${producto.nombre}?`);
+                        if (cant && !isNaN(cant)) {
+                            this.recargarRapido(producto.nombre, cant);
+                        }
+                    }
+                },
+                {
+                    texto: "📝 Editar Todo",
+                    clase: "btn-si",
+                    accion: () => {
+                        if (typeof Interfaz !== 'undefined' && Interfaz.abrirEditorProducto) {
+                            Interfaz.abrirEditorProducto(producto);
+                        }
+                    }
+                }
+            ]
+        });
+    } else {
+        // Caso B: Producto no existe -> Registrar nuevo
+        notificar(`⚠️ Código nuevo detectado: ${codigo}`, "info");
+        
+        // 1. Buscamos el input del código
+        const inputCod = document.getElementById('inv-codigo');
+        if (inputCod) {
+            inputCod.value = codigo;
+            
+            // 🔥 FORZAMOS AL NAVEGADOR A RECONOCER EL CAMBIO
+            inputCod.dispatchEvent(new Event('input', { bubbles: true }));
+            inputCod.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            notificar(`✅ ID ${codigo} pegado`, "success");
+        }
+
+        // 2. Movilizamos el foco al nombre para empezar a escribir
+        const inputNom = document.getElementById('inv-nombre');
+        if (inputNom) {
+            setTimeout(() => {
+                inputNom.focus();
+                // En Android esto suele disparar el teclado automáticamente
+            }, 500);
+        }
+
+        // 3. Scroll suave al formulario por si estamos abajo en la lista
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+},
+
  eliminar(id) {
     const totalAntes = this.productos.length;
     // Forzamos que el ID sea tratado igual (string/number)
@@ -246,8 +309,7 @@ sincronizar() {
   buscarPorCodigo: function(codigo) {
     if (!codigo) return null;
     const codLimpio = codigo.toString().trim();
-    return this.productos.find(prod => prod.codigo === codLimpio);
-},
+return this.productos.find(prod => String(prod.codigo).trim() === String(codLimpio).trim());},
 
  descontar(nombre, cant, tallaElegida = null) {
     if (!this.activo) return true; 

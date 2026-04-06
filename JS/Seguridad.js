@@ -1,4 +1,7 @@
 const Seguridad = {
+
+    intentosFallidos: 0,
+
     // 1. GESTIÓN DE CLAVES (Persistencia)
     getClave() {
         return Persistencia.cargar('dom_seguridad_pin') || '1234';
@@ -73,53 +76,87 @@ const Seguridad = {
     },
 
     // --- MEJORA: SOLICITAR PIN SIN PROMPT ---
-    solicitarPIN() {
+solicitarPIN() {
         return new Promise((resolve) => {
-            // 1. Crear el contenedor visual desde JS
-            const overlay = document.createElement('div');
-            overlay.style = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.95); z-index: 20000;
-                display: flex; align-items: center; justify-content: center;
-                flex-direction: column; font-family: sans-serif;
-            `;
+            // 1. Usamos tu función Persistencia.cargar()
+            const bloqueoGuardado = Persistencia.cargar('dom_seguridad_bloqueo');
+            const ahora = Date.now();
+
+            if (bloqueoGuardado && ahora < bloqueoGuardado) {
+                const restante = Math.ceil((bloqueoGuardado - ahora) / 1000);
+                notificar(`⚠️ Sistema bloqueado. Espera ${restante}s`, 'error');
+                return resolve(false);
+            }
+
+            const overlay = Usuario.crearOverlay('overlay-seguridad-pin');
 
             overlay.innerHTML = `
-                <div style="text-align: center; width: 80%; max-width: 300px;">
-                    <h2 style="color: #ffd700; margin-bottom: 5px;">DOMINUS</h2>
-                    <p style="color: white; opacity: 0.7; margin-bottom: 20px;">Seguridad Requerida</p>
-                    <input type="password" id="pin-invisible" 
-                           inputmode="numeric" pattern="[0-9]*" maxlength="4"
-                           style="width: 100%; background: transparent; border: none; 
-                                  border-bottom: 2px solid #ffd700; color: white; 
-                                  font-size: 3rem; text-align: center; outline: none;">
-                    <div id="pin-error" style="color: #ff4444; margin-top: 15px; height: 20px;"></div>
+                <div class="glass" style="width: 85%; max-width: 350px; padding: 35px 25px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <h2 style="color: #ffd700; margin-bottom: 10px; font-size: 1.5rem; letter-spacing: 2px;">DOMINUS</h2>
+                    <p style="color: white; opacity: 0.8; margin-bottom: 25px; font-size: 0.9em;">Seguridad Requerida</p>
+                    
+                    <div style="position: relative; width: 100%; max-width: 180px; margin: 0 auto;">
+                        <input type="password" id="pin-invisible" 
+                               inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                               style="width: 100%; background: transparent; border: none; 
+                                     border-bottom: 2px solid #ffd700; color: white; 
+                                     font-size: 3rem; text-align: center; outline: none; 
+                                     letter-spacing: 15px; text-indent: 15px;
+                                     box-sizing: border-box; font-family: monospace;">
+                        
+                        <span id="ojo-pin-seg" 
+                              style="position: absolute; right: -40px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.2rem; filter: grayscale(1); user-select: none;"
+                              onclick="Usuario.togglePassword('pin-invisible', 'ojo-pin-seg')">
+                              🔒
+                        </span>
+                    </div>
+
+                    <div id="pin-error" style="color: #ff4444; margin-top: 20px; height: 20px; font-size: 0.8em; font-weight: bold; text-shadow: 0 0 10px rgba(255,0,0,0.3);"></div>
                 </div>
             `;
 
             document.body.appendChild(overlay);
             const input = document.getElementById('pin-invisible');
             const errorDiv = document.getElementById('pin-error');
-            
             input.focus();
 
-            // 2. Lógica de validación automática al escribir
             input.oninput = () => {
+                input.value = input.value.replace(/[^0-9]/g, '');
+
                 if (input.value.length === 4) {
                     if (input.value === this.getClave()) {
+                        this.intentosFallidos = 0; 
+                        // Para "eliminar" el bloqueo usando tu función:
+                        Persistencia.guardar('dom_seguridad_bloqueo', null); 
                         overlay.remove();
                         resolve(true);
                     } else {
-                        this.vibrar([100, 50, 100, 50, 100]);
+                        this.intentosFallidos++;
+                        this.vibrar([100, 50, 100]);
                         input.value = "";
-                        errorDiv.innerText = "PIN INCORRECTO";
-                        setTimeout(() => errorDiv.innerText = "", 1500);
+                        
+                        if (this.intentosFallidos >= 3) {
+                            const tiempoBloqueo = Date.now() + 30000; 
+                            // Usamos tu función Persistencia.guardar()
+                            Persistencia.guardar('dom_seguridad_bloqueo', tiempoBloqueo);
+                            this.intentosFallidos = 0;
+                            
+                            errorDiv.innerText = "SISTEMA BLOQUEADO";
+                            notificar("Bloqueo de seguridad: 30s", 'error');
+                            setTimeout(() => { overlay.remove(); resolve(false); }, 1500);
+                        } else {
+                            errorDiv.innerText = `PIN INCORRECTO (${this.intentosFallidos}/3)`;
+                            input.parentElement.style.animation = "shake 0.3s ease";
+                            setTimeout(() => {
+                                errorDiv.innerText = "";
+                                input.parentElement.style.animation = "";
+                            }, 1500);
+                        }
                     }
                 }
             };
         });
     },
-
     // 4. FUNCIÓN PARA AJUSTES
 async prepararCambioPIN() {
     // 1. Validar PIN Actual
@@ -159,25 +196,35 @@ async prepararCambioPIN() {
 // Una versión genérica de tu solicitarPIN para reusar en cambios de clave
 solicitarPINPersonalizado(titulo, largo = 4, devolverValor = false) {
     return new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.style = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.98); z-index: 30000;
-            display: flex; align-items: center; justify-content: center;
-            flex-direction: column; backdrop-filter: blur(10px);
-        `;
+        // Usamos la utilidad crearOverlay para asegurar el desenfoque y centrado
+        const overlay = this.crearOverlay('overlay-pin-personalizado');
 
         overlay.innerHTML = `
-            <div style="text-align: center; width: 80%; max-width: 300px;">
-                <h2 style="color: #ffd700; margin-bottom: 5px; font-family: sans-serif;">DOMINUS</h2>
-                <p style="color: white; opacity: 0.7; margin-bottom: 20px; font-family: sans-serif;">${titulo}</p>
-                <input type="password" id="pin-dinamico" 
-                       inputmode="numeric" pattern="[0-9]*" maxlength="${largo}"
-                       style="width: 100%; background: transparent; border: none; 
-                              border-bottom: 2px solid #ffd700; color: white; 
-                              font-size: 3rem; text-align: center; outline: none;">
-                <div id="pin-error-dinamico" style="color: #ff4444; margin-top: 15px; height: 20px; font-family: sans-serif;"></div>
-                <button id="btn-cancelar-pin" style="margin-top: 30px; background: none; border: 1px solid #444; color: #888; padding: 5px 15px; border-radius: 5px; cursor: pointer;">Cancelar</button>
+            <div class="glass" style="width: 85%; max-width: 350px; padding: 30px; border-radius: 20px; text-align: center;">
+                <h2 style="color: #ffd700; margin-bottom: 5px; letter-spacing: 2px;">DOMINUS</h2>
+                <p style="color: white; opacity: 0.8; margin-bottom: 25px; font-size: 0.95em;">${titulo}</p>
+                
+                <div style="position: relative; width: 170px; margin: 0 auto;">
+                    <input type="password" id="pin-dinamico" 
+                           inputmode="numeric" pattern="[0-9]*" maxlength="${largo}"
+                           style="width: 100%; background: transparent; border: none; 
+                                  border-bottom: 2px solid #ffd700; color: white; 
+                                  font-size: 3rem; text-align: center; outline: none;
+                                  letter-spacing: 12px; padding-right: 35px; box-sizing: border-box;">
+                    
+                    <span id="ojo-pin-personalizado" 
+                          style="position: absolute; right: -5px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.2rem; filter: grayscale(1); user-select: none;"
+                          onclick="Usuario.togglePassword('pin-dinamico', 'ojo-pin-personalizado')">
+                          👁️
+                    </span>
+                </div>
+
+                <div id="pin-error-dinamico" style="color: #ff4444; margin-top: 15px; height: 20px; font-size: 0.8em; font-weight: bold;"></div>
+                
+                <button id="btn-cancelar-pin" 
+                        style="margin-top: 25px; background: rgba(255,255,255,0.05); border: 1px solid #444; color: #bbb; width: 100%; padding: 12px; border-radius: 10px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                    CANCELAR
+                </button>
             </div>
         `;
 
@@ -193,11 +240,14 @@ solicitarPINPersonalizado(titulo, largo = 4, devolverValor = false) {
             resolve(null);
         };
 
+        // Efecto hover para el botón de cancelar
+        btnCancel.onmouseover = () => { btnCancel.style.background = "rgba(255,255,255,0.1)"; btnCancel.style.color = "#fff"; };
+        btnCancel.onmouseout = () => { btnCancel.style.background = "rgba(255,255,255,0.05)"; btnCancel.style.color = "#bbb"; };
+
         input.oninput = () => {
             if (input.value.length === largo) {
                 const valorCapturado = input.value;
                 
-                // Si es solo para validar el actual
                 if (!devolverValor) {
                     if (valorCapturado === this.getClave()) {
                         overlay.remove();
@@ -209,7 +259,6 @@ solicitarPINPersonalizado(titulo, largo = 4, devolverValor = false) {
                         setTimeout(() => errorDiv.innerText = "", 1500);
                     }
                 } else {
-                    // Si es para capturar un valor nuevo
                     overlay.remove();
                     resolve(valorCapturado);
                 }

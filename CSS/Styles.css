@@ -919,21 +919,40 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 .btn-eliminar-todo:hover { opacity: 1; background: rgba(255,68,68,0.1); }
 
 /* Añade esto a tu archivo CSS/Styles.css */
-#contenedor-camara video {
-    width: 100% !important;
-    height: auto !important;
+/* Contenedor principal del Escáner */
+/* 1. Aseguramos que el contenedor sea una "caja negra" absoluta */
+#contenedor-camara {
+    background-color: #000 !important;
+    position: fixed !important;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 999999 !important; /* Por encima de todo el sistema */
 }
-#contenedor-camara canvas.drawingBuffer {
+
+/* 2. El video al fondo */
+#contenedor-camara video {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: cover;
     position: absolute;
     top: 0;
     left: 0;
+    z-index: 1; /* Al fondo del contenedor */
 }
 
-#contenedor-camara video {
-    width: 100%;
-    height: auto;
-    border-radius: 10px;
+/* 3. La guía visual (El recuadro verde) */
+#contenedor-camara div {
+    z-index: 10; /* Por encima del video */
+    pointer-events: none; /* No debe interferir con los clics */
 }
-#contenedor-camara canvas {
-    display: none; /* Oculta el canvas de dibujo de Quagga si estorba */
+
+/* 4. El botón de cancelar (Prioridad máxima) */
+#contenedor-camara button {
+    z-index: 100; /* Siempre visible y clickeable */
+    pointer-events: auto;
+}
+
+/* Ocultar el buffer de Quagga que suele dar errores de posición */
+#contenedor-camara canvas.drawingBuffer {
+    display: none !important;
 }
