@@ -2,7 +2,7 @@
   "name": "Dominus App",
   "short_name": "Dominus",
   "description": "Sistema de Gestión de Inventario y Ventas Dominus",
-  "start_url": "index.html",
+  "start_url": "./index.html", 
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#ffd700",
@@ -12,13 +12,28 @@
       "src": "IMG/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any" 
+    },
+    {
+      "src": "IMG/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "IMG/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    }
+  ],
+  "categories": ["business", "finance"],
+  "screenshots": [
+    {
+      "src": "IMG/screenshot.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
     }
   ]
 }

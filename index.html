@@ -34,49 +34,88 @@
         </div>
     </div>
 
-    <div id="panelAjustes" class="ajustes-sidebar">
-        <div class="ajustes-header">
-            <span>Configuración DOMINUS</span>
-            <button onclick="Interfaz.toggleAjustes()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">×</button>
-        </div>
-        <div class="panel-body" style="padding: 20px;">
-            <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <span style="color: white; font-weight: 600;">🌙 Modo Oscuro</span>
-                <label class="switch">
-                    <input type="checkbox" id="checkDarkMode" onchange="Controlador.toggleDarkMode(this.checked)">
-                    <span class="slider round"></span>
-                </label>
-            </div>
-            <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <span style="color: white; font-weight: 600;">📦 Control Stock</span>
-                <label class="switch">
-                    <input type="checkbox" id="check-inv" onchange="Controlador.toggleInv(this.checked)">
-                    <span class="slider round"></span>
-                </label>
-            </div>
-
-            <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-    <div style="display: flex; flex-direction: column;">
-        <span style="color: white; font-weight: 600;">🔐 Seguridad PIN</span>
-        <small style="color: #888; font-size: 0.75em;">Proteger acceso a la app</small>
+<div id="panelAjustes" class="ajustes-sidebar">
+    <div class="ajustes-header" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #333;">
+        <span style="font-weight: bold; color: #ffd700;">DOMINUS CONFIG</span>
+        <button onclick="Interfaz.toggleAjustes()" style="background:none; border:none; color:white; font-size:28px; cursor:pointer;">&times;</button>
     </div>
-    <button onclick="Seguridad.prepararCambioPIN()" 
-            style="background: var(--primary); border: none; color: black; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 0.8em;">
-        CAMBIAR
-    </button>
-</div>
-            <hr style="border: 0; border-top: 1px solid #333; margin: 20px 0;">
-            <button type="button" class="btn-main" style="background: #ff4444; width: 100%;" onclick="DOMINUS.resetTotal()">
-                🗑️ Limpiar Toda la App
+
+    <div class="panel-body" style="padding: 0;">
+        <div style="display: flex; background: rgba(0,0,0,0.2); margin-bottom: 10px;">
+            <button id="btn-tab-usuario" onclick="Interfaz.cambiarTabAjustes('tab-usuario')" 
+                    style="flex: 1; padding: 15px; border: none; background: var(--primary); color: black; font-weight: bold; cursor: pointer; transition: 0.3s;">
+                👤 PERFIL
+            </button>
+            <button id="btn-tab-sistema" onclick="Interfaz.cambiarTabAjustes('tab-sistema')" 
+                    style="flex: 1; padding: 15px; border: none; background: transparent; color: white; font-weight: bold; cursor: pointer; transition: 0.3s;">
+                ⚙️ SISTEMA
             </button>
         </div>
-    </div>
 
-    <header class="main-header glass">
-        <div class="header-top" style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px;">
-            <div style="width: 40px;">
-                <button onclick="Interfaz.toggleAjustes()" class="btn-ajustes-top" style="background: none; border: none; font-size: 24px; cursor: pointer; color: white;">⚙️</button>
+        <div style="padding: 20px;">
+            <div id="tab-usuario" class="tab-content">
+                <div id="perfil-info-ajustes" style="text-align: center; margin-bottom: 20px;">
+                    <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid #ffd700; margin: 0 auto 10px; overflow: hidden; background: #222; display: flex; align-items: center; justify-content: center;">
+                        <span id="perfil-avatar-placeholder" style="font-size: 2.5rem;">👤</span>
+                        <img id="perfil-avatar-img" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                    </div>
+                    <h3 id="perfil-nombre-negocio" style="color: white; margin: 5px 0 0;">Mi Negocio</h3>
+                    <p id="perfil-usuario-tag" style="color: #888; font-size: 0.85em; margin-bottom: 15px;">@usuario</p>
+                    
+                    <button onclick="Usuario.cerrarSesion()" class="btn-main" style="background: #444; color: white; padding: 8px; font-size: 0.8em;">
+                        CERRAR SESIÓN
+                    </button>
+                </div>
             </div>
+
+            <div id="tab-sistema" class="tab-content" style="display: none;">
+                <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                    <span style="color: white; font-weight: 600;">🌙 Modo Oscuro</span>
+                    <label class="switch">
+                        <input type="checkbox" id="checkDarkMode" onchange="Controlador.toggleDarkMode(this.checked)">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                    <span style="color: white; font-weight: 600;">📦 Control Stock</span>
+                    <label class="switch">
+                        <input type="checkbox" id="check-inv" onchange="Controlador.toggleInv(this.checked)">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="color: white; font-weight: 600;">🔐 Seguridad PIN</span>
+                        <small style="color: #888; font-size: 0.75em;">Proteger acceso a la app</small>
+                    </div>
+                    <button onclick="Seguridad.prepararCambioPIN()" 
+                            style="background: var(--primary); border: none; color: black; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 0.8em;">
+                        CAMBIAR
+                    </button>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid #333; margin: 20px 0;">
+                <button type="button" class="btn-main" style="background: #ff4444; width: 100%;" onclick="DOMINUS.resetTotal()">
+                    🗑️ Limpiar Toda la App
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<header class="main-header glass">
+    <div class="header-top" style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px;">
+        <div id="user-trigger" onclick="Interfaz.toggleAjustes()" style="width: 42px; height: 42px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative;">
+            <span id="nav-icon-default" style="font-size: 24px; color: white;">⚙️</span>
+            <img id="nav-img-perfil" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid #ffd700; display: none;">
+        </div>
+        
+        <div id="header-title" style="color: #ffd700; font-weight: bold; letter-spacing: 1px;">DOMINUS</div>
+        
+        <div id="header-right-info" style="width: 40px;"></div>
+    </div>
             
             <div style="flex-grow: 1; text-align: center;">
                 <h1 class="titulo-app" style="margin: 0; font-size: 1.8rem;">DOMINUS</h1>
@@ -355,22 +394,29 @@
     </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-storage-compat.js"></script>
+
+<script src="JS/Cloud.js"></script>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.rawgit.com/serratus/quaggaJS/0420d5e/dist/quagga.min.js"></script>
 
 <script src="JS/frases.js"></script>
-<script src="JS/Offline.js"></script>
-<script src="JS/Usuario.js"></script>
+<script src="JS/Offline.js"></script> <script src="JS/Usuario.js"></script>
 <script src="JS/Seguridad.js"></script> 
 <script src="JS/Servicios.js"></script>
 <script src="JS/Audio.js"></script>
 
-<script src="JS/Interfaz.js"></script> <script src="JS/Conversor.js"></script>
+<script src="JS/Interfaz.js"></script> 
+<script src="JS/Conversor.js"></script>
 <script src="JS/Inventario.js"></script>
 <script src="JS/Ventas.js"></script> 
-<script src="JS/Controlador.js"></script> <script src="JS/scaner.js"></script>
-<script src="JS/Teclado.js"></script>
+<script src="JS/Controlador.js"></script> 
+<script src="JS/scaner.js"></script> <script src="JS/Teclado.js"></script>
 
 <script src="JS/Main.js"></script>
 

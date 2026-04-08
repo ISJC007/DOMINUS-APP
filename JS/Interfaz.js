@@ -282,6 +282,67 @@ confirmarAccion(titulo, mensaje, onConfirmar, onCancelar = null, textoConfirmar 
         console.log("Cambiando a:", id);
     }, 
 
+    cambiarTabAjustes(tabId) {
+        // Ocultar todas las secciones de ajustes
+        document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+        
+        // Mostrar solo la que clickeamos
+        const tabActiva = document.getElementById(tabId);
+        if(tabActiva) tabActiva.style.display = 'block';
+        
+        // Cambiar colores de los botones para que sepa cuál está activo
+        const esUsuario = tabId === 'tab-usuario';
+        const btnUser = document.getElementById('btn-tab-usuario');
+        const btnSist = document.getElementById('btn-tab-sistema');
+
+        if(esUsuario) {
+            btnUser.style.background = 'var(--primary)';
+            btnUser.style.color = 'black';
+            btnSist.style.background = 'transparent';
+            btnSist.style.color = 'white';
+        } else {
+            btnUser.style.background = 'transparent';
+            btnUser.style.color = 'white';
+            btnSist.style.background = 'var(--primary)';
+            btnSist.style.color = 'black';
+        }
+    },
+
+    // 2. Intercambia el ⚙️ por la Foto Real en el Header y en el Panel
+    actualizarAvatarHeader(perfil) {
+        // Elementos del Header
+        const iconDefault = document.getElementById('nav-icon-default');
+        const imgPerfilNav = document.getElementById('nav-img-perfil');
+        
+        // Elementos del Panel Lateral
+        const imgPerfilPanel = document.getElementById('perfil-avatar-img');
+        const placeholderPanel = document.getElementById('perfil-avatar-placeholder');
+        const txtNegocio = document.getElementById('perfil-nombre-negocio');
+        const txtUser = document.getElementById('perfil-usuario-tag');
+
+        if (perfil && perfil.fotoPerfil) {
+            // En el Header
+            if(iconDefault) iconDefault.style.display = 'none';
+            if(imgPerfilNav) {
+                imgPerfilNav.src = perfil.fotoPerfil;
+                imgPerfilNav.style.display = 'block';
+            }
+
+            // En el Panel Lateral
+            if(placeholderPanel) placeholderPanel.style.display = 'none';
+            if(imgPerfilPanel) {
+                imgPerfilPanel.src = perfil.fotoPerfil;
+                imgPerfilPanel.style.display = 'block';
+            }
+        }
+
+        // Actualizar textos del negocio si existen
+        if(perfil) {
+            if(txtNegocio) txtNegocio.innerText = perfil.negocio || "Mi Negocio";
+            if(txtUser) txtUser.innerText = `@${perfil.usuario || 'usuario'}`;
+        }
+    },
+
 toggleAjustes: function() {
     const panel = document.getElementById('panelAjustes');
     if (!panel) return;

@@ -199,69 +199,123 @@ const notificar = (msj, tipo = 'exito') => {
 };
 
 
-document.addEventListener('DOMContentLoaded', () => { 
-    // MODO OSCURO (Tu lógica intacta)
-    const isDark = Persistencia.cargar('dom_dark_mode');
-    if (isDark) {
-        document.body.classList.add('dark-mode');
-        const checkDark = document.getElementById('checkDarkMode');
-        if (checkDark) checkDark.checked = true;
-    }
-
-    // --- AUTO-LLENADO DE PRECIOS ---
-    const inputProducto = document.getElementById('v-producto');
-    if (inputProducto) {
-        // Le conectamos el datalist para que salgan las sugerencias visuales
-        inputProducto.setAttribute('list', 'sugerencias-ventas');
-        
-        // Escuchamos cada vez que escribes o seleccionas una sugerencia
-        inputProducto.addEventListener('input', (e) => {
-            const nombreEscrito = e.target.value;
-            const precioRecordado = Inventario.buscarPrecioMemoria(nombreEscrito);
-            
-            // Si la memoria tiene un precio para ese producto, ¡pónselo al input de monto!
-            if (precioRecordado !== null) {
-                const inputMonto = document.getElementById('v-monto');
-                if (inputMonto) {
-                    inputMonto.value = precioRecordado;
-                    
-                    // Pequeña animación visual para que sepas que se auto-llenó
-                    inputMonto.style.backgroundColor = 'rgba(76, 175, 80, 0.2)'; 
-                    setTimeout(() => inputMonto.style.backgroundColor = '', 500);
-                }
-            }
-        });
-    }
-    // Asegurarnos de que el datalist se cargue al iniciar
-    if(typeof Inventario !== 'undefined' && typeof Inventario.actualizarDatalist === 'function') {
-        Inventario.actualizarDatalist();
-    }
-    // --- FIN AUTO-LLENADO ---
-
-    // CONFIGURACIÓN INVENTARIO (Tu lógica intacta)
-    const configGuardada = localStorage.getItem('dom_config');
-    let invActivo = (configGuardada === null) ? true : JSON.parse(configGuardada).invActivo;
-    if (configGuardada === null) {
-        localStorage.setItem('dom_config', JSON.stringify({ invActivo: true }));
-    }
-    if(typeof Inventario !== 'undefined') Inventario.activo = invActivo;
-    const checkInv = document.getElementById('check-inv-ajustes') || document.getElementById('check-inv');
-    if (checkInv) checkInv.checked = invActivo;
-
+async function iniciarDominus() {
     try {
-        console.log("🚀 Dominus iniciando...");
+        console.log("🚀 Dominus: Iniciando sistema...");
 
-        (async () => {
-        await Ventas.init();
-    })();
-        // ELIMINAMOS EL SETTIMEOUT DE AQUÍ PARA QUE NO SE CRUCE CON VENTAS
+        // 1. CARGA DE DATOS BASE
+        // Centralizamos los datos en el objeto global window.DOMINUS
+        window.DOMINUS.historial = Persistencia.cargar('dom_ventas') || [];
+        window.DOMINUS.deudas = Persistencia.cargar('dom_fiaos') || [];
+        window.DOMINUS.gastos = Persistencia.cargar('dom_gastos') || [];
+
+        // 2. CONFIGURACIÓN VISUAL Y MODO OSCURO
+        const isDark = Persistencia.cargar('dom_dark_mode');
+        if (isDark) {
+            document.body.classList.add('dark-mode');
+            const checkDark = document.getElementById('checkDarkMode');
+            if (checkDark) checkDark.checked = true;
+        }
+
+        // 3. CONFIGURACIÓN DE INVENTARIO
+        const configGuardada = localStorage.getItem('dom_config');
+        let invActivo = (configGuardada === null) ? true : JSON.parse(configGuardada).invActivo;
+        
+        if (configGuardada === null) {
+            localStorage.setItem('dom_config', JSON.stringify({ invActivo: true }));
+        }
+
+        if(typeof Inventario !== 'undefined') {
+            Inventario.activo = invActivo;
+            const checkInv = document.getElementById('check-inv-ajustes') || document.getElementById('check-inv');
+            if (checkInv) checkInv.checked = invActivo;
+        }
+
+        // 4. AUTO-LLENADO DE PRECIOS (INTELIGENCIA DE VENTAS)
+        const inputProducto = document.getElementById('v-producto');
+        if (inputProducto) {
+            inputProducto.setAttribute('list', 'sugerencias-ventas');
+            inputProducto.addEventListener('input', (e) => {
+                if (typeof Inventario !== 'undefined' && Inventario.buscarPrecioMemoria) {
+                    const precioRecordado = Inventario.buscarPrecioMemoria(e.target.value);
+                    if (precioRecordado !== null) {
+                        const inputMonto = document.getElementById('v-monto');
+                        if (inputMonto) {
+                            inputMonto.value = precioRecordado;
+                            inputMonto.style.backgroundColor = 'rgba(76, 175, 80, 0.2)'; 
+                            setTimeout(() => inputMonto.style.backgroundColor = '', 500);
+                        }
+                    }
+                }
+            });
+        }
+        
+        if(typeof Inventario !== 'undefined' && Inventario.actualizarDatalist) {
+            Inventario.actualizarDatalist();
+        }
+
+        // 5. FRASES DEL SPLASH (MOTIVACIÓN)
+        if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
+            const frase = bancoFrases[Math.floor(Math.random() * bancoFrases.length)];
+            const txtFrase = document.getElementById('frase-splash');
+            if (txtFrase) txtFrase.innerText = `"${frase.texto}"`;
+        }
+
+        // --- 6. CONTROL DE ACCESO Y FLUJO DE ENTRADA (IDENTIDAD) ---
+        const haySesionLocal = Usuario.init(); 
+
+        if (haySesionLocal) {
+            // 🚀 ACTUALIZACIÓN DE IDENTIDAD: Si hay sesión, pintamos la foto y nombre
+            if (typeof Interfaz !== 'undefined' && Interfaz.actualizarAvatarHeader) {
+                Interfaz.actualizarAvatarHeader(Usuario.datos);
+            }
+
+            // Usuario con sesión activa: puede entrar offline si es necesario
+            const accesoConcedido = await Seguridad.iniciarProteccion();
+            
+            if (accesoConcedido) {
+                // Encendemos módulos secundarios
+                if (typeof DominusAudio !== 'undefined') DominusAudio.saludarSegunHora();
+                if (typeof Inventario !== 'undefined' && Inventario.init) Inventario.init();
+                
+                quitarSplash(); 
+            } else {
+                notificar("PIN incorrecto", "error");
+                location.reload();
+            }
+        } else {
+            // Usuario nuevo o sin sesión: validamos internet para la primera activación
+            if (!navigator.onLine) {
+                notificar("Internet requerido para activación", "alerta");
+                const txtFrase = document.getElementById('frase-splash');
+                if (txtFrase) txtFrase.innerText = "DOMINUS: Conéctate para activar tu cuenta.";
+            } else {
+                Usuario.mostrarLogin();
+            }
+        }
+
     } catch (error) {
-        console.error("❌ Error crítico en el inicio:", error);
-        const splash = document.getElementById('splash-screen');
-        if(splash) splash.style.display = 'none';
+        console.error("❌ Fallo crítico en el arranque de Dominus:", error);
+        if (typeof quitarSplash === 'function') quitarSplash();
     }
-});
+}
 
+// Vinculamos el inicio al cargar el DOM
+document.addEventListener('DOMContentLoaded', iniciarDominus);
+
+function quitarSplash() {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        splash.classList.add('splash-fade-out');
+        setTimeout(() => {
+            splash.style.display = 'none';
+            if (typeof Interfaz !== 'undefined') Interfaz.show('dashboard');
+            
+            // 🔊 Opcional: Sonido sutil de "Éxito"
+            if (typeof DominusAudio !== 'undefined') DominusAudio.play('add'); 
+        }, 600); 
+    }
+}
 
 const DOMINUS = { //herramienta de diagnostico-revisa si los archivos cargaron bien
     debug() {
