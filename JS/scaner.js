@@ -38,6 +38,13 @@ iniciarEscannerCamara: function(callbackProcesar) {
     const contenedorCamara = document.getElementById('contenedor-camara');
     const contenidoPrincipal = document.querySelector('body > *:not(#contenedor-camara)');
     
+    // Control de flujo para evitar duplicados y errores de referencia
+    if (typeof window.procesando === 'undefined') {
+        window.procesando = false; 
+    } else {
+        window.procesando = false;
+    }
+    
     try { 
         Quagga.offDetected();
         Quagga.stop(); 
@@ -45,7 +52,7 @@ iniciarEscannerCamara: function(callbackProcesar) {
     
     contenedorCamara.innerHTML = ''; 
     
-    // 1. PRIMERO mostramos el contenedor para que tenga dimensiones reales
+    // Estilos del contenedor
     contenedorCamara.style.cssText = `
         display: flex !important; 
         position: fixed !important; 
@@ -56,17 +63,19 @@ iniciarEscannerCamara: function(callbackProcesar) {
     
     if (contenidoPrincipal) contenidoPrincipal.style.filter = 'blur(8px)';
 
-    // 2. PEQUEÑO DELAY (Vital): Le damos 100ms al DOM para "existir" antes de Quagga
     setTimeout(() => {
+        // Creación del elemento video con parches para Android/iOS
         const videoElement = document.createElement('video');
         videoElement.setAttribute('playsinline', 'true'); 
+        videoElement.setAttribute('autoplay', 'true'); 
+        videoElement.setAttribute('muted', 'true'); // VITAL: Permite el autoplay sin interacción previa
         videoElement.style.cssText = "width:100%; height:100%; object-fit:cover;";
         contenedorCamara.appendChild(videoElement);
 
         // Botón de Cierre
         const btnCerrar = document.createElement('button');
         btnCerrar.innerHTML = '✕ Cancelar';
-        btnCerrar.style.cssText = "position:absolute; bottom:50px; left:50%; transform:translateX(-50%); z-index:1000000; background:#ff4444; color:white; border:none; padding:15px 30px; border-radius:50px; font-weight:bold;";
+        btnCerrar.style.cssText = "position:absolute; bottom:50px; left:50%; transform:translateX(-50%); z-index:1000000; background:#ff4444; color:white; border:none; padding:15px 30px; border-radius:50px; font-weight:bold; cursor:pointer;";
         btnCerrar.onclick = () => {
             Quagga.stop();
             contenedorCamara.style.display = 'none';
@@ -76,56 +85,83 @@ iniciarEscannerCamara: function(callbackProcesar) {
 
         // Guía Visual
         const guia = document.createElement('div');
-        guia.style.cssText = "position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:260px; height:160px; border:3px solid #25D366; border-radius:15px; box-shadow:0 0 0 4000px rgba(0,0,0,0.6); z-index:99999;";
+        guia.style.cssText = "position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:260px; height:160px; border:3px solid #25D366; border-radius:15px; box-shadow:0 0 0 4000px rgba(0,0,0,0.6); z-index:99999; pointer-events:none;";
         contenedorCamara.appendChild(guia);
 
-        // 3. INICIO DE QUAGGA (Con resolución balanceada)
+        // Inicialización de Quagga
         Quagga.init({
             inputStream : {
                 name : "Live",
                 type : "LiveStream",
-                target: videoElement, // Apuntamos al video directamente
+                target: videoElement,
                 constraints: { 
                     facingMode: "environment",
-                    // Bajamos a 640x480 para asegurar que funcione en CUALQUIER teléfono sin "falta de luz"
-                    width: 640, 
-                    height: 480
+                    width: { min: 640 },
+                    height: { min: 480 },
+                    aspectRatio: { min: 1, max: 2 } 
                 }
             },
+            locate: true,
             decoder : { 
-                readers : ["ean_reader", "code_128_reader", "upc_reader"] 
+                readers : ["ean_reader", "code_128_reader", "upc_reader", "code_39_reader"],
+                multiple: false 
             },
-            locate: true
+            locator: {
+                patchSize: "medium",
+                halfSample: true
+            }
         }, (err) => {
             if (err) {
-                notificar("❌ Error de cámara", "error");
-                btnCerrar.click();
+                console.error("Error Quagga:", err);
+                if (typeof notificar === 'function') notificar("❌ Error de cámara", "error");
                 return;
             }
+            
             Quagga.start();
+            
+            // Forzamos el play por si el navegador lo dejó en pausa
+            setTimeout(() => {
+                videoElement.play().catch(e => console.warn("Video play forzado:", e));
+            }, 200);
         });
 
-        let procesando = false;
+        // Lógica de detección con filtro de confianza
+        let lecturas = []; 
         Quagga.onDetected((result) => {
-            if (procesando) return; 
+            if (window.procesando) return; 
+            
             const codigo = result.codeResult.code;
-            if (codigo && codigo.length > 5) {
-                procesando = true;
-                if (typeof Audio !== 'undefined') Audio.reproducir('exito');
-                Quagga.stop();
-                contenedorCamara.style.display = 'none';
-                if (contenidoPrincipal) contenidoPrincipal.style.filter = 'none';
-                callbackProcesar(codigo.trim());
+            if (!codigo) return;
+
+            lecturas.push(codigo);
+            
+            if (lecturas.length >= 3) {
+                const todosIguales = lecturas.every(v => v === lecturas[0]);
+                
+                if (todosIguales && codigo.length > 5) {
+                    window.procesando = true; 
+                    lecturas = []; 
+                    
+                    if (typeof Audio !== 'undefined' && Audio.reproducir) Audio.reproducir('exito');
+                    
+                    Quagga.stop();
+                    contenedorCamara.style.display = 'none';
+                    if (contenidoPrincipal) contenidoPrincipal.style.filter = 'none';
+                    
+                    // Enviamos el código limpio al callback
+                    callbackProcesar(codigo.trim());
+                } else {
+                    lecturas.shift();
+                }
             }
         });
-    }, 150); // El delay mágico
+    }, 300); // Aumentamos un poco el delay para asegurar que el DOM esté listo
 },
 
 procesarFoto: function(callbackProcesar, alCancelar) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    // Mantenemos capture para que en móvil dé la opción de "Cámara" directamente
     input.capture = 'environment';
 
     input.onchange = (e) => {
@@ -139,21 +175,19 @@ procesarFoto: function(callbackProcesar, alCancelar) {
 
         const reader = new FileReader();
         reader.onload = (event) => {
-            // AJUSTE CRÍTICO: Quagga.decodeSingle requiere una estructura específica.
-            // A veces 'inputStream' dentro de decodeSingle causa conflictos si no es una URL simple.
             Quagga.decodeSingle({
                 src: event.target.result,
                 decoder: { 
                     readers: ["ean_reader", "code_128_reader", "upc_reader", "code_39_reader", "upc_e_reader"] 
                 },
                 locate: true,
-                // Reducimos un poco el patchSize si las fotos son muy pesadas para evitar que el navegador se trabe
                 patchSize: "medium", 
-                numOfWorkers: 4, // Ayuda a procesar la foto más rápido en paralelo
+                numOfWorkers: 4,
                 inputStream: {
-                    size: 800 // 800-1000 es el "punto dulce" para Quagga. 1600 puede ser demasiado y fallar.
+                    size: 800 
                 }
             }, (result) => {
+                // Aquí ya no existe la variable 'procesando', el error desaparece
                 if (result && result.codeResult) {
                     console.log("DOMINUS: Código detectado en foto:", result.codeResult.code);
                     
@@ -161,7 +195,7 @@ procesarFoto: function(callbackProcesar, alCancelar) {
                         Audio.reproducir('exito');
                     }
                     
-                    // Ejecutamos el callback que pegará el código en el formulario
+                    // Se inyecta el código al formulario de Inventario
                     callbackProcesar(result.codeResult.code.trim());
                 } else {
                     console.warn("DOMINUS: Quagga no pudo leer la imagen.");
@@ -170,7 +204,6 @@ procesarFoto: function(callbackProcesar, alCancelar) {
                     }
                     notificar("❌ No se detectó código. Asegura buena luz.", "error");
                     
-                    // Si falla, regresamos al menú anterior para que el usuario no se quede bloqueado
                     if (alCancelar) alCancelar();
                 }
             });
@@ -178,7 +211,6 @@ procesarFoto: function(callbackProcesar, alCancelar) {
         reader.readAsDataURL(archivo);
     };
 
-    // Respaldo para navegadores que no disparan oncancel
     input.onclick = () => {
         console.log("DOMINUS: Selector de archivos abierto...");
     };

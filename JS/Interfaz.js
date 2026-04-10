@@ -278,6 +278,8 @@ confirmarAccion(titulo, mensaje, onConfirmar, onCancelar = null, textoConfirmar 
     };
 },
 
+
+
     cambiarSeccion: function(id) {
         console.log("Cambiando a:", id);
     }, 
@@ -1009,3 +1011,19 @@ actualizarSelectorTallas(nombreProducto) {
 }
 
 };
+
+function notificarProximamente() {
+    // 1. Sonido de aviso (Si tienes el ID 'sonido-alerta')
+    if (typeof AudioDOMINUS !== 'undefined') {
+        AudioDOMINUS.reproducir('sonido-alerta');
+    }
+
+    // 2. Mensajes de intriga
+    notificar("🛠️ ¡Algo grande se está cocinando!", "info");
+    
+    setTimeout(() => {
+        notificar("Esta función se desbloqueará en una futura actualización. ¡No te desesperes!", "alerta");
+    }, 1500);
+    
+    console.log("💡 El usuario intentó entrar a Devoluciones. ¡Sigue generando curiosidad!");
+}
