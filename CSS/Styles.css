@@ -921,38 +921,18 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 /* Añade esto a tu archivo CSS/Styles.css */
 /* Contenedor principal del Escáner */
 /* 1. Aseguramos que el contenedor sea una "caja negra" absoluta */
+/* Esto asegura que el contenedor sea visible */
+/* Limpieza absoluta */
 #contenedor-camara {
-    background-color: #000 !important;
-    position: fixed !important;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    z-index: 999999 !important; /* Por encima de todo el sistema */
+    background: black !important;
 }
 
-/* 2. El video al fondo */
-#contenedor-camara video {
-    width: 100vw !important;
-    height: 100vh !important;
-    object-fit: cover;
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 1; /* Al fondo del contenedor */
+#lector-en-vivo video {
+    background: black !important;
+    outline: 2px solid lime !important; /* Si ves una línea verde, el video está ahí */
 }
 
-/* 3. La guía visual (El recuadro verde) */
-#contenedor-camara div {
-    z-index: 10; /* Por encima del video */
-    pointer-events: none; /* No debe interferir con los clics */
-}
-
-/* 4. El botón de cancelar (Prioridad máxima) */
-#contenedor-camara button {
-    z-index: 100; /* Siempre visible y clickeable */
-    pointer-events: auto;
-}
-
-/* Ocultar el buffer de Quagga que suele dar errores de posición */
-#contenedor-camara canvas.drawingBuffer {
+/* Forzar que nada del fondo interfiera */
+body.camara-activa > *:not(#contenedor-camara) {
     display: none !important;
 }
