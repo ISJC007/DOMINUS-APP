@@ -204,6 +204,106 @@ const Usuario = {
         this.simularEnvioCorreo(nuevoPerfil);
     };
 },
+
+guardarNombreNegocio() {
+        const el = document.getElementById('perfil-nombre-negocio');
+        if (el) {
+            const nuevoNombre = el.innerText.trim();
+            // Guardamos en la persistencia global
+            Persistencia.guardar('cfg_nombre_negocio', nuevoNombre);
+            console.log("Nombre del negocio actualizado:", nuevoNombre);
+        }
+    },
+
+    guardarPlantilla() {
+        const el = document.getElementById('cfg-msj-maestro');
+        if (el) {
+            const nuevaPlantilla = el.value.trim();
+            Persistencia.guardar('cfg_msj_cobro', nuevaPlantilla);
+        }
+    },
+
+    guardarConfigCobro() {
+        const limite = document.getElementById('cfg-limite-confianza').value;
+        Persistencia.guardar('cfg_limite_dias', limite);
+        
+        // Refrescamos la vista de fiaos para que el semáforo cambie al instante
+        if(typeof Interfaz !== 'undefined') Interfaz.renderFiaos();
+    },
+
+    // Esta función debe ejecutarse al INICIAR la app (en Main.js o al cargar la pestaña)
+    cargarAjustes() {
+        const nombre = Persistencia.cargar('cfg_nombre_negocio') || "Mi Negocio";
+        const plantilla = Persistencia.cargar('cfg_msj_cobro') || "";
+        const limite = Persistencia.cargar('cfg_limite_dias') || "5";
+
+        if(document.getElementById('perfil-nombre-negocio')) 
+            document.getElementById('perfil-nombre-negocio').innerText = nombre;
+        
+        if(document.getElementById('cfg-msj-maestro')) 
+            document.getElementById('cfg-msj-maestro').value = plantilla;
+
+        if(document.getElementById('cfg-limite-confianza')) 
+            document.getElementById('cfg-limite-confianza').value = limite;
+    },
+
+    
+    franjaActual: 'mañana',
+    
+    plantillasBase: {
+        mañana: "Buenos días [cliente], te escribo de [negocio]. Tienes un pendiente de:\n[monto_detalle]\n\nTotal: $[montoUSD]. ¡Feliz día!",
+        tarde: "Buenas tardes [cliente], de parte de [negocio]. Te recordamos tu cuenta:\n[monto_detalle]\n\nTotal: $[montoUSD]. ¡Saludos!",
+        noche: "Buenas noches [cliente], te escribo de [negocio] antes de cerrar. Tu cuenta es:\n[monto_detalle]\n\nTotal: $[montoUSD]. ¡Gracias!"
+    },
+
+    cambiarFranjaMensaje(franja) {
+        this.franjaActual = franja;
+        // Actualizar UI de botones
+        ['mañana', 'tarde', 'noche'].forEach(f => {
+            const btn = document.getElementById(`btn-msj-${f}`);
+            btn.style.background = (f === franja) ? '#ffd700' : '#333';
+            btn.style.color = (f === franja) ? 'black' : 'white';
+        });
+
+        // Cargar el mensaje de esa franja
+        const guardado = Persistencia.cargar(`cfg_msj_${franja}`);
+        document.getElementById('cfg-msj-maestro').value = guardado || this.plantillasBase[franja];
+    },
+
+    guardarPlantilla() {
+        const txt = document.getElementById('cfg-msj-maestro').value;
+        Persistencia.guardar(`cfg_msj_${this.franjaActual}`, txt);
+    },
+
+    restablecerPlantilla() {
+        if(confirm("¿Quieres volver al mensaje original de esta franja?")) {
+            const defaultMsj = this.plantillasBase[this.franjaActual];
+            document.getElementById('cfg-msj-maestro').value = defaultMsj;
+            this.guardarPlantilla();
+        }
+    },
+
+    mostrarEjemplo() {
+        const txt = document.getElementById('cfg-msj-maestro').value;
+        const demo = txt
+            .replace("[cliente]", "Juan Pérez")
+            .replace("[negocio]", Persistencia.cargar('cfg_nombre_negocio') || "Mi Negocio")
+            .replace("[monto_detalle]", "• Harina ($1.00)\n• Arroz ($1.20)")
+            .replace("[montoUSD]", "2.20")
+            .replace("[montoBs]", "85.50");
+        
+        alert("ASÍ SE VERÁ EN WHATSAPP:\n\n" + demo);
+    },
+
+    // Esta función la llamará Interfaz.js para saber qué mensaje usar según la hora
+    obtenerMensajeSegunHora() {
+        const hora = new Date().getHours();
+        let franja = 'noche';
+        if (hora >= 6 && hora < 12) franja = 'mañana';
+        else if (hora >= 12 && hora < 19) franja = 'tarde';
+        
+        return Persistencia.cargar(`cfg_msj_${franja}`) || this.plantillasBase[franja];
+    },
     // ==========================================
     // PANTALLA 3: VERIFICACIÓN DE CORREO
     // ==========================================
@@ -446,19 +546,26 @@ pantallaCapturaPIN(titulo, primerPin = null) {
     }
 },
 
-    crearOverlay(id) {
-        const overlay = document.createElement('div');
-        overlay.id = id;
-        overlay.style = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.92); z-index: 50000;
-            display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            animation: fadeIn 0.3s ease;
-        `;
-        return overlay;
-    },
+crearOverlay(id) {
+    const overlay = document.createElement('div');
+    overlay.id = id;
+    overlay.style = `
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5); /* Semi-transparente */
+        z-index: 50000;
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        backdrop-filter: blur(15px); /* El efecto borroso */
+        -webkit-backdrop-filter: blur(15px);
+        animation: fadeIn 0.4s ease;
+    `;
+    return overlay;
+},
 
    limpiarPantalla() {
     const loader = document.querySelector('.loader');

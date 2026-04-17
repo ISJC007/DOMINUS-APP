@@ -2,38 +2,84 @@ const Ventas = {
     historial: [],
     deudas: [],
     gastos: [],
-    carrito: [], // 👈 NUEVO: Array temporal
+    carrito: [], 
+    cierreRealizado: false,
+    // 👈 NUEVO: Array temporal
 
     // 👈 NUEVA FUNCIÓN: Guarda en el carrito temporal
 prepararParaCarrito(p, m, mon, met, cli, com, esServicio, cant, tallaEscogida) {
     const tasa = Conversor.tasaActual || 1;
     const precioBase = parseFloat(m) || 0;
-    let cantidadFinal = parseFloat(cant) || 0;
+    let cantidadOperativa = parseFloat(cant) || 1;
 
-    // 📦 LÓGICA DE PACAS / BULTOS
+    // 1. 📦 LÓGICA DE PACAS / BULTOS (Normalización de cantidad)
     if (tallaEscogida && tallaEscogida.toLowerCase().includes('paca')) {
         const unidadesPorPaca = parseInt(tallaEscogida.match(/\d+/)) || 1;
-        cantidadFinal = unidadesPorPaca * cantidadFinal;
+        cantidadOperativa = unidadesPorPaca * cantidadOperativa;
     }
 
+    // 🚀 NOVEDAD: PRE-CHEQUEO DE STOCK (Antes de agrupar o añadir)
     const validarEsteItem = (typeof Inventario !== 'undefined' && Inventario.activo === true && !esServicio);
+    
+    if (validarEsteItem) {
+        const nombreBusqueda = p.trim().toLowerCase();
+        const inv = Inventario.productos.find(i => i.nombre.toLowerCase() === nombreBusqueda);
+        
+        if (inv) {
+            // Calculamos la cantidad total que habría en el carrito si sumamos esta
+            const yaEnCarrito = this.carrito
+                .filter(item => item.p === p && item.tallaEscogida === tallaEscogida)
+                .reduce((acc, item) => acc + item.cant, 0);
+            
+            const cantidadTotalProyectada = yaEnCarrito + cantidadOperativa;
 
-    const montoBs = (mon === 'BS') ? (precioBase * cantidadFinal) : (precioBase * cantidadFinal) * tasa;
-    const montoUSD = (mon === 'USD') ? (precioBase * cantidadFinal) : (precioBase * cantidadFinal) / tasa;
+            // Llamamos al experto para ver el futuro
+            // Nota: Debes asegurarte de haber actualizado chequearSaludStock con el segundo parámetro
+            Inventario.chequearSaludStock(inv, cantidadTotalProyectada);
+        }
+    }
 
-    // 🔊 SONIDO DE ESCÁNER (Feedback inmediato al añadir)
+    // 2. 🔍 DETECCIÓN DE DUPLICADOS (Agrupación inteligente)
+    const indexExistente = this.carrito.findIndex(item => 
+        item.p === p && 
+        item.m === precioBase && 
+        item.tallaEscogida === tallaEscogida &&
+        item.met === met && 
+        item.esServicio === esServicio
+    );
+
+    if (indexExistente !== -1) {
+        this.carrito[indexExistente].cant += cantidadOperativa;
+        const nuevaCant = this.carrito[indexExistente].cant;
+        const baseCalculo = precioBase * nuevaCant;
+
+        this.carrito[indexExistente].totalBs = Number((mon === 'BS' ? baseCalculo : baseCalculo * tasa).toFixed(2));
+        this.carrito[indexExistente].totalUSD = Number((mon === 'USD' ? baseCalculo : baseCalculo / tasa).toFixed(2));
+        
+        console.log(`DOMINUS: Agrupado ${cantidadOperativa} unidades a ${p}`);
+    } else {
+        // 3. 🆕 REGISTRO NUEVO
+        const baseCalculo = precioBase * cantidadOperativa;
+        const montoBs = (mon === 'BS') ? baseCalculo : baseCalculo * tasa;
+        const montoUSD = (mon === 'USD') ? baseCalculo : baseCalculo / tasa;
+
+        this.carrito.push({
+            p, m: precioBase, mon, met, cli, com, esServicio,
+            cant: cantidadOperativa,
+            tallaEscogida,
+            totalBs: Number(montoBs.toFixed(2)),
+            totalUSD: Number(montoUSD.toFixed(2)),
+            validarInventario: validarEsteItem 
+        });
+    }
+
+    // 4. 🔊 FEEDBACK Y UX
     if (typeof DominusAudio !== 'undefined') DominusAudio.play('add');
 
-    this.carrito.push({
-        p, m, mon, met, cli, com, esServicio,
-        cant: cantidadFinal,
-        tallaEscogida,
-        totalBs: Number(montoBs.toFixed(2)),
-        totalUSD: Number(montoUSD.toFixed(2)),
-        validarInventario: validarEsteItem 
-    });
+    if (!window.scannerActivo) {
+        notificar(`🛒 ${p} añadido`);
+    }
 
-    notificar(`🛒 ${p} añadido`);
     return this.carrito;
 },
 
@@ -44,115 +90,114 @@ obtenerTotalVentaActual() {
 procesarCobroCarrito() {
     // 1. Validación de carrito vacío
     if (this.carrito.length === 0) {
-        // 🔊 SONIDO DE ERROR (Carrito vacío)
         if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
         if (typeof notificar === 'function') notificar("⚠️ El carrito está vacío", "error");
         return false;
     }
 
+    // --- 🔑 INICIO DE LÓGICA DE TICKET Y CLIENTE ---
+    const ventasHistorial = Persistencia.cargar('dom_ventas') || [];
+    const hoy = new Date().toLocaleDateString('es-VE');
+    
+    // Calculamos el próximo número de cliente del día
+    const ventasHoy = ventasHistorial.filter(v => v.fecha === hoy);
+    const idsUnicosHoy = [...new Set(ventasHoy.map(v => v.idTransaccion))];
+    
+    // Obtenemos el nombre del input (si está vacío, asignamos número)
+    let nombreClienteFinal = document.getElementById('v-cliente')?.value.trim();
+    if (!nombreClienteFinal) {
+        nombreClienteFinal = `Cliente ${idsUnicosHoy.length + 1}`;
+    }
+
+    // Generamos un ID único para toda esta compra
+    const idTicketActual = `T-${Date.now()}`;
+    // --- 🔑 FIN DE LÓGICA DE TICKET ---
+
     const modoLibre = (typeof Inventario !== 'undefined' && Inventario.activo === false);
     const totalItems = this.carrito.length;
+    const productosParaChequear = [...new Set(this.carrito.map(item => item.p.trim().toLowerCase()))];
 
     try {
         // 🚀 BUCLE DE PROCESAMIENTO
         this.carrito.forEach(item => {
             if (item && item.p) {
-                /* LLAMADO A REGISTRAR VENTA:
-                   Pasamos un último parámetro en 'true' para indicar que es una venta 
-                   por lote (carrito) y que debe silenciar las alertas de stock individuales.
-                */
+                // Pasamos el ID del ticket y el nombre calculado a registrarVenta
                 this.registrarVenta(
                     item.p, 
                     item.m, 
                     item.mon, 
                     item.met, 
-                    item.cli, 
+                    nombreClienteFinal, // 👤 Usamos nuestro nombre/número calculado
                     item.com || 0, 
                     item.esServicio || false, 
                     item.cant || 1, 
                     item.tallaEscogida || null,
-                    true // <--- 🔥 FLAG DE SILENCIO (Para evitar la repetición de voz)
+                    true,
+                    idTicketActual // 🎫 Pasamos el ID del ticket como nuevo argumento
                 );
             }
         });
 
-        // 🔊 SONIDO DE ÉXITO (Venta completada - Suena una sola vez al final)
-        if (typeof DominusAudio !== 'undefined') DominusAudio.play('exito');
-
-        // 📢 NOTIFICACIÓN FINAL
-        if (modoLibre) {
-            console.log("⚠️ Cobro procesado en MODO LIBRE.");
-            if (typeof notificar === 'function') {
-                notificar(`✨ Venta de ${totalItems} ítems lista (Modo Libre)`, "info");
-            }
-        } else {
-            if (typeof notificar === 'function') {
-                notificar(`✨ Venta de ${totalItems} ítems procesada con éxito`, "exito");
-            }
+        // ... (Tu lógica de chequeo de salud de stock se mantiene igual) ...
+        if (!modoLibre && typeof Inventario !== 'undefined' && typeof Inventario.chequearSaludStock === 'function') {
+            productosParaChequear.forEach(nombre => {
+                const inv = Inventario.productos.find(i => i.nombre.toLowerCase() === nombre);
+                if (inv) Inventario.chequearSaludStock(inv);
+            });
         }
 
-        // 🧹 LIMPIEZA
+        if (typeof DominusAudio !== 'undefined') DominusAudio.play('exito');
+
+        // Notificación profesional con el nombre del cliente
+        notificar(`✨ Venta de ${nombreClienteFinal} procesada`, "exito");
+
         this.carrito = []; 
+        if (window.scannerActivo && typeof Scanner !== 'undefined') {
+            Scanner.detenerYSalir();
+        }
+
         return true;
 
     } catch (error) {
         console.error("❌ Error crítico al procesar el cobro:", error);
-        
-        // 🔊 SONIDO DE ERROR (Fallo técnico)
         if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
-        
-        if (typeof notificar === 'function') {
-            notificar("Error al procesar el cobro. Revisa el historial.", "error");
-        }
         return false;
     }
 },
-    
 
-registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, tallaEscogida = null, esVentaMasiva = false) {
+registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, tallaEscogida = null, esVentaMasiva = false, idTicketRecibido = null) {
     const tasa = Conversor.tasaActual || 1;
     const precioBase = Number(m) || 0;
     const cantidadVendida = Number(cant) || 0;
 
-    // 🛡️ REGLA DE ORO
+    // 🛡️ REGLA DE ORO: Solo tocamos stock si el inventario está activo y no es un servicio (punto)
     const debeTocarStock = (typeof Inventario !== 'undefined' && Inventario.activo === true && !esServicio);
 
-    // 1. LÓGICA DE INVENTARIO (Unificada)
-    const nombreLimpio = p.trim().toLowerCase();
-    const inv = Inventario.productos.find(i => i.nombre.toLowerCase() === nombreLimpio);
+    // 1. 🔍 LÓGICA DE INVENTARIO Y PESAJE
+    let cantidadEfectivaRestada = cantidadVendida; 
 
-    if (inv && debeTocarStock) {
-        let cantidadARestarGlobal = cantidadVendida;
+    if (debeTocarStock) {
+        const nombreLimpio = p.trim().toLowerCase();
+        const inv = Inventario.productos.find(i => i.nombre.toLowerCase() === nombreLimpio);
         
-        // Conversiones inteligentes (g, ml, kg, l)
-        if ((inv.unidad === 'Kg' || inv.unidad === 'Lts') && tallaEscogida) {
-            const medida = tallaEscogida.toLowerCase();
-            const valorMedida = parseFloat(medida) || 0;
-            if (medida.includes('g') || medida.includes('ml')) {
-                cantidadARestarGlobal = (valorMedida / 1000) * cantidadVendida;
-            } else if (medida.includes('kg') || medida.includes('l')) {
-                cantidadARestarGlobal = valorMedida * cantidadVendida;
+        if (inv) {
+            // Conversiones inteligentes para productos pesables (Kg, Lts)
+            if ((inv.unidad === 'Kg' || inv.unidad === 'Lts') && tallaEscogida) {
+                const medida = tallaEscogida.toLowerCase();
+                const valorMedida = parseFloat(medida) || 0;
+                
+                if (medida.includes('g') || medida.includes('ml')) {
+                    cantidadEfectivaRestada = (valorMedida / 1000) * cantidadVendida;
+                } else if (medida.includes('kg') || medida.includes('l')) {
+                    cantidadEfectivaRestada = valorMedida * cantidadVendida;
+                }
             }
-        }
-
-        // Resta con precisión
-        inv.cantidad = Number((inv.cantidad - cantidadARestarGlobal).toFixed(3));
-
-        // Tallas: Solo restamos si NO es una conversión de peso/volumen
-        if (inv.tallas && tallaEscogida && inv.tallas[tallaEscogida] !== undefined) {
-            inv.tallas[tallaEscogida] = Math.max(0, Number((inv.tallas[tallaEscogida] - cantidadVendida).toFixed(2)));
-        }
-
-        Inventario.sincronizar();
-        
-        // 🚀 LLAMADA AL CENTINELA (Solo suena si NO es venta masiva)
-        // Esto evita que si vendes 5 cosas bajas de stock, suenen 5 voces a la vez.
-        if (!esVentaMasiva) {
-            Inventario.chequearSaludStock(inv);
+            // 🚀 DELEGACIÓN AL EXPERTO
+            Inventario.descontar(p, cantidadEfectivaRestada, tallaEscogida);
         }
     }
 
-    // 2. CÁLCULOS FINANCIEROS
+    // 2. 💰 CÁLCULOS FINANCIEROS
     let montoAjustado = precioBase;
     let idRef = null;
 
@@ -165,19 +210,20 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
     const montoBs = (mon === 'BS') ? (montoAjustado * cantidadVendida) : (montoAjustado * cantidadVendida) * tasa;
     const montoUSD = (mon === 'USD') ? (montoAjustado * cantidadVendida) : (montoAjustado * cantidadVendida) / tasa;
     
-    // Comisión (La de tu papá 🤝)
     const montoComision = (Number(montoBs) * (Number(com) / 100));
     const montoAEntregar = esServicio ? (montoBs - montoComision) : 0;
 
-    // 3. ESTRUCTURA DE VENTA
+    // 3. 🎫 ESTRUCTURA DEL OBJETO VENTA
     const datosVenta = {
         id: Date.now() + Math.random(),
+        idTransaccion: idTicketRecibido || `T-${Date.now()}`,
         fecha: new Date().toLocaleDateString('es-VE'),
         hora: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
         producto: esServicio ? `PUNTO: ${p}` : (tallaEscogida ? `${p} (${tallaEscogida})` : p),
         productoNombre: p, 
         tallaElegida: tallaEscogida,
         cantidadVenta: cantidadVendida,
+        cantidadARestarInv: cantidadEfectivaRestada,
         montoBs: Number(montoBs.toFixed(2)),
         montoUSD: Number(montoUSD.toFixed(2)),
         montoTotal: Number(montoBs.toFixed(2)),
@@ -186,14 +232,14 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
         metodo: met,
         comision: montoComision,
         aEntregar: montoAEntregar,
-        cliente: cli || "Anónimo",
+        cliente: cli || "Cliente General",
         esServicio: esServicio,
         inventarioValidado: debeTocarStock, 
         devuelta: false,
         idReferenciaCambio: idRef 
     };
 
-    // 4. PERSISTENCIA
+    // 4. 💾 PERSISTENCIA
     const storageKey = (met === 'Fiao') ? 'dom_fiaos' : 'dom_ventas';
     let db = Persistencia.cargar(storageKey) || [];
     db.push(datosVenta);
@@ -201,17 +247,33 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
     
     if (met === 'Fiao') this.deudas = db; else this.historial = db;
 
-    // 5. EFECTO SONORO DE VENTA 🔊
-    // 🚀 CAMBIO: Solo suena si NO es venta masiva para evitar ruidos encimados.
-    if (!esVentaMasiva && typeof DominusAudio !== 'undefined') {
-        if (met !== 'Fiao') {
-            DominusAudio.play('add'); 
-        } else {
-            DominusAudio.play('success');
+    // 🛡️ REACCIÓN DEL CENTINELA
+    if (typeof Notificaciones !== 'undefined') {
+        
+        // 🚩 NOVEDAD: Resetear el estado de "Visto" si ocurre algo nuevo
+        if (met === 'Fiao') {
+            Notificaciones.resetVisto('fiaos'); // Despierta la burbuja de fiaos
         }
+        
+        if (debeTocarStock) {
+            Notificaciones.resetVisto('inventario'); // Despierta la burbuja de stock
+            
+            // Si el stock bajó demasiado, lanzar notificación nativa
+            const prodStock = Inventario.productos.find(i => i.nombre.toLowerCase() === p.trim().toLowerCase());
+            if (prodStock && prodStock.cantidad <= (prodStock.stockMinimo || 3)) {
+                Notificaciones.enviarNotificacionNativa("Stock Crítico", `El producto ${p} se está agotando.`);
+            }
+        }
+
+        // Refrescar visualmente los badges
+        Notificaciones.revisarTodo();
     }
 
-    // Limpieza de estados globales
+    // 5. 🔊 UX Y FINALIZACIÓN
+    if (!esVentaMasiva && typeof DominusAudio !== 'undefined') {
+        DominusAudio.play(met === 'Fiao' ? 'success' : 'add');
+    }
+
     window.creditoDevolucion = null;
 
     if (typeof Controlador !== 'undefined' && Controlador.renderizarGrafica) {
@@ -219,6 +281,38 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
     }
 
     return datosVenta;
+},
+
+anularProductoIndividual: function(idProd, idTick) {
+    const ventas = Persistencia.cargar('dom_ventas') || [];
+    
+    const item = ventas.find(v => 
+        v.id.toString() === idProd.toString() && 
+        v.idTransaccion.toString().trim() === idTick.toString().trim()
+    );
+
+    if (!item) {
+        console.error("DOMINUS: No se encontró el registro.");
+        if (typeof notificar === 'function') notificar("Error: Registro no encontrado", "error");
+        return;
+    }
+
+    if (confirm(`¿Anular la venta de ${item.producto}?`)) {
+        // 1. 🚀 Usamos tu lógica de Inventario con tus campos reales:
+        if (typeof Inventario !== 'undefined' && typeof Inventario.devolver === 'function') {
+            // Usamos 'tallaElegida' porque así lo bautizaste en registrarVenta
+            Inventario.devolver(item.producto, item.cantidadVenta, item.tallaElegida);
+        }
+
+        // 2. Marcamos como devuelta
+        item.devuelta = true;
+
+        // 3. Persistencia y Render
+        Persistencia.guardar('dom_ventas', ventas);
+        Interfaz.renderVentas();
+        
+        if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
+    }
 },
 
 anularVenta: function(id) {
@@ -273,28 +367,63 @@ anularVenta: function(id) {
         true // Color rojo de peligro
     );
 },
-
-  registrarGasto(desc, m, mon) {
+registrarGasto(desc, m, mon) {
     const ahora = new Date();
-    const tasa = Conversor.tasaActual || 1; // 🛡️ Seguridad: Evita multiplicar por 0
+    const tasa = Conversor.tasaActual || 1;
     
-    // Calculamos el monto siempre a 2 decimales para evitar errores de coma flotante
-    const montoCalculado = (mon === 'USD') ? (m * tasa) : m;
-    const montoBs = Number(montoCalculado.toFixed(2));
+    // 1. Cargamos historial real para no sobrescribir nada por error
+    this.gastos = Persistencia.cargar('dom_gastos') || [];
 
- this.gastos.push({
-    id: ahora.getTime(),
-    descripcion: desc,
-    montoOriginal: m, // Para saber exactamente qué anotó el usuario
-    monedaOriginal: mon,
-    montoBs: Number(montoBs.toFixed(2)),
-    montoUSD: Number((montoBs / tasa).toFixed(2)), // Para el reporte en divisas
-    fecha: ahora.toLocaleDateString('es-VE'),
-    hora: ahora.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-});
+    // 2. Cálculos limpios desde el origen (m)
+    let montoBs, montoUSD;
 
+    if (mon === 'USD') {
+        montoUSD = m;
+        montoBs = m * tasa;
+    } else {
+        montoBs = m;
+        montoUSD = m / tasa;
+    }
+
+    // 3. Creación del objeto con datos blindados
+    const nuevoGasto = {
+        id: ahora.getTime(),
+        descripcion: desc,
+        montoOriginal: Number(m), 
+        monedaOriginal: mon,
+        montoBs: Number(montoBs.toFixed(2)),
+        montoUSD: Number(montoUSD.toFixed(2)),
+        tasaHistorica: tasa, // 👈 Importante guardar la tasa que se usó
+        fecha: ahora.toLocaleDateString('es-VE'),
+        hora: ahora.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })
+    };
+
+    this.gastos.push(nuevoGasto);
+
+    // 4. Persistencia y Log
     Persistencia.guardar('dom_gastos', this.gastos);
-    console.log(`📉 Gasto registrado: ${desc} - ${montoBs} Bs`);
+    console.log(`📉 Gasto registrado: ${desc} - ${nuevoGasto.montoBs} Bs ($${nuevoGasto.montoUSD})`);
+},
+
+eliminarGasto(id) {
+    Interfaz.confirmarAccion(
+        "¿Eliminar Gasto?",
+        "Esta acción no se puede deshacer.",
+        () => {
+            // Convertimos el id a número por si viene como string desde el HTML
+            this.gastos = Persistencia.cargar('dom_gastos') || [];
+            this.gastos = this.gastos.filter(g => g.id !== Number(id));
+            
+            Persistencia.guardar('dom_gastos', this.gastos);
+            
+            if (typeof Interfaz !== 'undefined') {
+                Interfaz.renderGastos();
+                Interfaz.actualizarDashboard();
+            }
+            notificar("🗑️ Gasto eliminado", "exito");
+        },
+        null, "Sí, borrar", "Cancelar", true // True porque es acción destructiva (Rojo)
+    );
 },
 
 abonarDeudaPorCliente(nombreCliente, montoAbono, moneda, metodoPago) {
@@ -336,7 +465,7 @@ abonarDeudaPorCliente(nombreCliente, montoAbono, moneda, metodoPago) {
         }
     }
 
-    // 4. Registrar en el historial (Explicación abajo)
+    // 4. Registrar en el historial
     historial.push({
         id: ahora.getTime(),
         producto: `Abono Cliente: ${nombreCliente}`,
@@ -347,8 +476,17 @@ abonarDeudaPorCliente(nombreCliente, montoAbono, moneda, metodoPago) {
         hora: ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     });
 
+    // --- GUARDADO ---
     Persistencia.guardar('dom_fiaos', fiaos);
     Persistencia.guardar('dom_ventas', historial);
+
+    // 🛡️ ACTUALIZACIÓN DEL CENTINELA
+    // Llamamos a revisarTodo para que la burbuja de créditos se actualice 
+    // inmediatamente después de que el abono afecte la lista de fiaos.
+    if (typeof Notificaciones !== 'undefined') {
+        Notificaciones.revisarTodo();
+    }
+
     return true;
 },
 
@@ -361,7 +499,6 @@ editarDeudaEspecifica(id) {
     // --- CREAMOS EL MODAL ESTÉTICO DINÁMICAMENTE ---
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    // Estilos para centrar y fondo borroso
     overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
 
     overlay.innerHTML = `
@@ -382,8 +519,6 @@ editarDeudaEspecifica(id) {
 
     document.body.appendChild(overlay);
 
-    // --- MAGIA: Lógica de los botones ---
-    
     // 1. Botón Cancelar
     document.getElementById('btn-cancelar-edicion').addEventListener('click', () => {
         document.body.removeChild(overlay);
@@ -402,6 +537,12 @@ editarDeudaEspecifica(id) {
             Persistencia.guardar('dom_fiaos', fiaos);
             this.deudas = fiaos; 
             
+            // 🛡️ ACTUALIZACIÓN DEL CENTINELA
+            // Necesario por si el cambio de monto afecta alguna lógica de alertas futuras
+            if (typeof Notificaciones !== 'undefined') {
+                Notificaciones.revisarTodo();
+            }
+
             if (typeof Interfaz !== 'undefined') Interfaz.renderFiaos();
             notificar("Registro actualizado", "exito");
             
@@ -423,7 +564,6 @@ eliminarRegistroEspecifico(id) {
     // --- CREAMOS EL MODAL DE CONFIRMACIÓN DINÁMICAMENTE ---
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    // Estilos para centrar y fondo borroso
     overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(5px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
 
     overlay.innerHTML = `
@@ -444,8 +584,6 @@ eliminarRegistroEspecifico(id) {
 
     document.body.appendChild(overlay);
 
-    // --- MAGIA: Lógica de los botones ---
-    
     // 1. Botón Cancelar
     document.getElementById('btn-cancelar-eliminar').addEventListener('click', () => {
         document.body.removeChild(overlay);
@@ -453,14 +591,18 @@ eliminarRegistroEspecifico(id) {
 
     // 2. Botón Eliminar
     document.getElementById('btn-confirmar-eliminar').addEventListener('click', () => {
-        // --- AQUÍ VA TU LÓGICA ORIGINAL DE ELIMINACIÓN ---
-        
         // 1. ELIMINAMOS EL REGISTRO
         fiaos = fiaos.filter(d => d.id !== Number(id));
         
         // 2. GUARDAMOS EL ESTADO LIMPIO
         Persistencia.guardar('dom_fiaos', fiaos);
         this.deudas = fiaos; 
+
+        // 🛡️ ACTUALIZACIÓN DEL CENTINELA
+        // Si se eliminó la deuda, el contador de fiaos en el menú debe refrescarse
+        if (typeof Notificaciones !== 'undefined') {
+            Notificaciones.revisarTodo();
+        }
         
         // 3. ACTUALIZAMOS UI
         if (typeof Interfaz !== 'undefined') Interfaz.renderFiaos();
@@ -479,12 +621,13 @@ eliminarRegistroEspecifico(id) {
         const unicos = [...new Set([...nombres, ...nombresInv])];
         return unicos.slice(0, 10); 
     },
+    
 finalizarJornada() {
     const ventas = Persistencia.cargar('dom_ventas') || [];
     const gastos = Persistencia.cargar('dom_gastos') || [];
     const hoy = new Date().toLocaleDateString('es-VE');
     
-    // 🛡️ BLINDAJE 1: Solo contamos ventas de HOY que NO hayan sido devueltas
+    // 🛡️ BLINDAJE 1: Solo hoy y que no sean devoluciones
     const vHoy = ventas.filter(v => v.fecha === hoy && !v.devuelta);
     
     let efecBS = 0;
@@ -498,12 +641,19 @@ finalizarJornada() {
         comisiones: 0
     };
 
+    // 🚀 LÓGICA DE TICKETS: Usamos un Set para contar clientes reales
+    const ticketsUnicos = new Set();
+
     vHoy.forEach(v => {
         const mBs = Number(v.montoBs) || 0;
         const mUsd = Number(v.montoUSD) || 0;
         detalleMetodos.comisiones += (Number(v.comision) || 0);
 
-        // Lógica de separación por método
+        // Agregamos la llave del ticket (idTransaccion o la combinación hora-cliente)
+        const idTicket = v.idTransaccion || `${v.fecha}-${v.hora}-${v.cliente}`;
+        ticketsUnicos.add(idTicket);
+
+        // Clasificación de dinero
         if (v.monedaOriginal === 'USD') {
             efecUSD += mUsd;
         } else if (v.metodo === 'Pago Móvil') {
@@ -516,7 +666,6 @@ finalizarJornada() {
             digital += mBs;
             detalleMetodos.punto += mBs;
         } else if (v.metodo !== 'Fiao') {
-            // Entra aquí si es Efectivo BS
             efecBS += mBs;
         }
     });
@@ -526,7 +675,7 @@ finalizarJornada() {
 
     const usdConvertidos = efecUSD * (Conversor.tasaActual || 0);
 
-    // 🛡️ BLINDAJE 2: Redondeo a 2 decimales para que el balance sea exacto
+    // 🛡️ BLINDAJE 2: Balance exacto con redondeo
     return {
         efectivoBS: Number(efecBS.toFixed(2)),
         efectivoUSD: Number(efecUSD.toFixed(2)),
@@ -534,7 +683,8 @@ finalizarJornada() {
         gastos: Number(totalGastos.toFixed(2)), 
         detalle: detalleMetodos, 
         balanceNeto: Number((efecBS + digital + usdConvertidos).toFixed(2)),
-        conteoVentas: vHoy.length
+        // 🏁 Representa la cantidad de clientes/tickets del día
+        conteoVentas: ticketsUnicos.size 
     };
 },
 

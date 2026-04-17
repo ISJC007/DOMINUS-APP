@@ -1,6 +1,6 @@
 
 
-const CACHE_NAME = 'DOMINUS-5.1.2.5'; 
+const CACHE_NAME = 'DOMINUS-6.4.4.7'; 
 
 const ASSETS = [
   './', 
@@ -15,6 +15,10 @@ const ASSETS = [
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap',
 
   // --- TUS SCRIPTS ---
+  'JS/Cloud.js',          // 👈 NUEVO
+  'JS/Usuario.js',        // 👈 NUEVO
+  'JS/Notificaciones.js', // 👈 NUEVO
+  'JS/Teclado.js',        // 👈 NUEVO
   'JS/frases.js',
   'JS/Offline.js',     
   'JS/Seguridad.js',
@@ -41,8 +45,9 @@ const ASSETS = [
   'AUDIO/base_datos.mp3',
 
   // --- RECURSOS VISUALES ---
-  'IMG/icon-192.png',
-  'IMG/icon-512.png'
+  '/IMG/icon-192.png',
+  '/IMG/icon-512.png',
+  '/IMG/screenshot.png'
 ];
 
 // 1. INSTALACIÓN

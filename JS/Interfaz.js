@@ -151,42 +151,53 @@ ejecutarConfirmacionRecarga: function(p, cantidad, tallaElegida) {
 
 // AÑADE ESTO A TU OBJETO INTERFAZ
 mostrarModalTallas: function(titulo, mensaje, tallas, onSeleccionar) {
+    if (!tallas || tallas.length === 0) {
+        console.warn("DOMINUS: Intento de abrir modal sin tallas disponibles.");
+        return;
+    }
+
     const uniqueId = Date.now();
-    
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px;";
+    // 🛡️ Mejora: Añadimos 'overflow-y: auto' por si hay muchas tallas
+    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px; overflow-y:auto;";
 
-    // Generar botones para cada talla
-    let botonesTallas = "";
-    tallas.forEach(talla => {
-        const btnTallaId = `btn-talla-${talla}-${uniqueId}`;
-        botonesTallas += `<button id="${btnTallaId}" class="btn-main" style="background:rgba(76, 175, 80, 0.3); border:1px solid #4caf50; flex:1; margin:5px;">${talla}</button>`;
-    });
+    // 1. Generar botones con reducción (más limpio que concatenar con +=)
+    const botonesTallas = tallas.map(talla => `
+        <button id="btn-talla-${talla}-${uniqueId}" 
+                class="btn-main" 
+                style="background:rgba(76, 175, 80, 0.2); border:1px solid #4caf50; flex: 1 1 calc(50% - 10px); min-width:80px; margin:5px; padding:12px;">
+            ${talla}
+        </button>
+    `).join('');
 
     overlay.innerHTML = `
-        <div class="card glass" style="max-width:320px; width:100%; text-align:center; border:1px solid #4caf50; padding:25px; border-radius:20px;">
+        <div class="card glass" style="max-width:350px; width:100%; text-align:center; border:1px solid #4caf50; padding:25px; border-radius:20px; background: #1a1a1a;">
             <h3 style="color:#ffffff; margin-bottom:10px;">${titulo}</h3>
-            <p style="color:white; opacity:0.9; margin-bottom:20px; font-size:0.9em;">${mensaje}</p>
-            <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:20px;">
+            <p style="color:white; opacity:0.8; margin-bottom:20px; font-size:0.9em;">${mensaje}</p>
+            <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:5px; margin-bottom:20px; max-height:60vh; overflow-y:auto; padding-right:5px;">
                 ${botonesTallas}
             </div>
-            <button id="btn-cancelar-talla" class="btn-main" style="background:#444; width:100%">Cancelar</button>
+            <button id="btn-cancelar-talla-${uniqueId}" class="btn-main" style="background:#cc3300; width:100%; margin-top:10px;">Cerrar</button>
         </div>
     `;
 
     document.body.appendChild(overlay);
 
-    // Eventos para botones de tallas
+    // 2. Asignación de eventos segura
     tallas.forEach(talla => {
-        const btnTallaId = `btn-talla-${talla}-${uniqueId}`;
-        document.getElementById(btnTallaId).onclick = () => {
-            onSeleccionar(talla);
-            overlay.remove();
-        };
+        const btn = document.getElementById(`btn-talla-${talla}-${uniqueId}`);
+        if (btn) {
+            btn.onclick = () => {
+                onSeleccionar(talla);
+                overlay.remove();
+            };
+        }
     });
 
-    document.getElementById('btn-cancelar-talla').onclick = () => overlay.remove();
+    // 🛡️ Blindaje de cierre: usamos el ID único también para el botón cancelar
+    const btnCancel = document.getElementById(`btn-cancelar-talla-${uniqueId}`);
+    if (btnCancel) btnCancel.onclick = () => overlay.remove();
 },
 
 mostrarModalEntrada: function(titulo, mensaje, placeholder, onAceptar) {
@@ -371,19 +382,18 @@ toggleAjustes: function() {
     }
 },
 
-   show(view) {
+ show(view) {
     // 1. Limpieza total de secciones
     document.querySelectorAll('.app-section').forEach(s => s.classList.add('hidden'));
     
     // 2. Identificar el objetivo
     const target = document.getElementById(`view-${view}`);
-    if (!target) return; // Seguridad por si el ID no existe
+    if (!target) return; 
 
     // 3. Hacer visible la sección
     target.classList.remove('hidden');
 
     // 4. LA ORDEN DEL CLIENTE: Actualizar Dashboard siempre
-    // No importa a dónde vaya, los números se refrescan
     this.actualizarDashboard();
 
     // 5. Carga de lógica específica por sección
@@ -391,7 +401,6 @@ toggleAjustes: function() {
         case 'ventas':
             this.renderVentas();
             this.cargarSugerencias();
-            // Truco de velocidad: Ponemos el foco en el buscador automáticamente
             setTimeout(() => {
                 const searchInput = document.getElementById('buscar-producto');
                 if(searchInput) searchInput.focus();
@@ -403,20 +412,27 @@ toggleAjustes: function() {
             break;
 
         case 'fiaos-list':
+            // 🛡️ CENTINELA: Marcar fiaos como leídos al entrar
+            if (typeof Notificaciones !== 'undefined') {
+                Notificaciones.marcarComoLeido('fiaos');
+            }
             this.renderFiaos();
             break;
 
         case 'inventario':
+            // 🛡️ CENTINELA: Marcar stock como leído al entrar
+            if (typeof Notificaciones !== 'undefined') {
+                Notificaciones.marcarComoLeido('inventario');
+            }
             this.renderInventario();
             break;
 
         case 'inicio':
-            // Aquí podrías disparar una animación de entrada para los números
             console.log("🏠 Dashboard refrescado al entrar al inicio.");
             break;
     }
     
-    // 6. (Opcional) Guardar en qué vista quedó el usuario por si se recarga la app
+    // 6. Guardar última vista
     Persistencia.guardar('dom_ultima_vista', view);
 },
 
@@ -452,37 +468,41 @@ toggleClienteField(metodo) {
     }
 },
 
- actualizarDashboard() {
+actualizarDashboard() {
     const v = Persistencia.cargar('dom_ventas') || [];
     const g = Persistencia.cargar('dom_gastos') || [];
     const f = Persistencia.cargar('dom_fiaos') || [];
     const t = (Conversor.tasaActual > 0) ? Conversor.tasaActual : 1;
     const hoy = new Date().toLocaleDateString('es-VE');
 
+    // 1. Filtramos por fecha
     const vHoy = v.filter(vent => vent.fecha === hoy);
     const gHoy = g.filter(gas => gas.fecha === hoy);
 
-    // Sumamos ventas del día (Blindado contra datos no numéricos)
-    const totalV = vHoy.reduce((acc, i) => acc + (parseFloat(i.montoBs) || 0), 0);
+    // 2. Sumamos ventas del día (SOLO las que NO son devoluciones)
+    // Usamos el flag 'devuelta' para ignorar el dinero que salió por reembolso
+    const totalV = vHoy.reduce((acc, i) => {
+        return i.devuelta ? acc : acc + (parseFloat(i.montoBs) || 0);
+    }, 0);
     
-    // Sumamos gastos del día
+    // 3. Sumamos gastos del día
     const totalG = gHoy.reduce((acc, i) => acc + (parseFloat(i.montoBs) || 0), 0);
 
-    // Según el feedback del cliente: El neto muestra el INGRESO TOTAL BRUTO
+    // Ingreso Total Bruto Real (Ventas efectivas)
     const netoBs = totalV; 
     const netoConvertido = netoBs / t;
 
-    // --- ACTUALIZACIÓN DE INTERFAZ CON VALORES POR DEFECTO ---
+    // --- ACTUALIZACIÓN DE INTERFAZ ---
     
     // Caja en Bs
     const elCaja = document.getElementById('total-caja');
     if(elCaja) elCaja.innerText = `${(netoBs || 0).toLocaleString('es-VE')} Bs`;
     
-    // Caja en USD (Divisa estimada)
+    // Caja en USD
     const elUsd = document.getElementById('total-usd');
     if(elUsd) elUsd.innerText = `$ ${(netoConvertido || 0).toFixed(2)}`;
     
-    // FIAOS: Basado en valor real (USD) para proteger de la devaluación
+    // FIAOS: Basado en USD para protección contra devaluación
     const elFiaos = document.getElementById('total-fiaos');
     if(elFiaos) {
         const totalFiaosUSD = f.reduce((acc, i) => acc + (parseFloat(i.montoUSD) || 0), 0);
@@ -490,111 +510,160 @@ toggleClienteField(metodo) {
         elFiaos.innerText = `${(totalFiaosBs || 0).toLocaleString('es-VE')} Bs`;
     }
     
-    // GASTOS: Informativo, no resta de la caja principal
+    // GASTOS: Informativo
     const elGastos = document.getElementById('total-gastos');
     if(elGastos) elGastos.innerText = `${(totalG || 0).toLocaleString('es-VE')} Bs`;
     
-    // Sincronizar el input de la tasa
+    // Sincronizar tasa
     const elTasa = document.getElementById('tasa-global');
     if(elTasa) elTasa.value = t;
 
-    // Refrescar Gráfica
     if (typeof Controlador !== 'undefined' && Controlador.renderizarGrafica) {
         Controlador.renderizarGrafica();
     }
 },
 
-  renderVentas() {
+renderVentas() {
     const datos = Persistencia.cargar('dom_ventas') || [];
     const lista = document.getElementById('lista-ventas-historial');
     if(!lista) return;
 
-    // Invertimos para mostrar lo más nuevo primero
-    const ventasInvertidas = datos.slice().reverse();
-    
-    if (ventasInvertidas.length <= 6) {
-        lista.innerHTML = ventasInvertidas.map(v => this.generarFilaVenta(v)).join('');
-    } else {
-        const recientes = ventasInvertidas.slice(0, 3);
-        const antiguas = ventasInvertidas.slice(3);
-        const grupos = {};
+    if (datos.length === 0) {
+        lista.innerHTML = '<p style="text-align:center; opacity:0.5; padding:20px;">No hay ventas registradas</p>';
+        return;
+    }
 
-        // --- TU LÓGICA DE AGRUPAMIENTO POR HORA ---
+    const mapaVentas = {};
+    const ventasAgrupadas = [];
+
+    datos.forEach(item => {
+        // Usamos el ID de transacción como ancla principal
+        const llave = item.idTransaccion || `legacy-${item.fecha}-${item.hora}`;
+        
+        if (!mapaVentas[llave]) {
+            mapaVentas[llave] = {
+                id: llave,
+                cliente: item.cliente || "Consumidor Final",
+                hora: item.hora,
+                fecha: item.fecha,
+                metodo: item.metodo || 'Efectivo',
+                items: [], 
+                totalBs: 0,
+                totalUSD: 0
+            };
+            ventasAgrupadas.push(mapaVentas[llave]);
+        }
+        
+        mapaVentas[llave].items.push(item);
+
+        if (!item.devuelta) {
+            mapaVentas[llave].totalBs += Number(item.montoBs || 0);
+            mapaVentas[llave].totalUSD += Number(item.montoUSD || 0);
+        }
+    });
+
+    // Lo más nuevo arriba
+    const historialInvertido = ventasAgrupadas.reverse();
+    let htmlFinal = '';
+    
+    if (historialInvertido.length <= 6) {
+        htmlFinal = historialInvertido.map(v => this.generarFilaVenta(v)).join('');
+    } else {
+        const recientes = historialInvertido.slice(0, 3);
+        const antiguas = historialInvertido.slice(3);
+
+        const gruposHora = {};
         antiguas.forEach(v => {
             const horaBloque = v.hora ? v.hora.split(':')[0] + ":00" : "Otras";
-            if (!grupos[horaBloque]) grupos[horaBloque] = [];
-            grupos[horaBloque].push(v);
+            if (!gruposHora[horaBloque]) gruposHora[horaBloque] = [];
+            gruposHora[horaBloque].push(v);
         });
 
-        const htmlAntiguas = Object.keys(grupos).map(hora => `
-            <div class="bloque-hora-container">
-                <div class="bloque-hora-titulo">🕒 Bloque ${hora}</div>
-                ${grupos[hora].map(v => this.generarFilaVenta(v)).join('')}
+        // Ordenamos las llaves de hora para que el historial sea coherente
+        const htmlAntiguas = Object.keys(gruposHora).sort().reverse().map(hora => `
+            <div class="bloque-hora-container" style="border-left: 2px solid var(--primary-color); margin: 10px 0; padding-left: 10px;">
+                <div class="bloque-hora-titulo" style="font-size: 0.7em; font-weight: bold; opacity: 0.7;">🕒 BLOQUE ${hora}</div>
+                ${gruposHora[hora].map(v => this.generarFilaVenta(v)).join('')}
             </div>
         `).join('');
 
-        // --- ESTRUCTURA DE LA LISTA CON DETALLES ---
-        lista.innerHTML = `
+        htmlFinal = `
             ${recientes.map(v => this.generarFilaVenta(v)).join('')}
-            <details class="glass detalles-historial">
-                <summary class="summary-historial">
-                    ➕ Ver ${antiguas.length} anteriores (por horas)
+            <details class="glass detalles-historial" style="border-radius:10px; overflow:hidden; margin-top:10px;">
+                <summary class="summary-historial" style="padding:10px; cursor:pointer; text-align:center; font-weight:bold; background: rgba(255,255,255,0.05);">
+                    ➕ Ver ${antiguas.length} ventas anteriores
                 </summary>
-                <div class="detalles-content">
+                <div class="detalles-content" style="padding: 10px; max-height: 400px; overflow-y: auto;">
                     ${htmlAntiguas}
                 </div>
             </details>
         `;
     }
+
+    // Inyección única: Aquí es donde ocurre la magia del "Cero Refresh"
+    lista.innerHTML = htmlFinal;
 },
 
 generarFilaVenta(v) {
-    let btnLiq = "";
-    if (v.esServicio && !v.pagado) {
-        btnLiq = `<button class="btn-liquidar" onclick="Controlador.liquidarServicioManual(${v.id})">💸 LIQUIDAR</button>`;
-    } else if (v.esServicio && v.pagado) {
-        btnLiq = `<span class="tag-pagado">✔ PAGADO</span>`;
-    }
+    const totalBs = Number(v.totalBs).toLocaleString('es-VE');
+    const totalUSD = v.totalUSD ? Number(v.totalUSD).toFixed(2) : "0.00";
 
-    // 🛡️ INDICADOR DE MODO LIBRE:
-    // Si la venta NO validó inventario, mostramos el icono de candado abierto
-    const badgeModo = (v.inventarioValidado === false && !v.esServicio) 
-        ? `<span title="Venta en Modo Libre (No afectó stock)" style="filter: grayscale(1); margin-left:5px;">🔓</span>` 
-        : "";
+    // Mapeamos los productos del ticket
+    const htmlDetalleProductos = v.items.map(p => {
+        const cant = p.cantidadVenta > 1 ? `<span style="color:var(--primary)">${p.cantidadVenta}x</span>` : "";
+        
+        // 🎨 Estilo: Tachado si ya se devolvió
+        const estiloTachado = p.devuelta 
+            ? 'text-decoration: line-through; opacity: 0.4; font-style: italic;' 
+            : '';
 
-    const cantidadStr = v.cantidadVenta > 1 ? `<span class="cantidad-badge">x${v.cantidadVenta}</span>` : "";
-    const montoUSD = v.montoUSD ? `<span class="monto-usd-venta">$ ${Number(v.montoUSD).toFixed(2)}</span>` : "";
+        // 🛡️ EL BOTÓN: Usamos los IDs que ya aseguramos en registrarVenta
+        // v.id es el ID del grupo (Ticket), p.id es el ID del producto individual
+        const btnAccion = p.devuelta ? 
+            `<span style="font-size: 0.75em; opacity: 0.6;">(Devuelto)</span>` : 
+            `<button class="btn-borrar-item" 
+                     onclick="Ventas.anularProductoIndividual('${p.id}', '${v.id}')"
+                     title="Devolver este producto"
+                     style="background:none; border:none; color:#ff4757; cursor:pointer; font-size:14px; padding:0 5px; line-height:1;">
+                ✕
+             </button>`;
 
-    // 🚀 BOTÓN DE ANULACIÓN
-    const btnAnular = `
-        <button class="btn-mini btn-danger" 
-            onclick="Ventas.anularVenta('${v.id}')" 
-            title="Anular venta y devolver stock"
-            style="width: 35px; height: 35px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; border-radius: 8px;">
-            🔄
-        </button>`;
-
-    // Estilo condicional: Si es modo libre, el borde izquierdo es naranja
-    const colorBorde = (v.inventarioValidado === false && !v.esServicio) ? '#ff9800' : 'var(--primary)';
+        return `
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); ${estiloTachado}">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    ${btnAccion}
+                    <span>${cant} ${p.producto}</span>
+                </div>
+                <span style="opacity: 0.8;">${Number(p.montoBs).toLocaleString('es-VE')} Bs</span>
+            </div>
+        `;
+    }).join('');
 
     return `
-        <div class="item-venta glass" style="border-left: 4px solid ${colorBorde}; margin-bottom: 10px;">
-            <div class="venta-info">
-                <div style="display:flex; align-items:center;">
-                    <strong>${v.producto}</strong> ${badgeModo}
+        <div class="item-venta glass" style="border-left: 4px solid var(--primary); margin-bottom: 12px; padding: 0; overflow: hidden;">
+            <div style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <div class="venta-info">
+                    <strong style="font-size: 1.1em; color: var(--primary);">👤 ${v.cliente}</strong>
+                    <div style="font-size: 0.75em; opacity: 0.6;">🕒 ${v.hora} • ${v.metodo}</div>
                 </div>
-                ${cantidadStr} ${btnLiq}
-                <small class="venta-fecha">🕒 ${v.fecha} - ${v.hora || ''}</small>
-                <small class="venta-metodo">${v.metodo} ${v.cliente ? '• ' + v.cliente : ''}</small>
-            </div>
-            
-            <div class="venta-montos" style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
-                <span class="monto-bs-venta">${Number(v.montoBs).toLocaleString('es-VE')} Bs</span>
-                ${montoUSD}
-                <div style="margin-top: 5px;">
-                    ${btnAnular}
+                
+                <div class="venta-montos" style="text-align: right;">
+                    <div style="font-weight: bold; font-size: 1.05em;">${totalBs} Bs</div>
+                    <div style="color: #2ecc71; font-size: 0.85em; font-weight: 500;">$ ${totalUSD}</div>
                 </div>
             </div>
+
+            <details class="detalles-historial-cliente" style="background: rgba(0,0,0,0.15); border-top: 1px solid rgba(255,255,255,0.05);">
+                <summary style="padding: 8px; font-size: 0.75em; text-align: center; cursor: pointer; color: var(--primary); list-style: none; opacity: 0.8;">
+                    ▼ Ver ${v.items.length} productos
+                </summary>
+                <div style="padding: 5px 12px 12px 12px;">
+                    ${htmlDetalleProductos}
+                    <div style="margin-top: 10px; text-align: right;">
+                        <span style="font-size: 0.65em; opacity: 0.3; letter-spacing: 0.5px;">TICKET: ${v.id.toString().substring(0,15)}</span>
+                    </div>
+                </div>
+            </details>
         </div>`;
 },
 
@@ -637,79 +706,83 @@ generarFilaVenta(v) {
     }
 },
 
-    renderGastos() {
+renderGastos() {
     const datos = Persistencia.cargar('dom_gastos') || [];
     const lista = document.getElementById('lista-gastos-historial');
-    
     if (!lista) return;
 
-    // 1. Limpieza rápida si no hay datos
     if (datos.length === 0) {
-        lista.innerHTML = '<p style="text-align:center; opacity:0.5; font-size:0.9em; padding:20px;">No hay gastos registrados hoy</p>';
+        lista.innerHTML = '<p style="text-align:center; opacity:0.5; padding:20px;">No hay gastos registrados</p>';
         return;
     }
 
-    // 2. Invertimos para mostrar lo más nuevo arriba
     const gastosInvertidos = datos.slice().reverse();
     let htmlFinal = '';
 
     if (gastosInvertidos.length <= 6) {
-        // Vista simple para pocos gastos
         htmlFinal = gastosInvertidos.map(g => this.generarFilaGasto(g)).join('');
     } else {
-        // Vista inteligente con agrupamiento para muchos gastos
         const recientes = gastosInvertidos.slice(0, 3);
         const antiguas = gastosInvertidos.slice(3);
-        const grupos = {};
+        
+        // 🧮 Calculamos el total de lo que se va a ocultar
+        const totalAntiguosBs = antiguas.reduce((sum, g) => sum + g.montoBs, 0);
 
-        // --- LÓGICA DE AGRUPAMIENTO ---
+        const grupos = {};
         antiguas.forEach(g => {
-            // Blindaje: Si no hay hora, evitamos que el split de error
-            const horaLimpia = g.hora || "00:00 AM";
-            const horaBloque = horaLimpia.split(':')[0] + ":00";
-            
+            const horaBloque = (g.hora || "00:00").split(':')[0] + ":00";
             if (!grupos[horaBloque]) grupos[horaBloque] = [];
             grupos[horaBloque].push(g);
         });
 
-        // Construcción del HTML de los bloques antiguos
         const htmlAntiguos = Object.keys(grupos).map(hora => `
             <div style="border-left: 2px solid #ff5252; margin: 12px 0; padding-left: 12px;">
-                <div style="font-size: 11px; font-weight: bold; color: #ff5252; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">🕒 Bloque ${hora}</div>
+                <div style="font-size: 10px; font-weight: bold; color: #ff5252; margin-bottom: 5px; text-transform: uppercase;">🕒 Bloque ${hora}</div>
                 ${grupos[hora].map(g => this.generarFilaGasto(g)).join('')}
             </div>
         `).join('');
 
-        // Unión de Recientes + Acordeón de Antiguos
         htmlFinal = `
             ${recientes.map(g => this.generarFilaGasto(g)).join('')}
             
-            <details class="glass" style="margin-top: 15px; border: 1px solid rgba(255, 82, 82, 0.3); border-radius: 10px; overflow: hidden;">
-                <summary style="padding: 12px; cursor: pointer; text-align: center; font-weight: bold; color: #ff5252; list-style: none; background: rgba(255, 82, 82, 0.05);">
-                    ➕ Ver anteriores (${antiguas.length})
+            <details class="glass" style="margin-top: 15px; border: 1px solid rgba(255, 82, 82, 0.3); border-radius: 10px;">
+                <summary style="padding: 12px; cursor: pointer; text-align: center; color: #ff5252; list-style: none;">
+                    <div style="font-weight: bold;">➕ Ver anteriores (${antiguas.length})</div>
+                    <div style="font-size: 0.75em; opacity: 0.8;">Acumulado: ${totalAntiguosBs.toLocaleString('es-VE')} Bs</div>
                 </summary>
-                <div style="max-height: 350px; overflow-y: auto; padding: 10px; background: rgba(0,0,0,0.1);">
+                <div style="max-height: 350px; overflow-y: auto; padding: 10px; background: rgba(0,0,0,0.15);">
                     ${htmlAntiguos}
                 </div>
             </details>
         `;
     }
-
-    // Inyección única al DOM (Máximo rendimiento)
     lista.innerHTML = htmlFinal;
 },
 
 generarFilaGasto(g) {
+    // 💡 Calculamos la referencia para que el usuario siempre vea ambas monedas
+    const montoRef = g.monedaOriginal === 'BS' 
+        ? `$ ${Number(g.montoUSD).toFixed(2)}` 
+        : `${Number(g.montoBs).toLocaleString('es-VE')} Bs`;
+
     return `
         <div class="item-lista glass" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #ff5252; padding: 10px;">
-            <div style="flex-grow: 1;">
-                <strong style="font-size: 0.95em;">${g.descripcion}</strong><br>
-                <small style="opacity:0.7; font-size: 0.8em;">🕒 ${g.fecha} ${g.hora ? '• ' + g.hora : ''}</small>
+            <div style="display: flex; align-items: center; gap: 10px; flex-grow: 1;">
+                <button onclick="Ventas.eliminarGasto('${g.id}')" style="background:none; border:none; color:#ff5252; cursor:pointer; font-size:16px; padding:0 5px;">✕</button>
+                
+                <div style="line-height: 1.2;">
+                    <strong style="font-size: 0.95em; color: #fff;">${g.descripcion}</strong><br>
+                    <small style="opacity:0.6; font-size: 0.75em;">${g.fecha} • ${g.hora || ''}</small>
+                </div>
             </div>
+            
             <div style="text-align: right; margin-left: 10px;">
-                <span style="color:#ff5252; font-weight:bold; font-size: 1em;">
-                    -${Number(g.montoBs).toLocaleString('es-VE')} Bs
-                </span>
+                <div style="color:#ff5252; font-weight:bold; font-size: 0.95em;">
+                    -${Number(g.montoOriginal).toLocaleString('es-VE')} ${g.monedaOriginal}
+                </div>
+                <div style="font-size: 0.7em; opacity: 0.5;">
+                    Ref: ${montoRef}
+                </div>
             </div>
         </div>`;
 },
@@ -770,47 +843,127 @@ generarFilaFiaoAgrupada(c) {
     const montoBsDisplay = Number(totalBs).toLocaleString('es-VE');
     const montoUSDDisplay = Number(c.totalUSD).toFixed(2);
 
-    const mensaje = `Hola ${c.cliente}, te escribo de DOMINUS BUSINESS. Tienes una deuda total de $${montoUSDDisplay} (${montoBsDisplay} Bs). ¡Esperamos tu pago!`;
-    const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+    // --- 1. LÓGICA DE DÍAS DE MORA ---
+    const fechaRaiz = new Date(c.deudas[0].fecha); 
+    const hoy = new Date();
+    const diferenciaTiempo = hoy - fechaRaiz;
+    const diasMora = Math.floor(diferenciaTiempo / (1000 * 60 * 60 * 24));
 
+    // --- 2. LÓGICA DE SEMÁFORO ---
+    const limiteRojo = parseInt(Persistencia.cargar('cfg_limite_dias')) || 5;
+    let colorClase = "fiao-verde";
+    if (diasMora >= limiteRojo) colorClase = "fiao-rojo";
+    else if (diasMora >= 3) colorClase = "fiao-amarillo";
+
+    // --- 3. LÓGICA DE SALUDO TEMPORAL ---
+    const hora = hoy.getHours();
+    let saludo = "Hola";
+    if (hora >= 6 && hora < 12) saludo = "Buenos días";
+    else if (hora >= 12 && hora < 19) saludo = "Buenas tardes";
+    else saludo = "Buenas noches";
+
+    // --- 4. CONSTRUCCIÓN DEL MENSAJE DINÁMICO ---
+    const nombreNegocio = Persistencia.cargar('cfg_nombre_negocio') || "DOMINUS BUSINESS";
+    
+    // Obtenemos la plantilla personalizada según la franja horaria actual
+    let plantilla = Usuario.obtenerMensajeSegunHora();
+
+    // Formateo del detalle de productos para el mensaje de WhatsApp
+    const detalleTexto = c.deudas.map(d => `• ${d.producto} ($${Number(d.montoUSD).toFixed(2)})`).join('\n');
+
+    // Reemplazo de etiquetas
+    let mensajeFinal = plantilla
+        .split("[saludo]").join(saludo)
+        .split("[cliente]").join(c.cliente)
+        .split("[negocio]").join(nombreNegocio)
+        .split("[montoUSD]").join(montoUSDDisplay)
+        .split("[montoBs]").join(montoBsDisplay)
+        .split("[monto_detalle]").join(detalleTexto)
+        .split("[dias_mora]").join(diasMora);
+
+    const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(mensajeFinal)}`;
+
+    // --- 5. RENDERIZADO DEL HTML ---
     return `
-        <div class="card-fiao glass border-fiao">
+        <div class="card-fiao glass ${colorClase}">
             <div class="fiao-header">
                 <div class="fiao-info">
                     <strong>👤 ${c.cliente}</strong>
-                    <span class="monto-usd">$${montoUSDDisplay}</span>
+                    <div class="mora-tag">${diasMora > 0 ? `Hace ${diasMora} días` : 'Hoy'}</div>
                 </div>
                 <div class="fiao-actions">
-                    <span class="monto-bs">${montoBsDisplay} Bs</span>
+                    <div class="monto-block">
+                        <span class="monto-usd">$${montoUSDDisplay}</span>
+                        <span class="monto-bs">${montoBsDisplay} Bs</span>
+                    </div>
                     <div class="action-buttons">
-                        <a href="${urlWhatsapp}" target="_blank" class="btn-whatsapp btn-redondo-wa" title="Cobrar por WhatsApp">📲</a>
+                        <a href="${urlWhatsapp}" target="_blank" class="btn-whatsapp btn-redondo-wa" title="Enviar cobro detallado">📲</a>
                         <button class="btn-abonar" onclick="Ventas.abrirProcesoAbono('${c.cliente}')">Abonar</button>
                     </div>
                 </div>
             </div>
             
             <details class="fiao-details">
-                <summary>Ver detalles de deuda</summary>
+                <summary>Ver desglose (${c.deudas.length} pendientes)</summary>
                 <div class="details-content">
                     ${c.deudas.map(d => `
                         <div class="detail-item">
                             <div class="detail-text">
                                 <span class="detail-product">${d.producto}</span>
-                                <small class="detail-date">🕒 ${d.fecha || 'Sin fecha'}</small>
+                                <small class="detail-date">🕒 ${d.fecha}</small>
                             </div>
                             <div class="detail-price-actions">
                                 <span class="detail-price">$${Number(d.montoUSD).toFixed(2)}</span>
                                 <div class="detail-btns">
-                                    <button class="btn-edit-small" onclick="Ventas.editarDeudaEspecifica(${d.id})" title="Editar monto">✏️</button>
-                                    <button class="btn-delete-small" onclick="Ventas.eliminarRegistroEspecifico(${d.id})" title="Eliminar registro">🗑️</button>
+                                    <button class="btn-edit-small" onclick="Ventas.editarDeudaEspecifica('${d.id}')">✏️</button>
+                                    <button class="btn-delete-small" onclick="Ventas.eliminarRegistroEspecifico('${d.id}')">🗑️</button>
                                 </div>
                             </div>
                         </div>
                     `).join('')}
-                    <button class="btn-eliminar-todo" onclick="Controlador.eliminarDeuda('${c.cliente}')">⚠️ Borrar historial del cliente</button>
+                    <button class="btn-eliminar-todo" onclick="Controlador.eliminarDeuda('${c.cliente}')">
+                        ⚠️ Liquidar cuenta total
+                    </button>
                 </div>
             </details>
         </div>`;
+},
+
+filtrarFiaos() {
+    const busqueda = document.getElementById('search-deudores').value.toLowerCase().trim();
+    const tarjetas = document.querySelectorAll('.card-fiao');
+    let resultadosEncontrados = 0;
+
+    tarjetas.forEach(tarjeta => {
+        // Buscamos el nombre del cliente dentro de la etiqueta strong de la tarjeta
+        const nombreCliente = tarjeta.querySelector('strong').innerText.toLowerCase();
+        
+        if (nombreCliente.includes(busqueda)) {
+            tarjeta.style.display = "block";
+            tarjeta.style.animation = "fadeIn 0.3s ease"; // Un pequeño efecto visual
+            resultadosEncontrados++;
+        } else {
+            tarjeta.style.display = "none";
+        }
+    });
+
+    // Opcional: Mostrar un mensaje si no hay resultados
+    const listaContenedor = document.getElementById('lista-fiaos');
+    let msgNoResult = document.getElementById('no-results-search');
+
+    if (resultadosEncontrados === 0 && busqueda !== "") {
+        if (!msgNoResult) {
+            msgNoResult = document.createElement('p');
+            msgNoResult.id = 'no-results-search';
+            msgNoResult.innerHTML = "❌ No se encontró ningún deudor con ese nombre.";
+            msgNoResult.style.textAlign = "center";
+            msgNoResult.style.color = "#888";
+            msgNoResult.style.marginTop = "20px";
+            listaContenedor.appendChild(msgNoResult);
+        }
+    } else {
+        if (msgNoResult) msgNoResult.remove();
+    }
 },
 
 renderInventario() {
@@ -820,12 +973,16 @@ renderInventario() {
 
     const generarHTMLItem = (p) => {
         const unidad = p.unidad || 'Und';
+        // 🛡️ Aseguramos precisión decimal para balanza
         const stockActual = parseFloat(p.cantidad) || 0;
+        const stockVisual = (p.unidad === 'Kg' || p.unidad === 'Lts') ? stockActual.toFixed(3) : Math.round(stockActual);
+        
         const minConfigurado = parseFloat(p.stockMinimo) || (p.unidad === 'Kg' || p.unidad === 'Lts' ? 1.5 : 3);
         
         const estaVacio = stockActual <= 0;
         const esBajo = stockActual <= minConfigurado;
         
+        // Estilos dinámicos
         let colorStock = 'var(--primary)';
         let bordeStyle = 'border: 1px solid rgba(255,255,255,0.1);';
         let fondoAlerta = 'rgba(255,255,255,0.05)';
@@ -848,21 +1005,25 @@ renderInventario() {
 
         let htmlTallas = "";
         if (p.tallas && Object.keys(p.tallas).length > 0) {
-            htmlTallas = `
-                <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
-                    ${Object.entries(p.tallas)
-                        .filter(([t, c]) => c > 0)
-                        .map(([t, c]) => `
+            // 🛡️ Filtramos tallas con stock y las ordenamos alfabéticamente
+            const tallasActivas = Object.entries(p.tallas)
+                                    .filter(([t, c]) => parseFloat(c) > 0)
+                                    .sort((a, b) => a[0].localeCompare(b[0]));
+
+            if (tallasActivas.length > 0) {
+                htmlTallas = `
+                    <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
+                        ${tallasActivas.map(([t, c]) => `
                             <span style="font-size: 10px; background: rgba(255,255,255,0.08); color: #ddd; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); font-family: monospace;">
                                 ${t}:<b>${c}</b>
                             </span>
                         `).join('')}
-                </div>`;
+                    </div>`;
+            }
         }
 
         return `
             <div class="item-lista glass" style="margin-bottom:12px; display: flex; flex-direction: column; padding: 14px; border-radius: 15px; ${bordeStyle} background: ${fondoAlerta}; gap: 10px;">
-                
                 <div style="width: 100%;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                         <strong style="color: white; text-transform: uppercase; font-size: 0.95em; letter-spacing: 0.5px; flex: 1;">${p.nombre}</strong>
@@ -874,7 +1035,7 @@ renderInventario() {
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
                     <div style="flex: 1;">
                         <small style="color: ${colorStock}; font-weight: bold; font-size: 0.85em; display: block;">
-                            Disponible: ${stockActual} ${unidad}
+                            Disponible: ${stockVisual} ${unidad}
                         </small>
                         ${htmlTallas}
                     </div>
@@ -900,43 +1061,58 @@ renderInventario() {
             return;
         }
 
+        // 🛡️ Ordenamiento inteligente: Sin Stock > Reabastecer > Normal
         const prodsOrdenados = [...prods].sort((a, b) => {
-            const minA = a.stockMinimo || (a.unidad === 'Kg' ? 1.5 : 3);
-            const minB = b.stockMinimo || (b.unidad === 'Kg' ? 1.5 : 3);
-            const alertaA = a.cantidad <= minA ? 1 : 0;
-            const alertaB = b.cantidad <= minB ? 1 : 0;
-            return alertaB - alertaA;
+            const minA = parseFloat(a.stockMinimo) || (a.unidad === 'Kg' ? 1.5 : 3);
+            const minB = parseFloat(b.stockMinimo) || (b.unidad === 'Kg' ? 1.5 : 3);
+            
+            const nivelA = a.cantidad <= 0 ? 2 : (a.cantidad <= minA ? 1 : 0);
+            const nivelB = b.cantidad <= 0 ? 2 : (b.cantidad <= minB ? 1 : 0);
+            
+            return nivelB - nivelA;
         });
 
         lista.innerHTML = prodsOrdenados.map(p => generarHTMLItem(p)).join('');
     };
 
+    // 🚀 EJECUCIÓN INICIAL
     dibujarItems(Inventario.productos);
 
+    // 🛡️ GESTIÓN DE BUSCADOR (Sin duplicar eventos)
     const buscador = document.getElementById('busqueda-real-inv');
     if(buscador) {
         buscador.oninput = (e) => {
             const t = e.target.value.toLowerCase().trim();
             const filtrados = Inventario.productos.filter(prod => 
-                prod.nombre.toLowerCase().includes(t) || (prod.codigo && prod.codigo.includes(t))
+                prod.nombre.toLowerCase().includes(t) || 
+                (prod.codigo && String(prod.codigo).includes(t))
             );
             dibujarItems(filtrados);
         };
     }
 },
 
-filtrarTallasPorBloque(rango) { //aqui filtra las tallas para que no sea una lista larga//
+filtrarTallasPorBloque(rango) {
     const filas = document.querySelectorAll('.fila-talla');
+    // 🛡️ Blindaje: Si no existe el objeto de rangos, mostramos todo para no bloquear al usuario
+    if (typeof rangosTallas === 'undefined') {
+        filas.forEach(f => f.style.display = 'flex');
+        return;
+    }
+
     const permitidas = rangosTallas[rango] || [];
 
     filas.forEach(fila => {
-        const nroTalla = parseInt(fila.getAttribute('data-talla'));
+        const nroTallaAttr = fila.getAttribute('data-talla');
+        const nroTalla = parseInt(nroTallaAttr);
         
+        // Si no es un número (ej: "XL", "Manual"), lo dejamos visible siempre
         if (isNaN(nroTalla)) {
             fila.style.display = 'flex';
             return;
         }
 
+        // Filtro inteligente
         if (rango === 'todos' || permitidas.includes(nroTalla)) {
             fila.style.display = 'flex';
         } else {
@@ -944,6 +1120,7 @@ filtrarTallasPorBloque(rango) { //aqui filtra las tallas para que no sea una lis
         }
     });
 },
+
 actualizarSelectorTallas(nombreProducto) {
     const contenedor = document.getElementById('contenedor-talla');
     const select = document.getElementById('v-talla');
@@ -951,26 +1128,23 @@ actualizarSelectorTallas(nombreProducto) {
     
     if (!contenedor || !select) return;
 
-    // 🛡️ Blindaje: Si el nombre está vacío, limpiamos y salimos
-    if (!nombreProducto || nombreProducto.trim() === "") {
-        contenedor.classList.add('hidden');
-        return;
-    }
+    // 1. Reset de estado inicial
+    contenedor.classList.add('hidden');
+    select.innerHTML = '';
 
-    // Buscamos el producto en el inventario global
+    if (!nombreProducto || nombreProducto.trim() === "") return;
+
     const p = Inventario.productos.find(prod => 
         prod.nombre.toLowerCase() === nombreProducto.trim().toLowerCase()
     );
 
     if (p) {
-        // 1. AUTO-LLENADO DE PRECIO
-        // Permitimos que el vendedor lo cambie si es necesario, 
-        // pero el sistema le da la base del inventario.
+        // AUTO-LLENADO DE PRECIO
         if (inputMonto && p.precio) {
             inputMonto.value = parseFloat(p.precio) || 0;
         }
 
-        // 2. LÓGICA DE VARIANTES (Solo las que tengan STOCK > 0)
+        // LÓGICA DE VARIANTES
         if (p.tallas && Object.keys(p.tallas).length > 0) {
             let opcionesHTML = '<option value="">Elegir Talla/Peso...</option>';
             let hayVariantesConStock = false;
@@ -978,52 +1152,43 @@ actualizarSelectorTallas(nombreProducto) {
             Object.entries(p.tallas).forEach(([talla, cant]) => {
                 const stock = parseFloat(cant) || 0;
                 
-                // 🛡️ FILTRO ESTRICTO: Si no hay stock, la opción NI SE CREA
                 if (stock > 0) {
                     hayVariantesConStock = true;
-                    let prefijo = (p.unidad === 'kg') ? "Peso: " : "Talla: ";
-                    if (talla === 'Manual' || talla === 'Única') prefijo = "";
+                    // 🛡️ Normalizamos unidad para el prefijo
+                    const unidadLower = (p.unidad || 'und').toLowerCase();
+                    let prefijo = (unidadLower === 'kg' || unidadLower === 'lts') ? "Peso: " : "Talla: ";
+                    
+                    if (['manual', 'unica', 'única'].includes(talla.toLowerCase())) {
+                        prefijo = "";
+                    }
 
-                    const unidadMedida = p.unidad || 'und';
-                    opcionesHTML += `<option value="${talla}">${prefijo}${talla} (${stock} ${unidadMedida} disp.)</option>`;
+                    opcionesHTML += `<option value="${talla}">${prefijo}${talla} (${stock} ${p.unidad || 'und'} disp.)</option>`;
                 }
             });
 
-            // Solo mostramos el contenedor si hay al menos una opción válida
             if (hayVariantesConStock) {
                 select.innerHTML = opcionesHTML;
                 contenedor.classList.remove('hidden');
-            } else {
-                // Si el producto existe pero todas sus tallas están en 0
-                contenedor.classList.add('hidden');
-                select.innerHTML = '';
-                // Opcional: Notificar que no hay existencia
-                // notificar("Producto sin stock disponible", "error");
             }
-        } else {
-            contenedor.classList.add('hidden');
         }
-    } else {
-        // Si es un producto nuevo o manual, ocultamos variantes
-        contenedor.classList.add('hidden');
-        select.innerHTML = '';
     }
-}
+},
 
+notificarProximamente: function() {
+        // 1. Sonido de aviso con tu sistema AudioDOMINUS
+        if (typeof AudioDOMINUS !== 'undefined') {
+            AudioDOMINUS.reproducir('sonido-alerta');
+        }
+
+        // 2. Primer mensaje de intriga
+        notificar("🛠️ ¡Algo grande se está cocinando!", "info");
+        
+        // 3. Segundo mensaje con delay para generar curiosidad
+        setTimeout(() => {
+            notificar("Esta función se desbloqueará en una futura actualización. ¡No te desesperes! 😉", "alerta");
+        }, 1500);
+        
+        console.log("💡 El usuario intentó entrar a Devoluciones. ¡Sigue generando curiosidad!");
+    }
 };
 
-function notificarProximamente() {
-    // 1. Sonido de aviso (Si tienes el ID 'sonido-alerta')
-    if (typeof AudioDOMINUS !== 'undefined') {
-        AudioDOMINUS.reproducir('sonido-alerta');
-    }
-
-    // 2. Mensajes de intriga
-    notificar("🛠️ ¡Algo grande se está cocinando!", "info");
-    
-    setTimeout(() => {
-        notificar("Esta función se desbloqueará en una futura actualización. ¡No te desesperes!", "alerta");
-    }, 1500);
-    
-    console.log("💡 El usuario intentó entrar a Devoluciones. ¡Sigue generando curiosidad!");
-}

@@ -21,93 +21,154 @@ const Inventario = {
 
     // ... dentro de objeto Inventario ...
 recargarRapido(nombre, cantidad, tallaElegida) {
+    // 1. Búsqueda y Validación
     const p = this.productos.find(prod => prod.nombre.toLowerCase() === nombre.toLowerCase());
     if (!p) return notificar("❌ Producto no encontrado", "error");
 
     const numCantidad = parseFloat(cantidad) || 0;
-    p.cantidad = Number((p.cantidad + numCantidad).toFixed(3));
+    if (numCantidad <= 0) return;
 
-    // Cambié esto para que sea más robusto:
+    // 2. GESTIÓN DE CARGA (Tallas vs Global)
     if (tallaElegida && p.tallas && p.tallas[tallaElegida] !== undefined) {
-        p.tallas[tallaElegida] = Number((parseFloat(p.tallas[tallaElegida]) + numCantidad).toFixed(2));
+        // --- FLUJO CON TALLAS ---
+        const stockTallaActual = parseFloat(p.tallas[tallaElegida]) || 0;
+        p.tallas[tallaElegida] = Number((stockTallaActual + numCantidad).toFixed(2));
+
+        // 🔥 RECALCULO TOTAL: El total SIEMPRE se redefine sumando las tallas
+        p.cantidad = Object.values(p.tallas).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+    } else {
+        // --- FLUJO SIN TALLAS ---
+        const stockGlobalActual = parseFloat(p.cantidad) || 0;
+        p.cantidad = stockGlobalActual + numCantidad;
     }
 
+    // 3. REDONDEO DE PRECISIÓN SEGÚN UNIDAD
+    p.cantidad = (p.unidad === 'Kg' || p.unidad === 'Lts') 
+        ? Number(p.cantidad.toFixed(3)) 
+        : Math.round(p.cantidad);
+
+    // 4. PERSISTENCIA Y SALUD
     this.sincronizar();
-    this.chequearSaludStock(p); // El centinela valida si ya salió de alerta
+    this.chequearSaludStock(p); 
+    
+    notificar(`➕ Stock añadido: ${p.nombre} (+${numCantidad})`, "exito");
 },
 
 // Añadimos 'nCodigo' al final de los parámetros
 actualizar(nOriginal, nNuevo, nCant, nPrecio, nUnidad, nTallas, nMin, nCodigo) {
-    const p = this.productos.find(prod => prod.nombre === nOriginal);
-    if (!p) return;
+    let p = null;
+    if (this.idEdicion) {
+        p = this.productos.find(prod => prod.id === this.idEdicion);
+    } else {
+        p = this.productos.find(prod => prod.nombre === nOriginal);
+    }
+
+    if (!p) {
+        console.error("DOMINUS: No se encontró el producto para actualizar.");
+        return;
+    }
 
     p.nombre = nNuevo;
     p.cantidad = parseFloat(nCant) || 0;
     p.precio = parseFloat(nPrecio) || 0;
     p.unidad = nUnidad;
-    p.tallas = nTallas;
+    p.tallas = nTallas ? { ...nTallas } : {};
     
-    // 🚀 NUEVO: Actualizamos el código de barras también
     if (nCodigo !== undefined) p.codigo = nCodigo.trim();
 
-    if (nMin !== undefined && nMin !== "") p.stockMinimo = parseFloat(nMin);
+    if (nMin !== undefined && nMin !== "" && nMin !== null) {
+        p.stockMinimo = parseFloat(nMin);
+    }
 
     this.sincronizar();
-    this.chequearSaludStock(p);
+    
+    // 🚀 INYECCIÓN CENTINELA:
+    if (typeof Notificaciones !== 'undefined') {
+        // Marcamos el inventario como "No Leído" para que, si el cambio
+        // puso el producto en alerta, la burbuja aparezca de inmediato.
+        Notificaciones.resetVisto('inventario');
+        Notificaciones.revisarTodo();
+    }
+
+    if (typeof this.chequearSaludStock === 'function') {
+        this.chequearSaludStock(p);
+    }
 },
 
     // 🚀 NUEVO: Esta función arregla tu base de datos vieja sin borrar nada
-   migrarEstructura() {
-        let modificado = false;
-        this.productos = this.productos.map(p => {
-            if (!p.id) { p.id = Date.now() + Math.random(); modificado = true; }
-            if (!p.unidad) { p.unidad = 'Und'; modificado = true; }
-            if (!p.codigo) { p.codigo = ""; modificado = true; } // 👈 NUEVO: Campo código
-            if (!p.stockMinimo) { 
-                p.stockMinimo = (p.unidad === 'Kg' || p.unidad === 'Lts') ? 1.5 : 3; 
-                modificado = true; 
-            }
-            return p;
-        });
-        if (modificado) Persistencia.guardar('dom_inventario', this.productos);
-    },
+  migrarEstructura() {
+    let modificado = false;
+    this.productos = this.productos.map(p => {
+        let cambio = false;
+        // ID más robusto para evitar colisiones
+        if (!p.id) { p.id = `prod-${crypto.randomUUID ? crypto.randomUUID() : Date.now() + Math.random()}`; cambio = true; }
+        if (!p.unidad) { p.unidad = 'Und'; cambio = true; }
+        if (!p.codigo) { p.codigo = ""; cambio = true; }
+        if (!p.tallas) { p.tallas = {}; cambio = true; } // 👈 CRÍTICO: Evita errores en el modal de tallas
+        if (!p.stockMinimo) { 
+            p.stockMinimo = (p.unidad === 'Kg' || p.unidad === 'Lts') ? 1.5 : 3; 
+            cambio = true; 
+        }
+        if (cambio) modificado = true;
+        return p;
+    });
+    if (modificado) Persistencia.guardar('dom_inventario', this.productos);
+},
 
 devolver(nombre, cantidad, tallaElegida = null) {
     if (!this.activo || !nombre) return;
+
+    // 1. Limpieza de Identificador
     const nombreLimpio = nombre.split('(')[0].trim().replace("PUNTO: ", "");
+    const cant = parseFloat(cantidad) || 0;
+    if (cant <= 0) return;
+
+    // 2. Búsqueda
     let p = this.productos.find(prod => prod.nombre.toLowerCase() === nombreLimpio.toLowerCase());
 
     if (p) {
-        const cant = parseFloat(cantidad) || 0;
-        // Solo usamos .cantidad para evitar descuadres
-        p.cantidad = (p.unidad === 'Kg' || p.unidad === 'Lts') 
-            ? parseFloat((p.cantidad + cant).toFixed(3)) 
-            : Math.round(p.cantidad + cant);
-
-        if (tallaElegida && p.tallas) {
-            p.tallas[tallaElegida] = (parseFloat(p.tallas[tallaElegida]) || 0) + cant;
+        // --- CASO A: TIENE TALLAS ---
+        if (p.tallas && tallaElegida) {
+            const stockTallaActual = parseFloat(p.tallas[tallaElegida]) || 0;
+            // Sumamos a la talla específica y redondeamos
+            p.tallas[tallaElegida] = Number((stockTallaActual + cant).toFixed(2));
+            
+            // 🔥 RECALCULO TOTAL (Composición): El total es la suma de sus tallas
+            p.cantidad = Object.values(p.tallas).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+        } else {
+            // --- CASO B: SIN TALLAS ---
+            p.cantidad = (parseFloat(p.cantidad) || 0) + cant;
         }
-        this.sincronizar(); // Esto ya guarda y renderiza la interfaz
+
+        // 3. REDONDEO DE PRECISIÓN SEGÚN UNIDAD
+        p.cantidad = (p.unidad === 'Kg' || p.unidad === 'Lts') 
+            ? Number(p.cantidad.toFixed(3)) 
+            : Math.round(p.cantidad);
+
+        // 4. PERSISTENCIA Y NOTIFICACIÓN
+        this.sincronizar(); 
+        
+        // Al devolver stock, el centinela quita el "silencio" si el producto sale de alerta
+        this.chequearSaludStock(p); 
+        
         notificar(`🔄 Stock devuelto: ${p.nombre} +${cant}`, "exito");
     }
 },
 
 // Método para chequear salud del stock
-chequearSaludStock(producto) {
+chequearSaludStock(producto, cantidadASumarAlCalculo = 0) {
+    if (!producto) return "ok";
+    
     const nombreKey = producto.nombre.toLowerCase().trim();
-    const stock = parseFloat(producto.cantidad) || 0;
+    const stockReal = parseFloat(producto.cantidad) || 0;
+    // 🚩 CLAVE: Calculamos el stock "proyectado" (como si ya hubiéramos restado lo que está en el carrito)
+    const stockProyectado = stockReal - cantidadASumarAlCalculo;
+    
     const unidad = producto.unidad || 'Und';
     const min = parseFloat(producto.stockMinimo) || (unidad === 'Kg' || unidad === 'Lts' ? 1.5 : 3);
 
-    // 1. Si el stock sube (reposición), quitamos el bozal al centinela
-    if (stock > min) {
-        registrosSilencio[nombreKey] = false;
-        return "ok";
-    }
-
-    // 2. ESTADO: AGOTADO (Prioridad 1)
-    if (stock <= 0) {
-        // Solo avisar si no hemos avisado que está agotado ya
+    // 1. AGOTADO (O se va a agotar con esta venta)
+    if (stockProyectado <= 0) {
         if (registrosSilencio[nombreKey] !== 'agotado_avisado') {
             notificar(`🚨 AGOTADO: ${producto.nombre}`, "error");
             registrosSilencio[nombreKey] = 'agotado_avisado';
@@ -115,45 +176,36 @@ chequearSaludStock(producto) {
         return "agotado";
     } 
 
-    // 3. ESTADO: STOCK BAJO (Prioridad 2)
-    if (stock <= min) {
-        // 🔥 LA CLAVE: Si ya avisamos que está "bajo", no digas nada más
+    // 2. STOCK BAJO
+    if (stockProyectado <= min) {
         if (registrosSilencio[nombreKey] === 'bajo_avisado' || registrosSilencio[nombreKey] === 'agotado_avisado') {
             return "bajo"; 
         }
-
-        const mensaje = (unidad === 'Kg' || unidad === 'Lts') 
-            ? `⚠️ STOCK BAJO: ${producto.nombre} (${stock.toFixed(3)} ${unidad})`
-            : `⚠️ STOCK BAJO: ${producto.nombre} (${Math.round(stock)} ${unidad})`;
-            
-        notificar(mensaje, "stock");
+        const cantFormato = (unidad === 'Kg' || unidad === 'Lts') ? stockProyectado.toFixed(2) : Math.round(stockProyectado);
+        notificar(`⚠️ QUEDARÁ POCO: ${producto.nombre} (${cantFormato} ${unidad})`, "stock");
         
-        // Bloqueamos futuros gritos para este producto
         registrosSilencio[nombreKey] = 'bajo_avisado';
         return "bajo";
     }
 
+    // 3. REPOSICIÓN / OK
+    if (stockProyectado > min) {
+        registrosSilencio[nombreKey] = false;
+    }
     return "ok";
 },
     // 🛠️ MEJORADO: Ahora suma decimales correctamente y actualiza sin romper
-guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null, codigo = "", minManual = null) {
+guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null, codigo = "", minManual = null, esEdicion = false) {
     if (!nombre) return false; 
     
     const nombreLimpio = nombre.trim();
-    
-    // --- LÓGICA DE ASIGNACIÓN DE CÓDIGO ---
     let codFinal = codigo ? String(codigo).trim() : "";
     
     if (!codFinal) {
-        // Generamos ID único con prefijo para productos sin código de barras
         codFinal = `DOM-${Date.now()}`; 
-        console.log(`Asignando código automático: ${codFinal}`);
     }
     
-    // 1. PRIORIDAD: Buscar por Código
     let index = this.productos.findIndex(p => String(p.codigo) === codFinal);
-    
-    // 2. RESPALDO: Buscar por Nombre (si el código no arrojó resultados)
     if (index === -1) {
         index = this.productos.findIndex(p => p.nombre.toLowerCase() === nombreLimpio.toLowerCase());
     }
@@ -162,51 +214,39 @@ guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null, codigo = "", mi
     const nuevaCant = parseFloat(cantidad) || 0;
 
     if (index !== -1) {
-        // --- PRODUCTO EXISTENTE: Actualizar ---
         const p = this.productos[index];
 
-        // Suma de stock con redondeo de precisión (3 decimales para pesos/litros)
-        p.cantidad = Number((p.cantidad + nuevaCant).toFixed(3));
-
-        // Actualización de datos
-        if (precioFinal > 0) p.precio = precioFinal;
-        p.nombre = nombreLimpio; // Por si se corrigió el nombre manualmente
-        p.unidad = unidad;
-        p.codigo = codFinal; 
-        
-        // Actualizar stock mínimo si se provee manualmente
-        if (minManual !== null) p.stockMinimo = parseFloat(minManual);
-        
-        // Fusión de tallas/desglose (Lógica reintegrada)
-        if (tallas) {
-            if (!p.tallas || typeof p.tallas !== 'object') p.tallas = {};
-            Object.keys(tallas).forEach(t => {
-                const cantRecarga = parseFloat(tallas[t]) || 0;
-                // Redondeo a 3 decimales para mantener consistencia
-                p.tallas[t] = Number(((p.tallas[t] || 0) + cantRecarga).toFixed(3));
-            });
-        }
-
-        // --- LÓGICA DEL CENTINELA (Reintegrada) ---
-        const minActual = p.stockMinimo || (p.unidad === 'Kg' || p.unidad === 'Lts' ? 1.5 : 3);
-        
-        if (p.cantidad > minActual) {
-            notificar(`✅ Stock de "${p.nombre}" repuesto: +${nuevaCant}`, "exito");
+        if (esEdicion) {
+            p.cantidad = nuevaCant; 
+            if (tallas) p.tallas = {...tallas}; 
         } else {
-            // Si sigue bajo el mínimo, el sistema de alertas se encarga
-            if (typeof this.chequearSaludStock === 'function') {
-                this.chequearSaludStock(p);
-            } else {
-                notificar(`⚠️ "${p.nombre}" guardado, pero sigue bajo en stock (${p.cantidad})`, "warning");
+            // Lógica de reposición: Sumamos a lo que ya hay
+            p.cantidad = Number((p.cantidad + nuevaCant).toFixed(3)); 
+            if (tallas) {
+                if (!p.tallas || typeof p.tallas !== 'object') p.tallas = {};
+                Object.keys(tallas).forEach(t => {
+                    p.tallas[t] = Number(((p.tallas[t] || 0) + (parseFloat(tallas[t]) || 0)).toFixed(3));
+                });
             }
         }
 
-    } else {
-        // --- PRODUCTO NUEVO ---
-        const nuevoId = Date.now();
+        if (precioFinal > 0) p.precio = precioFinal;
+        p.nombre = nombreLimpio;
+        p.unidad = unidad;
+        p.codigo = codFinal; 
+        if (minManual !== null) p.stockMinimo = parseFloat(minManual);
         
+        const minActual = p.stockMinimo || (p.unidad === 'Kg' || p.unidad === 'Lts' ? 1.5 : 3);
+        if (p.cantidad > minActual) {
+            notificar(`✅ "${p.nombre}" actualizado correctamente`, "exito");
+        } else {
+            if (typeof this.chequearSaludStock === 'function') this.chequearSaludStock(p);
+        }
+
+    } else {
+        // Registro de producto nuevo
         this.productos.push({
-            id: nuevoId,
+            id: Date.now(),
             nombre: nombreLimpio,
             cantidad: nuevaCant,
             precio: precioFinal,
@@ -215,11 +255,17 @@ guardar(nombre, cantidad, precio, unidad = 'Und', tallas = null, codigo = "", mi
             stockMinimo: minManual !== null ? parseFloat(minManual) : (unidad === 'Kg' || unidad === 'Lts' ? 1.5 : 3),
             tallas: tallas || {}
         });
-        notificar(`📦 Registrado con ID: ${codFinal}`, "stock");
+        notificar(`📦 Registrado: ${nombreLimpio}`, "stock");
     }
     
-    // Persistencia
     try {
+        // 🚀 INYECCIÓN CENTINELA:
+        // Antes de sincronizar, reseteamos el estado de "visto" porque la data cambió.
+        if (typeof Notificaciones !== 'undefined') {
+            Notificaciones.resetVisto('inventario');
+            Notificaciones.revisarTodo();
+        }
+
         this.sincronizar(); 
         return true; 
     } catch (e) {
@@ -291,167 +337,214 @@ gestionarEscaneo: function(codigo) {
     }
 },
 
- eliminar(id) {
+eliminar(id) {
+    if (!id) return;
+
     const totalAntes = this.productos.length;
-    // Forzamos que el ID sea tratado igual (string/number)
+    
+    // 1. Buscamos el producto antes de borrarlo para poder usar su nombre en la notificación
+    const productoABorrar = this.productos.find(p => p.id == id);
+    if (!productoABorrar) return;
+
+    // 2. Filtrado con coerción de tipos segura (==)
     this.productos = this.productos.filter(p => p.id != id);
     
+    // 3. Verificación de éxito
     if (this.productos.length < totalAntes) {
+        
+        // 🚀 MEJORA: Limpiar el ID de edición si era el producto que se estaba editando
+        if (this.idEdicion == id) {
+            this.idEdicion = null;
+            if (typeof Controlador !== 'undefined') {
+                Controlador.limpiarFormularioInventario();
+            }
+        }
+
+        // 🚀 MEJORA: Limpiar el silencio del centinela para que no ocupe memoria
+        const nombreKey = productoABorrar.nombre.toLowerCase().trim();
+        if (typeof registrosSilencio !== 'undefined') {
+            delete registrosSilencio[nombreKey];
+        }
+
         this.sincronizar();
-        // Cambiamos a tipo 'error' para que el toast sea rojo y resalte la eliminación
-        notificar("🗑️ Producto eliminado permanentemente", "error");
+        
+        // Notificación personalizada para que el usuario sepa QUÉ borró
+        notificar(`🗑️ "${productoABorrar.nombre}" eliminado con éxito`, "error");
     }
 },
 
     // --- LÓGICA DE CONTROL Y SINCRONIZACIÓN ---
-
 sincronizar() {
-    // 1. FILTRO DE INTEGRIDAD (Mantiene el archivo ligero)
-    this.productos = this.productos.filter(p => p && p.nombre && p.id);
+    // 1. FILTRO DE INTEGRIDAD: Eliminamos basura y duplicados accidentales
+    this.productos = this.productos.filter((p, index, self) => 
+        p && p.nombre && p.id && self.findIndex(t => t.id === p.id) === index
+    );
 
-    // 🚀 OPCIONAL: Ordenar antes de guardar para que persista el orden de importancia
+    // 🚀 ORDENAMIENTO: Mantenemos los productos en alerta arriba
     this.productos.sort((a, b) => {
         const minA = a.stockMinimo || (a.unidad === 'Kg' ? 1.5 : 3);
         const minB = b.stockMinimo || (b.unidad === 'Kg' ? 1.5 : 3);
-        const alertaA = a.cantidad <= minA ? 1 : 0;
-        const alertaB = b.cantidad <= minB ? 1 : 0;
-        return alertaB - alertaA;
+        return (a.cantidad <= minA ? -1 : 1) - (b.cantidad <= minB ? -1 : 1);
     });
 
-    // 2. GUARDADO EN DISCO
-    try {
-        Persistencia.guardar('dom_inventario', this.productos);
-    } catch (error) {
-        console.error("Error al persistir:", error);
-        notificar("❌ Error de memoria en el dispositivo", "error");
-        return;
+    // 2. GUARDADO EN DISCO (Delegamos el try/catch a Persistencia que ya lo tiene)
+    Persistencia.guardar('dom_inventario', this.productos);
+
+    // 3. ACTUALIZACIÓN DINÁMICA
+    if (typeof this.actualizarDatalist === 'function') {
+        this.actualizarDatalist(); // 🚀 Importante: para que el buscador de ventas se actualice
     }
 
-    // 3. ACTUALIZACIÓN DE VISTA
     if (typeof Interfaz !== 'undefined' && Interfaz.renderInventario) {
         Interfaz.renderInventario();
     }
 },
 
 buscarPorCodigo: function(codigo) {
-    if (!codigo) return null;
+    // 1. Validación de entrada: Si el escáner mandó algo vacío, salimos rápido
+    if (codigo === undefined || codigo === null || codigo === "") return null;
     
-    // Convertimos a string y quitamos espacios o caracteres de control
+    // 2. Normalización: Aseguramos que sea texto y sin espacios laterales
     const codLimpio = String(codigo).trim();
 
-    // Verificamos si la lista de productos existe y no está vacía
+    // 3. Verificación de Integridad: ¿Hay productos cargados?
     if (!this.productos || this.productos.length === 0) {
-        console.warn("DOMINUS: La lista de productos está vacía o no cargada.");
+        console.warn("DOMINUS: Intento de búsqueda en inventario vacío o no inicializado.");
         return null;
     }
 
+    // 4. Búsqueda con Protección: 
+    // Usamos prod.codigo?. para que si un producto no tiene código, simplemente pase al siguiente
     return this.productos.find(prod => {
-        // Comparamos asegurando que ambos sean strings limpios
+        if (!prod.codigo) return false;
         return String(prod.codigo).trim() === codLimpio;
     });
 },
 
- descontar(nombre, cant, tallaElegida = null) {
+descontar(nombre, cantARestar, tallaElegida = null) {
     if (!this.activo) return true; 
 
-    // 🚀 MEJORA 1: Limpiamos el nombre (Tallas o prefijos)
     const nombreLimpio = nombre.split('(')[0].trim().replace("PUNTO: ", "");
-    
-    const cantidadARestar = parseFloat(cant) || 0; 
-    
-    // 🚀 MEJORA 2: Buscar con el nombre limpio
     const p = this.productos.find(prod => prod.nombre.toLowerCase() === nombreLimpio.toLowerCase());
     
-    if (p) {
-        // Lógica de Tallas
-        if (p.tallas && tallaElegida) {
-            if (p.tallas[tallaElegida] !== undefined) {
-                if (parseFloat(p.tallas[tallaElegida]) < cantidadARestar) {
-                    notificar(`⚠️ Stock insuficiente en ${tallaElegida}`, "error");
-                    return false;
-                }
-                p.tallas[tallaElegida] = parseFloat(p.tallas[tallaElegida]) - cantidadARestar;
-            }
-        }
-        
-        // 🚀 MEJORA 3: Recalcular STOCK TOTAL
-        if (p.tallas && Object.keys(p.tallas).length > 0) {
-            let totalTallas = 0;
-            for (let talla in p.tallas) {
-                totalTallas += parseFloat(p.tallas[talla]) || 0;
-            }
-            p.cantidad = totalTallas; 
-        } else {
-            if (parseFloat(p.cantidad) < cantidadARestar) {
-                notificar(`⚠️ Stock insuficiente de "${p.nombre}"`, "error");
-                return false; 
-            }
-            p.cantidad = parseFloat(p.cantidad) - cantidadARestar;
-        }
-        
-        // Redondeo de precisión según unidad
-        if (p.unidad === 'Kg' || p.unidad === 'Lts') {
-            p.cantidad = parseFloat(p.cantidad.toFixed(3));
-        } else {
-            p.cantidad = Math.round(p.cantidad); 
-        }
-        
-        // Persistencia
-        this.sincronizar();
+    if (!p) return true;
 
-        // 🚀 EL TOQUE MAESTRO: Llamada al Centinela
-        // Se ejecuta después de sincronizar para que la alerta refleje la realidad en disco
-        this.chequearSaludStock(p);
-        
-        return true; 
+    // 🛡️ BLINDAJE: Si tiene tallas, restamos de la talla y recalculamos el total
+    if (p.tallas && Object.keys(p.tallas).length > 0) {
+        if (tallaElegida && p.tallas[tallaElegida] !== undefined) {
+            const stockTallaAnterior = parseFloat(p.tallas[tallaElegida]) || 0;
+            
+            // Restamos la cantidad que ya viene procesada (sea peso o unidad)
+            p.tallas[tallaElegida] = Number((stockTallaAnterior - cantARestar).toFixed(3));
+            
+            // 🔄 RECALCULO TOTAL: El global es la suma de sus partes
+            p.cantidad = Object.values(p.tallas).reduce((acc, val) => acc + (parseFloat(val) || 0), 0);
+        }
+    } else {
+        // Si no tiene tallas, resta directa al global
+        const stockGlobalAnterior = parseFloat(p.cantidad) || 0;
+        p.cantidad = stockGlobalAnterior - cantARestar;
     }
-    // Si no existe en inventario, DOMINUS asume que es un producto genérico y permite la venta
+
+    // Redondeo final según unidad
+    if (p.unidad === 'Kg' || p.unidad === 'Lts') {
+        p.cantidad = Number(parseFloat(p.cantidad).toFixed(3));
+    } else {
+        p.cantidad = Number(parseFloat(p.cantidad).toFixed(2)); 
+    }
+
+    // 💾 Persistencia de datos
+    this.sincronizar();
+
+    // 🚀 INYECCIÓN CENTINELA:
+    // Al descontar, avisamos al sistema para que actualice las burbujas de notificación del menú
+    if (typeof Notificaciones !== 'undefined') {
+        Notificaciones.revisarTodo();
+    }
+
     return true; 
 },
     // --- CEREBRO DE AUTO-APRENDIZAJE (PUNTO #5) ---
     
-    aprenderDeVenta(nombre, precio) {
-        if (!nombre || nombre.trim() === "") return;
-        
-        let dic = Persistencia.cargar('dom_diccionario_ventas') || [];
-        const nombreLimpio = nombre.trim();
-        const index = dic.findIndex(d => d.nombre.toLowerCase() === nombreLimpio.toLowerCase());
+  aprenderDeVenta(nombre, precio) {
+    // 1. Filtro de Entrada: Ignoramos nombres vacíos o muy cortos
+    if (!nombre || nombre.trim().length < 2) return;
+    
+    // 2. Carga y Limpieza
+    let dic = Persistencia.cargar('dom_diccionario_ventas') || [];
+    const nombreLimpio = nombre.trim();
+    const precioDecimal = parseFloat(precio) || 0;
+    
+    // Buscamos si ya lo conocemos (ignorando mayúsculas/minúsculas)
+    const index = dic.findIndex(d => d.nombre.toLowerCase() === nombreLimpio.toLowerCase());
 
-        // ✅ CORRECCIÓN: Asegurar que el precio sea un float decimal
-        const precioDecimal = parseFloat(precio) || 0;
-
-        if (index !== -1) {
+    if (index !== -1) {
+        // 🚀 Si el precio cambió, lo actualizamos en memoria
+        if (dic[index].price !== precioDecimal) {
             dic[index].precio = precioDecimal;
-        } else {
-            dic.push({ nombre: nombreLimpio, precio: precioDecimal });
-            console.log(`🧠 DOMINUS aprendió un nuevo producto: ${nombreLimpio}`);
         }
+        // Opcional: Podrías actualizar el nombre para respetar las mayúsculas actuales
+        dic[index].nombre = nombreLimpio; 
+    } else {
+        // 🚀 Nuevo aprendizaje
+        dic.push({ 
+            nombre: nombreLimpio, 
+            precio: precioDecimal,
+            fecha: new Date().getTime() // Para saber qué tan viejo es el dato
+        });
+        
+        // 🛡️ PROTECCIÓN DE MEMORIA: 
+        // Si el diccionario supera los 300 productos, borramos el más viejo
+        // para que el teléfono de tu papá siempre vuele.
+        if (dic.length > 300) {
+            dic.shift(); 
+        }
+        
+        console.log(`🧠 DOMINUS: Nuevo conocimiento adquirido -> ${nombreLimpio}`);
+    }
 
-        Persistencia.guardar('dom_diccionario_ventas', dic);
+    // 3. Persistencia y Actualización de Interfaz
+    Persistencia.guardar('dom_diccionario_ventas', dic);
+    
+    if (typeof this.actualizarDatalist === 'function') {
         this.actualizarDatalist();
-    },
+    }
+},
 
-    buscarPrecioMemoria(nombre) {
-        let dic = Persistencia.cargar('dom_diccionario_ventas') || [];
-        const p = dic.find(d => d.nombre.toLowerCase() === nombre.trim().toLowerCase());
-        return p ? p.precio : null;
-    },
+  buscarPrecioMemoria(nombre) {
+    // 1. Validación de entrada: Si no hay nombre válido, no buscamos nada
+    if (!nombre || typeof nombre !== 'string') return null;
 
-  actualizarDatalist() {
-    // 1. Buscamos el datalist usando el ID real de tu HTML
+    // 2. Carga segura del diccionario
+    const dic = Persistencia.cargar('dom_diccionario_ventas') || [];
+    if (dic.length === 0) return null;
+
+    // 3. Búsqueda con normalización total
+    // Limpiamos una sola vez antes del bucle para ahorrar procesador
+    const nombreBusqueda = nombre.trim().toLowerCase();
+    
+    const p = dic.find(d => {
+        // Verificamos que el elemento tenga nombre antes de comparar (blindaje)
+        return d.nombre && d.nombre.trim().toLowerCase() === nombreBusqueda;
+    });
+
+    // 4. Retorno limpio
+    // Si lo encuentra, asegura que el precio sea un número; si no, null.
+    return p ? (parseFloat(p.precio) || 0) : null;
+},
+
+ actualizarDatalist() {
     const dl = document.getElementById('sugerencias-ventas'); 
     if (!dl) return;
 
-    const dic = Persistencia.cargar('dom_diccionario_ventas') || [];
+    // Usamos el inventario real para que las sugerencias sean siempre de lo que HAY en stock
+    const dic = this.productos; 
     
-    // 2. Limpiamos y llenamos
-    dl.innerHTML = '';
-    dic.forEach(prod => {
-        const opt = document.createElement('option');
-        opt.value = prod.nombre;
-        // Opcional: mostrar el precio sugerido en el label
-        opt.label = `Sugerido: ${prod.precio}$`; 
-        dl.appendChild(opt);
-        });
-    }
+    // Construimos todo el HTML en memoria primero
+    const html = dic.map(prod => 
+        `<option value="${prod.nombre}" label="Sugerido: ${prod.precio}$"></option>`
+    ).join('');
+    
+    dl.innerHTML = html; // Una sola operación de escritura al DOM (Mucho más rápido)
+}
 };

@@ -160,12 +160,21 @@ solicitarPIN() {
     // 4. FUNCIÓN PARA AJUSTES
 async prepararCambioPIN() {
     // 1. Validar PIN Actual
+    // Aquí el sistema verifica que el usuario conoce la clave que quiere cambiar
     const validado = await this.solicitarPINPersonalizado("🔒 Ingrese PIN ACTUAL", 4);
-    if (!validado) return; // Si cancela, no hace nada
+    if (!validado) return; // Si cancela o el PIN es incorrecto (dentro de la función), se detiene
 
     // 2. Pedir Nuevo PIN
+    // Pasamos 'true' para que nos devuelva el valor escrito y no solo un booleano
     const nuevoPin = await this.solicitarPINPersonalizado("✨ Ingrese NUEVO PIN", 4, true);
     if (!nuevoPin) return;
+
+    // 🛡️ Validación Extra: Evitar que el PIN nuevo sea igual al viejo
+    if (nuevoPin === this.getClave()) {
+        notificar("El PIN nuevo no puede ser igual al actual", "error");
+        this.vibrar([100, 50, 100]);
+        return;
+    }
 
     // 3. Confirmar Nuevo PIN
     const confirmacion = await this.solicitarPINPersonalizado("✅ Confirme NUEVO PIN", 4, true);
@@ -173,14 +182,15 @@ async prepararCambioPIN() {
 
     // --- LÓGICA DE VALIDACIÓN FINAL ---
     if (nuevoPin === confirmacion) {
+        // Guardamos en persistencia
         this.setClave(nuevoPin);
         
-        // Notificación de Éxito
+        // Notificación de Éxito usando tu sistema de notificar
         notificar("PIN actualizado con éxito", "exito");
         
-        // Feedback táctil y auditivo (Opcional)
+        // Feedback físico
         this.vibrar(100); 
-        console.log("🔐 PIN de DOMINUS actualizado.");
+        console.log("🔐 PIN de DOMINUS actualizado correctamente.");
     } else {
         // Notificación de Error
         notificar("Los PIN no coinciden", "error");
@@ -188,16 +198,18 @@ async prepararCambioPIN() {
         // Feedback de error (Vibración de rechazo)
         this.vibrar([100, 50, 100, 50, 100]);
         
-        // Reintentar automáticamente para que el flujo sea fluido
-        setTimeout(() => this.prepararCambioPIN(), 2000);
+        // Reintentar automáticamente para que el flujo sea fluido (con un tiempo prudente)
+        setTimeout(() => {
+            this.prepararCambioPIN();
+        }, 1500);
     }
 },
 
 // Una versión genérica de tu solicitarPIN para reusar en cambios de clave
 solicitarPINPersonalizado(titulo, largo = 4, devolverValor = false) {
     return new Promise((resolve) => {
-        // Usamos la utilidad crearOverlay para asegurar el desenfoque y centrado
-        const overlay = this.crearOverlay('overlay-pin-personalizado');
+        // ✅ CORRECCIÓN: Usamos Usuario.crearOverlay porque Seguridad no tiene ese método
+        const overlay = Usuario.crearOverlay('overlay-pin-personalizado');
 
         overlay.innerHTML = `
             <div class="glass" style="width: 85%; max-width: 350px; padding: 30px; border-radius: 20px; text-align: center;">
@@ -235,20 +247,29 @@ solicitarPINPersonalizado(titulo, largo = 4, devolverValor = false) {
         
         input.focus();
 
+        // 🛡️ Manejo de cierre seguro
         btnCancel.onclick = () => {
             overlay.remove();
             resolve(null);
         };
 
-        // Efecto hover para el botón de cancelar
-        btnCancel.onmouseover = () => { btnCancel.style.background = "rgba(255,255,255,0.1)"; btnCancel.style.color = "#fff"; };
-        btnCancel.onmouseout = () => { btnCancel.style.background = "rgba(255,255,255,0.05)"; btnCancel.style.color = "#bbb"; };
+        // UX: Efectos visuales del botón
+        btnCancel.onmouseover = () => { 
+            btnCancel.style.background = "rgba(255,255,255,0.1)"; 
+            btnCancel.style.color = "#fff"; 
+        };
+        btnCancel.onmouseout = () => { 
+            btnCancel.style.background = "rgba(255,255,255,0.05)"; 
+            btnCancel.style.color = "#bbb"; 
+        };
 
+        // 🚀 Lógica de validación en tiempo real
         input.oninput = () => {
             if (input.value.length === largo) {
                 const valorCapturado = input.value;
                 
                 if (!devolverValor) {
+                    // Modo validación: Compara con el PIN guardado
                     if (valorCapturado === this.getClave()) {
                         overlay.remove();
                         resolve(true);
@@ -256,14 +277,15 @@ solicitarPINPersonalizado(titulo, largo = 4, devolverValor = false) {
                         this.vibrar([100, 50, 100, 50, 100]);
                         input.value = "";
                         errorDiv.innerText = "PIN INCORRECTO";
-                        setTimeout(() => errorDiv.innerText = "", 1500);
+                        setTimeout(() => { if(errorDiv) errorDiv.innerText = ""; }, 1500);
                     }
                 } else {
+                    // Modo captura: Devuelve lo que el usuario escribió (para PIN nuevo)
                     overlay.remove();
                     resolve(valorCapturado);
                 }
             }
         };
     });
-    }
+}
 };

@@ -211,9 +211,14 @@ select option {
     background: rgba(10, 10, 10, 0.95); 
     backdrop-filter: blur(10px);
     border-top: 1px solid rgba(255, 215, 0, 0.2);
+    display: none; /* 🚩 CAMBIO 1: El menú nace oculto */
+    opacity: 0;    /* Para poder hacerle un efecto de aparecer suave */
+    transition: opacity 0.5s ease;
 }
 
+
 .bottom-nav button {
+    position: relative;
     background: none; 
     border: none; 
     color: #666; 
@@ -226,6 +231,11 @@ select option {
     gap: 6px;
     transition: all 0.3s ease;
     flex: 1;
+}
+
+.bottom-nav.nav-visible {
+    display: flex; /* Se activa como flex para respetar tu justify-content */
+    opacity: 1;
 }
 
 .bottom-nav button.active {
@@ -241,6 +251,58 @@ select option {
     padding-top: 10px; 
     width: 100%;
     box-sizing: border-box;
+}
+
+.badge-notif {
+    position: absolute;
+    top: 2px;
+    right: 15%; /* Ajustado para que quede cerca del icono/emoji */
+    background: #ff4444;
+    color: white;
+    font-size: 0.65rem;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    border: 2px solid #0a0a0a; /* Para que resalte sobre el fondo oscuro */
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+    pointer-events: none; /* Que no interfiera con el click del botón */
+    display: none; /* Oculta por defecto */
+}
+
+.badge-notif.active {
+    display: flex;
+    animation: pulse-notif 2s infinite;
+}
+
+@keyframes pulse-notif {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.card-tip {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(0, 0, 0, 0.5));
+    border: 1px solid var(--primary);
+    padding: 15px;
+    border-radius: 15px;
+    margin: 15px 0;
+    border-left: 5px solid var(--primary);
+}
+
+.card-tip h4 {
+    margin: 5px 0;
+    color: var(--primary);
+    font-size: 1.1rem;
+}
+
+.card-tip p {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    line-height: 1.4;
 }
 
 .card { 
@@ -401,18 +463,17 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     position: fixed;
     top: 0; 
     left: 0; 
-    width: 100vw; /* 🛡️ Cambio: vw asegura el ancho total del viewport */
-    height: 100vh; /* 🛡️ Cambio: vh asegura el alto total del viewport */
-    background: #0f0f0f;
+    width: 100vw; 
+    height: 100vh; 
+    background: #0f0f0f; /* Fondo sólido del splash */
     display: flex; 
     flex-direction: column;
     justify-content: center; 
     align-items: center;
-    z-index: 9999;
-    transition: opacity 0.5s ease;
+    z-index: 999; /* Por debajo del overlay de seguridad */
     text-align: center;
     padding: 20px;
-    box-sizing: border-box; /* 🛡️ Seguridad: Evita que el padding sume ancho */
+    box-sizing: border-box;
 }
 
 .splash-fade-out {
@@ -441,37 +502,6 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-.toast-exito {
-    position: fixed;
-    top: 25px; 
-    left: 50%;
-    /* 🛡️ Cambio: translateX(-50%) centra perfectamente ignorando el ancho del toast */
-    transform: translateX(-50%) translateY(-100px); 
-    background: var(--primary); 
-    color: #000 !important; 
-    padding: 14px 28px;
-    border-radius: 50px; 
-    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-    z-index: 10001;
-    font-weight: 800;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
-    white-space: nowrap;
-    max-width: 90%; /* 🛡️ Seguridad: Evita que en pantallas chicas se salga */
-}
-
-.toast-exito.show {
-    /* 🛡️ Cambio: Mantenemos el translateX para que siga centrado */
-    transform: translateX(-50%) translateY(0);
-}
-
-@keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
 
 .modal-tallas {
     position: fixed;
@@ -576,10 +606,41 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 }
 
 /* --- TOASTS --- */
+
+/* Clase BASE para todos los Toasts superiores */
+.toast-general {
+    position: fixed;
+    top: 25px; 
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px); /* Empieza fuera de pantalla (arriba) */
+    padding: 14px 28px;
+    border-radius: 50px; 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    z-index: 10001;
+    font-weight: 800;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+    max-width: 90%;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+    opacity: 0;
+}
+
+/* Estado ACTIVO */
+.toast-general.show {
+    transform: translateX(-50%) translateY(0); /* Cae al centro superior */
+    opacity: 1;
+}
+
+/* Variaciones de Color (Solo fondo y texto) */
+.toast-exito { background: var(--primary); color: #000 !important; }
 .toast-gasto { background: #ff5252 !important; color: white !important; }
 .toast-stock { background: #2196f3 !important; color: white !important; }
-.toast-fiao { background: #ff9800 !important; color: white !important; }
+.toast-fiao  { background: #ff9800 !important; color: white !important; }
 .toast-error { background: #b71c1c !important; color: white !important; }
+.toast-alerta { background: #ffd700 !important; color: #000 !important; } /* Para stock crítico */
 
 .eleccion-content {
     background: #1a1a1a;
@@ -638,27 +699,6 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 .btn-pdf { background: #f44336 !important; color: white !important; font-weight: 800; padding: 15px; border-radius: 12px; border: none; }
 .btn-no { background: #333 !important; color: #fff !important; padding: 12px; border-radius: 12px; border: none; }
 
-.toast-dominus {
-    position: fixed;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(10px);
-    color: var(--primary);
-    padding: 12px 25px;
-    border-radius: 25px;
-    border: 1px solid var(--primary);
-    z-index: 10000;
-    font-weight: bold;
-    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
-    animation: fadeInUp 0.3s ease, fadeOut 0.3s ease 2.7s;
-}
-
-@keyframes fadeInUp {
-    from { opacity: 0; bottom: 50px; }
-    to { opacity: 1; bottom: 80px; }
-}
 
 /* --- ESTILOS PARA LA TARJETA DE FIAO --- */
 .card-fiao {
@@ -923,16 +963,67 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
 /* 1. Aseguramos que el contenedor sea una "caja negra" absoluta */
 /* Esto asegura que el contenedor sea visible */
 /* Limpieza absoluta */
+/* En lugar de ocultar todo, ponemos la cámara POR ENCIMA de todo */
 #contenedor-camara {
-    background: black !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: black;
+    z-index: 9999; /* El número más alto para que tape todo */
+    display: none; /* Se activa por JS */
 }
 
-#lector-en-vivo video {
-    background: black !important;
-    outline: 2px solid lime !important; /* Si ves una línea verde, el video está ahí */
+#reader-ventas, #reader {
+    width: 100% !important;
+    height: 100% !important;
 }
 
-/* Forzar que nada del fondo interfiera */
-body.camara-activa > *:not(#contenedor-camara) {
-    display: none !important;
+/* Para que el video llene la pantalla sin deformarse */
+#contenedor-camara video {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+}
+
+.btn-borrar-item:hover {
+    color: #ff4757 !important;
+    transform: scale(1.2);
+    transition: all 0.2s;
+}
+
+/* Estilos del Semáforo de Mora */
+.fiao-verde { border-left: 5px solid #4caf50 !important; }
+.fiao-amarillo { border-left: 5px solid #ffeb3b !important; }
+.fiao-rojo { border-left: 5px solid #f44336 !important; animation: pulse-red 2s infinite; }
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+}
+
+.mora-tag {
+    font-size: 0.75em;
+    color: #bbb;
+    background: rgba(255,255,255,0.1);
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+    margin-top: 4px;
+}
+
+.badge-stock-warning {
+    display: block;
+    font-size: 0.75em;
+    color: #ff4444; /* Rojo vibrante */
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-top: 2px;
+    animation: blinker 1.5s linear infinite;
+}
+
+@keyframes blinker {
+    50% { opacity: 0.4; }
 }

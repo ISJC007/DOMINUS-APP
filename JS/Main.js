@@ -5,40 +5,153 @@ const rangosTallas = { //aqui se definen que numeros pertenecen a cada categoria
     'caballero': [40,41,42,43,44,45]
 };
 
-function AbrirGestorTallas() { //Abre el modal para desglosar productos por número-modifica el display del ID #modal-gestor-tallas 
+window.PERFIL_DOMINUS = (() => {
+    try {
+        const ram = navigator.deviceMemory || 4; 
+        const cpu = navigator.hardwareConcurrency || 4;
+        const conexion = navigator.connection ? navigator.connection.effectiveType : '4g';
+
+        if (ram < 2 || cpu <= 2 || conexion.includes('2g') || conexion.includes('3g')) {
+            return "BAJO";
+        } else if (ram >= 4 && cpu >= 6) {
+            return "ALTO";
+        }
+        return "MEDIO";
+    } catch (e) {
+        console.warn("DOMINUS: Fallo en detección de hardware, usando modo seguro (MEDIO).");
+        return "MEDIO"; // EL SALTO DE EMERGENCIA
+    }
+})();
+
+const DOMINUS = { //herramienta de diagnostico-revisa si los archivos cargaron bien
+    debug() {
+        console.group("🔍 Auditoría de Salud Dominus");
+        const modulos = {
+            "Persistencia": typeof Persistencia !== 'undefined',
+            "Ventas": typeof Ventas !== 'undefined',
+            "Interfaz": typeof Interfaz !== 'undefined',
+            "Controlador": typeof Controlador !== 'undefined',
+            "Inventario": typeof Inventario !== 'undefined'
+        };
+        console.table(modulos);
+        console.groupEnd();
+    },
+    
+resetTotal() {
+    // Usamos tu nueva función de confirmación estilizada
+    Interfaz.confirmarAccion(
+        "⚠️ ¡ZONA DE PELIGRO!", // Título
+        "¿Estás absolutamente seguro de borrar TODO? Se eliminarán ventas, gastos, fiaos e inventario de forma permanente.", // Mensaje
+        () => { 
+            // Acción si confirma
+            localStorage.clear();
+            notificar("Aplicación reiniciada por completo", "error");
+            setTimeout(() => location.reload(), 1500); 
+        },
+        () => {
+            // Acción si cancela (opcional)
+            console.log("Reinicio abortado por el usuario.");
+        },
+        "BORRAR TODO", // Texto botón confirmar
+        "CANCELAR",    // Texto botón cancelar
+        true           // esPeligroso = true (Esto pone el modal en modo rojo/alerta)
+    );
+    }
+};
+
+
+
+
+
+window.DOMINUS = DOMINUS;
+
+const notificar = (msj, tipo = 'exito') => {
+    // 1. Lógica de Audio Centralizada 🔊
+    if (typeof DominusAudio !== 'undefined') {
+        switch (tipo) {
+            case 'error':
+            case 'alerta':
+                DominusAudio.play('error');
+                break;
+            case 'stock':
+                // Mantenemos el silencio de stock para no aturdir
+                console.warn("DOMINUS (Silencio de Stock):", msj);
+                break;
+            default:
+                DominusAudio.play('add');
+                break;
+        }
+    }
+
+    // 2. Gestión de la interfaz (Toast Superior)
+    // 🛡️ BLINDAJE: Buscamos cualquier toast existente para que no se amontonen arriba
+    const toastActivo = document.querySelector('.toast-general');
+    if (toastActivo) toastActivo.remove();
+
+    const toast = document.createElement('div');
+    // Aplicamos la base para posición y la específica para color
+    toast.className = `toast-general toast-${tipo}`; 
+    
+    const iconos = {
+        exito: '✨',
+        gasto: '📉',
+        stock: '📦',
+        fiao: '🤝',
+        error: '❌',
+        alerta: '⚠️'
+    };
+
+    toast.innerHTML = `<span>${iconos[tipo] || '✅'}</span> ${msj}`;
+    
+    document.body.appendChild(toast);
+    
+    // Ejecutamos la animación de entrada
+    setTimeout(() => toast.classList.add('show'), 10);
+    
+    // ⏳ TIEMPO DE VIDA: 3 segundos es el estándar ideal para leer sin estorbar
+    setTimeout(() => {
+        toast.classList.remove('show');
+        // Esperamos a que termine la animación de subida para borrarlo del DOM
+        setTimeout(() => toast.remove(), 400);
+    }, 3000); 
+};
+
+
+function AbrirGestorTallas() {
     const contenedor = document.getElementById('contenedor-filas-tallas');
-    const unidadPrincipal = document.getElementById('inv-unidad').value;
+    const unidadPrincipal = document.getElementById('inv-unidad')?.value || 'Und';
     if(!contenedor) return;
+
+    // 🛡️ BLINDAJE: Si vamos a desglosar, aseguramos que tallasTemporales 
+    // refleje lo que ya tiene el input de cantidad o lo que ya estaba guardado.
+    // Si quieres empezar de cero, usa: window.tallasTemporales = {};
+    if (typeof tallasTemporales === 'undefined') window.tallasTemporales = {};
     
     contenedor.innerHTML = `
-        <div id="selector-categoria-tallas" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:15px;">
-            <button onclick="GenerarInputsDinamicos('Tallas')" class="btn-mini" style="background:#333; color:white; padding:10px; border-radius:5px;">👟 Calzado</button>
-            <button onclick="GenerarInputsDinamicos('ropa')" class="btn-mini" style="background:#333; color:white; padding:10px; border-radius:5px;">👕 Ropa</button>
-            <button onclick="GenerarInputsDinamicos('peso')" class="btn-mini" style="background:#333; color:white; padding:10px; border-radius:5px;">⚖️ Peso</button>
-            <button onclick="GenerarInputsDinamicos('liquido')" class="btn-mini" style="background:#333; color:white; padding:10px; border-radius:5px;">💧 Líquidos</button>
-            <button onclick="GenerarInputsDinamicos('pacas')" class="btn-mini" style="background:#333; color:white; padding:10px; border-radius:5px;">📦 Pacas</button>
+        <div id="selector-categoria-tallas" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:15px;">
+            <button onclick="GenerarInputsDinamicos('calzado')" class="btn-mini" style="background:rgba(255,255,255,0.1); color:white; padding:10px; border-radius:5px; border:1px solid #444;">👟 Calzado</button>
+            <button onclick="GenerarInputsDinamicos('ropa')" class="btn-mini" style="background:rgba(255,255,255,0.1); color:white; padding:10px; border-radius:5px; border:1px solid #444;">👕 Ropa</button>
+            <button onclick="GenerarInputsDinamicos('peso')" class="btn-mini" style="background:rgba(255,255,255,0.1); color:white; padding:10px; border-radius:5px; border:1px solid #444;">⚖️ Peso</button>
+            <button onclick="GenerarInputsDinamicos('pacas')" class="btn-mini" style="background:rgba(255,255,255,0.1); color:white; padding:10px; border-radius:5px; border:1px solid #444;">📦 Pacas</button>
         </div>
 
         <div id="bloque-filtro-contenedor" style="margin-bottom: 15px; display:none;">
             <select id="inv-bloque-rango" class="glass" 
                     style="width:100%; padding:10px; border:1px solid var(--primary); background:#111; color:white; border-radius:8px;"
                     onchange="Interfaz.filtrarTallasPorBloque(this.value)">
-                <option value="todos">-- Mostrar Todas las Tallas --</option>
+                <option value="todos">-- Todas las Tallas --</option>
                 <option value="ninos-peq">Niños (18-25)</option>
                 <option value="ninos-gra">Niños Grandes (26-32)</option>
-                <option value="juvenil">Juvenil/Damas (33-39)</option>
-                <option value="caballero">Caballeros (40-45)</option>
+                <option value="juvenil">Juvenil (33-39)</option>
+                <option value="caballero">Caballero (40-45)</option>
             </select>
         </div>
-
-        <div id="lista-tallas-dinamica" style="max-height: 350px; overflow-y: auto; padding: 5px;"></div>
+        <div id="lista-tallas-dinamica" style="max-height: 350px; overflow-y: auto; padding: 5px; border-radius:10px; background:rgba(0,0,0,0.2);"></div>
     `;
     
-    if(unidadPrincipal === 'Kg') GenerarInputsDinamicos('peso');
-    else if(unidadPrincipal === 'Lts') GenerarInputsDinamicos('liquido');
-    else if(unidadPrincipal === 'Talla') GenerarInputsDinamicos('calzado');
-    else if(unidadPrincipal === 'Paca') GenerarInputsDinamicos('pacas');
-    else GenerarInputsDinamicos('calzado');
+    // Auto-detección por unidad
+    const mapaUnidades = { 'Kg': 'peso', 'Lts': 'liquido', 'Talla': 'calzado', 'Paca': 'pacas' };
+    GenerarInputsDinamicos(mapaUnidades[unidadPrincipal] || 'calzado');
 
     document.getElementById('modal-gestor-tallas').style.display = 'flex';
 }
@@ -121,95 +234,139 @@ function actualizarStockEnVenta(nombreProducto) {
     }
 }
 
-function CerrarGestorTallas() { //confirma las tallas para cerrar el modal-//Cierra el modal para desglosar productos por número-modifica el display del ID #modal-gestor-tallas 
+function CerrarGestorTallas() {
     const nombreManualInput = document.getElementById('manual-nombre-din');
-    const valorManual = nombreManualInput ? nombreManualInput.value : '';
+    const cantidadManualInput = document.getElementById(`input-dinamico-Manual`);
     
-    if (valorManual && tallasTemporales['Manual'] > 0) {
+    const valorNombre = nombreManualInput?.value.trim();
+    const cantManual = parseFloat(cantidadManualInput?.value) || 0;
+    
+    // 🛡️ Lógica de guardado manual blindada
+    if (valorNombre && cantManual > 0) {
         const unidad = document.getElementById('inv-unidad').value;
         const sufijo = (unidad === 'Kg') ? 'g' : (unidad === 'Lts' ? 'ml' : '');
         
-        tallasTemporales[valorManual + sufijo] = tallasTemporales['Manual'];
+        // Evitamos guardar con la key 'Manual', usamos el nombre real
+        tallasTemporales[valorNombre + sufijo] = cantManual;
         delete tallasTemporales['Manual']; 
     }
 
+    // 🛡️ Limpieza de basura: eliminamos lo que tenga stock 0
     Object.keys(tallasTemporales).forEach(key => {
-        if (tallasTemporales[key] === 0) delete tallasTemporales[key];
+        if (tallasTemporales[key] <= 0 || key === 'Manual') delete tallasTemporales[key];
     });
 
+    // 🚀 Sincronización con el formulario principal
     const total = Object.values(tallasTemporales).reduce((a, b) => a + b, 0);
     const inputCant = document.getElementById('inv-cant');
-    if(inputCant) inputCant.value = total;
-
-    document.getElementById('modal-gestor-tallas').style.display = 'none';
-    if(total > 0) notificar(`✅ ${total} unidades desglosadas`);
-}
-
-const notificar = (msj, tipo = 'exito') => {
-    // 1. Lógica de Audio Centralizada 🔊
-    if (typeof DominusAudio !== 'undefined') {
-        switch (tipo) {
-            case 'error':
-            case 'alerta':
-                DominusAudio.play('error');
-                break;
-            case 'stock':
-                // 🤫 SILENCIO: Se elimina la llamada a DominusAudio.play('stockBajo');
-                // Solo registramos en consola para que no grite.
-                console.warn("DOMINUS (Silencio de Stock):", msj);
-                break;
-            case 'gasto':
-                DominusAudio.play('add'); 
-                break;
-            case 'fiao':
-                DominusAudio.play('add');
-                break;
-            default:
-                DominusAudio.play('add');
-                break;
-        }
+    
+    if(inputCant) {
+        // Si es peso, mantenemos decimales; si es unidad, redondeamos
+        const unidad = document.getElementById('inv-unidad').value;
+        inputCant.value = (unidad === 'Kg' || unidad === 'Lts') ? total.toFixed(3) : total;
     }
 
-    // 2. Gestión de la interfaz (Toast)
-    // El visual lo dejamos para que sepas que pasó, pero no hará ruido.
-    const viejo = document.querySelector(`.toast-${tipo}`);
-    if(viejo) viejo.remove();
+    document.getElementById('modal-gestor-tallas').style.display = 'none';
+    if(total > 0) notificar(`✅ ${total} desglosados correctamente`);
+}
 
-    const toast = document.createElement('div');
-    toast.className = `toast-general toast-${tipo}`; 
-    
-    const iconos = {
-        exito: '✨',
-        gasto: '📉',
-        stock: '📦',
-        fiao: '🤝',
-        error: '❌',
-        alerta: '⚠️'
-    };
 
-    toast.innerHTML = `<span>${iconos[tipo] || '✅'}</span> ${msj}`;
+
+// Detección de potencia del teléfono
+
+
+
+
+
+// Vinculamos el inicio al cargar el DOM
+
+
+function efectoEscritura(elemento, texto, velocidad = 50) {
+    return new Promise((resolve) => {
+        let i = 0;
+        elemento.innerText = ""; // Limpiamos el "Preparando ecosistema..." por defecto
+        
+        function escribir() {
+            if (i < texto.length) {
+                elemento.innerHTML += texto.charAt(i);
+                i++;
+                setTimeout(escribir, velocidad);
+            } else {
+                resolve(); // Notifica que terminó de escribir
+            }
+        }
+        escribir();
+    });
+}
+
+async function iniciarCargaSistemas() {
+    console.log("⚙️ DOMINUS: Acceso verificado. Sincronizando entorno...");
     
-    document.body.appendChild(toast);
+    // 🚩 CLAVE: El sistema se detiene aquí hasta que la última letra de la frase aparezca
+    if (window.promesaEscritura) {
+        await window.promesaEscritura;
+    }
+
+    // Al terminar la promesa de arriba, el autor ya se hace visible por el .then() de iniciarDominus
+    console.log("⏱️ Frase completa y autor en pantalla. Iniciando conteo de 5s para finalizar...");
     
-    setTimeout(() => toast.classList.add('show'), 10);
+    // 🛡️ RE-ESCANEAMIENTO DE SEGURIDAD
+    // Justo antes de entrar, forzamos una revisión final para que las burbujas 
+    // se rendericen con los datos más frescos antes de que el usuario vea el menú.
+    if (typeof Notificaciones !== 'undefined') {
+        Notificaciones.revisarTodo();
+    }
+
+    // Espera de 5 segundos de cortesía tras la animación para lectura antes de entrar
     setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 400);
-    }, 3500); 
-};
+        finalizarArranque();
+        
+        // 💡 LANZAMIENTO DEL PRIMER TIP
+        // A los 2 segundos de entrar a la app, lanzamos el primer "Sabías que" 
+        // para darle la bienvenida con conocimiento.
+        setTimeout(() => {
+            if (typeof Notificaciones !== 'undefined') {
+                Notificaciones.lanzarTipFlotante();
+            }
+        }, 2000);
 
+    }, 5000); 
+}
+
+function finalizarArranque() {
+    const splash = document.getElementById('splash-screen');
+    const nav = document.querySelector('.bottom-nav'); // 🚩 Nueva referencia
+
+    if (splash) {
+        splash.classList.add('splash-fade-out');
+        
+        setTimeout(() => {
+            splash.style.display = 'none';
+            
+            // 🚀 MOSTRAR EL MENÚ DE NAVEGACIÓN
+            if (nav) {
+                nav.classList.add('nav-visible');
+            }
+            
+            // Mostramos el dashboard
+            if (typeof Interfaz !== 'undefined') Interfaz.show('dashboard');
+            
+            // Sonido y Bienvenida
+            if (typeof DominusAudio !== 'undefined') {
+                DominusAudio.play('add'); 
+                DominusAudio.saludarSegunHora();
+            }
+            
+            notificar("Conexión establecida", "exito");
+        }, 800); 
+    }
+}
 
 async function iniciarDominus() {
     try {
         console.log("🚀 Dominus: Iniciando sistema...");
 
-        // 1. CARGA DE DATOS BASE
-        // Centralizamos los datos en el objeto global window.DOMINUS
-        window.DOMINUS.historial = Persistencia.cargar('dom_ventas') || [];
-        window.DOMINUS.deudas = Persistencia.cargar('dom_fiaos') || [];
-        window.DOMINUS.gastos = Persistencia.cargar('dom_gastos') || [];
-
-        // 2. CONFIGURACIÓN VISUAL Y MODO OSCURO
+        // A. CONFIGURACIÓN VISUAL INICIAL
         const isDark = Persistencia.cargar('dom_dark_mode');
         if (isDark) {
             document.body.classList.add('dark-mode');
@@ -217,78 +374,107 @@ async function iniciarDominus() {
             if (checkDark) checkDark.checked = true;
         }
 
-        // 3. CONFIGURACIÓN DE INVENTARIO
-        const configGuardada = localStorage.getItem('dom_config');
-        let invActivo = (configGuardada === null) ? true : JSON.parse(configGuardada).invActivo;
-        
-        if (configGuardada === null) {
-            localStorage.setItem('dom_config', JSON.stringify({ invActivo: true }));
-        }
-
-        if(typeof Inventario !== 'undefined') {
-            Inventario.activo = invActivo;
-            const checkInv = document.getElementById('check-inv-ajustes') || document.getElementById('check-inv');
-            if (checkInv) checkInv.checked = invActivo;
-        }
-
-        // 4. AUTO-LLENADO DE PRECIOS (INTELIGENCIA DE VENTAS)
-        const inputProducto = document.getElementById('v-producto');
-        if (inputProducto) {
-            inputProducto.setAttribute('list', 'sugerencias-ventas');
-            inputProducto.addEventListener('input', (e) => {
-                if (typeof Inventario !== 'undefined' && Inventario.buscarPrecioMemoria) {
-                    const precioRecordado = Inventario.buscarPrecioMemoria(e.target.value);
-                    if (precioRecordado !== null) {
-                        const inputMonto = document.getElementById('v-monto');
-                        if (inputMonto) {
-                            inputMonto.value = precioRecordado;
-                            inputMonto.style.backgroundColor = 'rgba(76, 175, 80, 0.2)'; 
-                            setTimeout(() => inputMonto.style.backgroundColor = '', 500);
-                        }
-                    }
-                }
-            });
-        }
-        
-        if(typeof Inventario !== 'undefined' && Inventario.actualizarDatalist) {
-            Inventario.actualizarDatalist();
-        }
-
-        // 5. FRASES DEL SPLASH (MOTIVACIÓN)
+        // B. FRASES Y AUTORES CON EFECTO DE ESCRITURA
         if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
-            const frase = bancoFrases[Math.floor(Math.random() * bancoFrases.length)];
+            const seleccion = bancoFrases[Math.floor(Math.random() * bancoFrases.length)];
             const txtFrase = document.getElementById('frase-splash');
-            if (txtFrase) txtFrase.innerText = `"${frase.texto}"`;
+            const txtAutor = document.getElementById('autor-splash');
+            
+            if (txtFrase) {
+                window.promesaEscritura = efectoEscritura(txtFrase, `"${seleccion.texto}"`, 40);
+
+                window.promesaEscritura.then(() => {
+                    if (txtAutor) {
+                        txtAutor.innerText = `— ${seleccion.autor || 'DOMINUS AI'}`;
+                        txtAutor.style.opacity = "0";
+                        txtAutor.style.transition = "opacity 1s";
+                        setTimeout(() => txtAutor.style.opacity = "1", 100);
+                    }
+                });
+            }
         }
 
-        // --- 6. CONTROL DE ACCESO Y FLUJO DE ENTRADA (IDENTIDAD) ---
+        // C. CONTROL DE ACCESO
         const haySesionLocal = Usuario.init(); 
 
         if (haySesionLocal) {
-            // 🚀 ACTUALIZACIÓN DE IDENTIDAD: Si hay sesión, pintamos la foto y nombre
             if (typeof Interfaz !== 'undefined' && Interfaz.actualizarAvatarHeader) {
                 Interfaz.actualizarAvatarHeader(Usuario.datos);
             }
 
-            // Usuario con sesión activa: puede entrar offline si es necesario
+            // 🔐 EL MURO: Validamos el PIN.
             const accesoConcedido = await Seguridad.iniciarProteccion();
             
             if (accesoConcedido) {
-                // Encendemos módulos secundarios
-                if (typeof DominusAudio !== 'undefined') DominusAudio.saludarSegunHora();
-                if (typeof Inventario !== 'undefined' && Inventario.init) Inventario.init();
+                console.log("🔓 Acceso concedido. Iniciando carga de datos...");
+
+                // 1. CARGA DE DATOS BASE
+                window.DOMINUS.historial = Persistencia.cargar('dom_ventas') || [];
+                window.DOMINUS.deudas = Persistencia.cargar('dom_fiaos') || [];
+                window.DOMINUS.gastos = Persistencia.cargar('dom_gastos') || [];
+
+                // 🛡️ INICIALIZAR EL CENTINELA (Notificaciones y Alertas)
+                // Se activa aquí para que ya tenga acceso a los datos cargados arriba
+                if (typeof Notificaciones !== 'undefined') {
+                    Notificaciones.init();
+                }
+
+                // 2. CONFIGURACIÓN DE INVENTARIO
+                const configGuardada = localStorage.getItem('dom_config');
+                let invActivo = (configGuardada === null) ? true : JSON.parse(configGuardada).invActivo;
                 
-                quitarSplash(); 
+                if (configGuardada === null) {
+                    localStorage.setItem('dom_config', JSON.stringify({ invActivo: true }));
+                }
+
+                if(typeof Inventario !== 'undefined') {
+                    Inventario.activo = invActivo;
+                    const checkInv = document.getElementById('check-inv-ajustes') || document.getElementById('check-inv');
+                    if (checkInv) checkInv.checked = invActivo;
+                    if (Inventario.init) Inventario.init();
+                }
+
+                // 3. PREFERENCIAS Y AUTO-LLENADO
+                if (typeof Controlador !== 'undefined' && Controlador.verificarPreferenciaPunto) {
+                    Controlador.verificarPreferenciaPunto();
+                }
+
+                const inputProducto = document.getElementById('v-producto');
+                if (inputProducto) {
+                    inputProducto.setAttribute('list', 'sugerencias-ventas');
+                    inputProducto.addEventListener('input', (e) => {
+                        if (typeof Inventario !== 'undefined' && Inventario.buscarPrecioMemoria) {
+                            const precioRecordado = Inventario.buscarPrecioMemoria(e.target.value);
+                            if (precioRecordado !== null) {
+                                const inputMonto = document.getElementById('v-monto');
+                                if (inputMonto) {
+                                    inputMonto.value = precioRecordado;
+                                    inputMonto.style.backgroundColor = 'rgba(76, 175, 80, 0.2)'; 
+                                    setTimeout(() => inputMonto.style.backgroundColor = '', 500);
+                                }
+                            }
+                        }
+                    });
+                }
+
+                if(typeof Inventario !== 'undefined' && Inventario.actualizarDatalist) {
+                    Inventario.actualizarDatalist();
+                }
+
+                if (typeof Usuario !== 'undefined' && Usuario.cargarAjustes) {
+                    Usuario.cargarAjustes();
+                }
+
+                // 🚀 LANZADOR FINAL
+                iniciarCargaSistemas();
+                
             } else {
-                notificar("PIN incorrecto", "error");
-                location.reload();
+                notificar("PIN incorrecto o cancelado", "error");
+                setTimeout(() => location.reload(), 2000);
             }
         } else {
-            // Usuario nuevo o sin sesión: validamos internet para la primera activación
             if (!navigator.onLine) {
                 notificar("Internet requerido para activación", "alerta");
-                const txtFrase = document.getElementById('frase-splash');
-                if (txtFrase) txtFrase.innerText = "DOMINUS: Conéctate para activar tu cuenta.";
             } else {
                 Usuario.mostrarLogin();
             }
@@ -296,62 +482,9 @@ async function iniciarDominus() {
 
     } catch (error) {
         console.error("❌ Fallo crítico en el arranque de Dominus:", error);
-        if (typeof quitarSplash === 'function') quitarSplash();
+        if (typeof finalizarArranque === 'function') finalizarArranque();
     }
 }
-
-// Vinculamos el inicio al cargar el DOM
-document.addEventListener('DOMContentLoaded', iniciarDominus);
-
-function quitarSplash() {
-    const splash = document.getElementById('splash-screen');
-    if (splash) {
-        splash.classList.add('splash-fade-out');
-        setTimeout(() => {
-            splash.style.display = 'none';
-            if (typeof Interfaz !== 'undefined') Interfaz.show('dashboard');
-            
-            // 🔊 Opcional: Sonido sutil de "Éxito"
-            if (typeof DominusAudio !== 'undefined') DominusAudio.play('add'); 
-        }, 600); 
-    }
-}
-
-const DOMINUS = { //herramienta de diagnostico-revisa si los archivos cargaron bien
-    debug() {
-        console.group("🔍 Auditoría de Salud Dominus");
-        const modulos = {
-            "Persistencia": typeof Persistencia !== 'undefined',
-            "Ventas": typeof Ventas !== 'undefined',
-            "Interfaz": typeof Interfaz !== 'undefined',
-            "Controlador": typeof Controlador !== 'undefined',
-            "Inventario": typeof Inventario !== 'undefined'
-        };
-        console.table(modulos);
-        console.groupEnd();
-    },
-    
-resetTotal() {
-    // Usamos tu nueva función de confirmación estilizada
-    Interfaz.confirmarAccion(
-        "⚠️ ¡ZONA DE PELIGRO!", // Título
-        "¿Estás absolutamente seguro de borrar TODO? Se eliminarán ventas, gastos, fiaos e inventario de forma permanente.", // Mensaje
-        () => { 
-            // Acción si confirma
-            localStorage.clear();
-            notificar("Aplicación reiniciada por completo", "error");
-            setTimeout(() => location.reload(), 1500); 
-        },
-        () => {
-            // Acción si cancela (opcional)
-            console.log("Reinicio abortado por el usuario.");
-        },
-        "BORRAR TODO", // Texto botón confirmar
-        "CANCELAR",    // Texto botón cancelar
-        true           // esPeligroso = true (Esto pone el modal en modo rojo/alerta)
-    );
-    }
-};
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
@@ -359,7 +492,6 @@ if ('serviceWorker' in navigator) {
         .catch(err => console.log("Error en SW:", err));
 }
 
+document.addEventListener('DOMContentLoaded', iniciarDominus);
 
-
-window.DOMINUS = DOMINUS;
 
