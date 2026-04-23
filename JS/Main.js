@@ -374,13 +374,35 @@ async function iniciarDominus() {
             if (checkDark) checkDark.checked = true;
         }
 
-        // B. FRASES Y AUTORES CON EFECTO DE ESCRITURA
+        // --- PREPARACIÓN DE DATOS PARA EL SPLASH ---
+        // Inicializamos Usuario antes para saber si hay inducción psicológica
+        const haySesionLocal = Usuario.init(); 
+
+        // B. FRASES Y AUTORES CON EFECTO DE ESCRITURA (Inducción Psicológica)
         if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
-            const seleccion = bancoFrases[Math.floor(Math.random() * bancoFrases.length)];
             const txtFrase = document.getElementById('frase-splash');
             const txtAutor = document.getElementById('autor-splash');
             
             if (txtFrase) {
+                let seleccion;
+
+                // 🧠 Lógica de Inducción Dominus
+                const diaUso = haySesionLocal ? Usuario.obtenerDiasDeUso() : 0;
+                const frasesInduccion = {
+                    5:  { texto: "En solo 5 días, tu negocio ya respira el orden de DOMINUS. El control es el primer paso al éxito.", autor: "EQUIPO DOMINUS" },
+                    10: { texto: "10 días transformando datos en decisiones. Tu disciplina y DOMINUS son el equipo perfecto.", autor: "EQUIPO DOMINUS" },
+                    14: { texto: "Mañana se cumplen 15 días de evolución. Mira atrás y observa cuánto ha crecido tu claridad operativa.", autor: "EQUIPO DOMINUS" },
+                    15: { texto: "Hoy celebramos 15 días de una nueva era educativa en tu negocio. No pierdas .", autor: "EQUIPO DOMINUS" }
+                };
+
+                // Prioridad: Inducción > Banco de frases
+                if (frasesInduccion[diaUso]) {
+                    seleccion = frasesInduccion[diaUso];
+                    console.log(`🧠 GEMS: Aplicando mensaje de inducción - Día ${diaUso}`);
+                } else {
+                    seleccion = bancoFrases[Math.floor(Math.random() * bancoFrases.length)];
+                }
+
                 window.promesaEscritura = efectoEscritura(txtFrase, `"${seleccion.texto}"`, 40);
 
                 window.promesaEscritura.then(() => {
@@ -394,9 +416,7 @@ async function iniciarDominus() {
             }
         }
 
-        // C. CONTROL DE ACCESO
-        const haySesionLocal = Usuario.init(); 
-
+        // C. CONTROL DE ACCESO (Ya inicializado arriba)
         if (haySesionLocal) {
             if (typeof Interfaz !== 'undefined' && Interfaz.actualizarAvatarHeader) {
                 Interfaz.actualizarAvatarHeader(Usuario.datos);
@@ -408,13 +428,21 @@ async function iniciarDominus() {
             if (accesoConcedido) {
                 console.log("🔓 Acceso concedido. Iniciando carga de datos...");
 
+                // 🔥 AQUÍ ACTIVAMOS LA CONEXIÓN CON EL ADMIN
+                if (typeof Usuario !== 'undefined' && Usuario.datos) {
+                    Usuario.actualizarPresencia(); 
+                    Usuario.escucharMensajesAdmin();
+                }
+
+                // 🔴 TAMBIÉN EL MODO MANTENIMIENTO GLOBAL
+                this.escucharComandosGlobales();
+
                 // 1. CARGA DE DATOS BASE
                 window.DOMINUS.historial = Persistencia.cargar('dom_ventas') || [];
                 window.DOMINUS.deudas = Persistencia.cargar('dom_fiaos') || [];
                 window.DOMINUS.gastos = Persistencia.cargar('dom_gastos') || [];
 
-                // 🛡️ INICIALIZAR EL CENTINELA (Notificaciones y Alertas)
-                // Se activa aquí para que ya tenga acceso a los datos cargados arriba
+                // 🛡️ INICIALIZAR EL CENTINELA
                 if (typeof Notificaciones !== 'undefined') {
                     Notificaciones.init();
                 }
@@ -490,6 +518,22 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
         .then(() => console.log("Dominus PWA: Lista"))
         .catch(err => console.log("Error en SW:", err));
+}
+
+// Pon esto fuera o dentro de Notificaciones, pero que se ejecute al inicio
+function escucharComandosGlobales() {
+    DA_Cloud.db.ref('config_global/mantenimiento').on('value', (snap) => {
+        if (snap.val() === true) {
+            // Mostramos un bloqueo total en la pantalla del usuario
+            document.body.innerHTML = `
+                <div style="height:100vh; display:flex; align-items:center; justify-content:center; background:#111; color:white; text-align:center; flex-direction:column; font-family:sans-serif;">
+                    <h1>⚒️ MANTENIMIENTO</h1>
+                    <p>Estamos mejorando DOMINUS para ti.</p>
+                    <p style="color:var(--primary)">Vuelve en unos minutos.</p>
+                </div>
+            `;
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', iniciarDominus);

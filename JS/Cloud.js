@@ -60,54 +60,78 @@ const Cloud = {
      * REGISTRO INTEGRAL (Versión 2.0)
      * Crea Auth, sube Foto a Storage y guarda Perfil en Database.
      */
-    async registrarNuevoUsuario(datos) {
-        try {
-            // 1. Crear el usuario en Firebase Auth (Solo correo y pass)
-            const userCredential = await this.auth.createUserWithEmailAndPassword(datos.correo, datos.pass);
-            this.userId = userCredential.user.uid;
-            const uid = this.userId;
+async registrarNuevoUsuario(datos) {
+    try {
+        // 1. Crear el usuario en Firebase Auth (Mantenemos el login por correo/pass)
+        const userCredential = await this.auth.createUserWithEmailAndPassword(datos.correo, datos.pass);
+        
+        // 🔑 CAMBIO MAESTRO: En lugar de usar el UID de Firebase, usamos TU idFinal
+        // 'datos.idFinal' debe venir desde Usuario.js (es tu UUID físico)
+        const uidMaestro = datos.idFinal; 
+        this.userId = uidMaestro;
 
-            let urlFoto = "";
+        // 🖼️ LÓGICA DE AVATAR (Por defecto)
+        let urlFoto = "https://cdn-icons-png.flaticon.com/512/6522/6522516.png"; 
 
-            // 2. Si el usuario seleccionó una foto, la subimos al Storage
-            if (datos.foto) {
-                notificar("Subiendo imagen de perfil...", "alerta");
-                const storageRef = this.storage.ref(`perfiles/${uid}/${datos.foto.name}`);
-                const uploadTask = await storageRef.put(datos.foto);
-                urlFoto = await uploadTask.ref.getDownloadURL();
-            }
+        // 2. Crear el Perfil Extendido usando el UUID Físico
+        const perfilFinal = {
+            uid: uidMaestro, // Identidad vinculada al hardware
+            authUid: userCredential.user.uid, // Guardamos el de Firebase solo como referencia
+            nombre: datos.nombre,
+            apellido: datos.apellido || "",
+            negocio: datos.negocio,
+            usuario: datos.usuario,
+            correo: datos.correo,
+            telefono: datos.telefono || "Sin número",
+            fotoPerfil: urlFoto, 
+            fechaRegistro: new Date().toISOString(),
+            estado: 'pendiente' 
+        };
 
-            // 3. Crear el Perfil Extendido en la Realtime Database
-            const perfilFinal = {
-                uid: uid,
-                nombre: datos.nombre,
-                apellido: datos.apellido || "",
-                negocio: datos.negocio,
-                usuario: datos.usuario,
-                correo: datos.correo,
-                fotoPerfil: urlFoto, // Link público de la imagen
-                fechaRegistro: new Date().toISOString()
-            };
+        // 3. Guardar en Realtime Database usando el UUID como Llave
+        // Ahora el Centinela SÍ encontrará esta ruta
+        await this.db.ref(`usuarios/${uidMaestro}/perfil`).set(perfilFinal);
+        
+        // 4. NOTIFICAR AL ADMIN usando el UUID como Llave
+        // Así, cuando tú apruebes en el Admin, escribirás en la carpeta correcta
+        await this.db.ref(`solicitudes_pendientes/${uidMaestro}`).set({
+            nombre: perfilFinal.nombre,
+            negocio: perfilFinal.negocio,
+            email: perfilFinal.correo,
+            telefono: perfilFinal.telefono,
+            uid: uidMaestro, // Tu UUID físico
+            fecha: perfilFinal.fechaRegistro
+        });
 
-            // Guardamos en la ruta: usuarios / UID / perfil
-            await this.db.ref(`usuarios/${uid}/perfil`).set(perfilFinal);
-            
-            console.log("🆕 Ecosistema DOMINUS creado para:", datos.negocio);
-            return perfilFinal;
+        console.log("🆕 Ecosistema DOMINUS vinculado al Hardware:", uidMaestro);
+        return perfilFinal;
 
-        } catch (error) {
-            console.error("❌ Error al registrar en la nube:", error.message);
-            
-            // Manejo de errores amigable
-            let mensaje = "Error al crear cuenta";
-            if (error.code === 'auth/email-already-in-use') mensaje = "Este correo ya está registrado";
-            if (error.code === 'auth/invalid-email') mensaje = "El formato del correo es inválido";
-            if (error.code === 'auth/weak-password') mensaje = "La contraseña es muy débil";
-            
-            notificar(mensaje, "error");
-            return null;
-        }
-    },
+    } catch (error) {
+        console.error("❌ Error crítico en registro:", error.message);
+        let mensaje = "Error al crear cuenta";
+        if (error.code === 'auth/email-already-in-use') mensaje = "Este correo ya está registrado";
+        
+        if (typeof notificar === "function") notificar(mensaje, "error");
+        return null;
+    }
+},
+
+async aprobarUsuarioManualmente(uid) {
+    try {
+        const hoy = new Date();
+        const fechaCorte = new Date();
+        fechaCorte.setDate(hoy.getDate() + 15); // Le damos 15 días de prueba
+
+        await this.db.ref(`usuarios/${uid}/perfil`).update({
+            estado: 'aprobado',
+            fechaCorte: fechaCorte.toISOString()
+        });
+
+        console.log("🔓 Usuario aprobado con éxito. Ya puede entrar.");
+    } catch (error) {
+        console.error("Error al aprobar:", error);
+    }
+},
 
     /**
      * CERRAR SESIÓN (Opcional, para cuando quieras salir)
@@ -146,6 +170,46 @@ const Cloud = {
             .catch(error => {
                 console.error(`❌ Fallo crítico en el respaldo de ${clave}:`, error.message);
             });
+    },
+
+    /**
+     * Consulta el estado de aprobación del usuario (Usado por el Centinela)
+     */
+    async obtenerEstadoUsuario(uid) {
+        try {
+            const snapshot = await this.db.ref(`usuarios/${uid}/perfil`).once('value');
+            return snapshot.val(); // Retornará el objeto perfil con el campo .estado
+        } catch (error) {
+            console.error("❌ Error al consultar estado:", error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * Manda los datos a una zona de espera para que el Admin los apruebe
+     */
+    async solicitarAccesoAdmin(perfil) {
+        try {
+            // Añadimos el estado inicial como pendiente
+            perfil.estado = 'pendiente';
+            perfil.fechaSolicitud = new Date().toISOString();
+
+            // Lo guardamos en su perfil de la base de datos
+            await this.db.ref(`usuarios/${perfil.uid}/perfil`).set(perfil);
+            
+            // También lo guardamos en una lista global para el Administrador (Tú)
+            await this.db.ref(`solicitudes_pendientes/${perfil.uid}`).set({
+                nombre: perfil.nombre,
+                negocio: perfil.negocio,
+                uid: perfil.uid,
+                fecha: perfil.fechaSolicitud
+            });
+
+            return true;
+        } catch (error) {
+            console.error("❌ Error al enviar solicitud:", error.message);
+            return false;
+        }
     }
 };
 

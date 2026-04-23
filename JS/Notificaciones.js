@@ -156,6 +156,15 @@ const Notificaciones = {
     }
 },
 
+// Añade esto dentro de tu objeto Notificaciones
+async capturarDireccionPush(uuid) {
+    // 💡 LOG: Para que sepas que se llamó pero no rompió nada
+    console.log("ℹ️ DOMINUS: Captura Push saltada (Priorizando WhatsApp)");
+    
+    // Devolvemos una promesa resuelta con null para que el 'await' no se quede trabado
+    return Promise.resolve(null); 
+},
+
     programarEventosGlobales() {
         // 1. Ciclo de Tips Flotantes (Cada 15 minutos)
         setInterval(() => this.lanzarTipFlotante(), 15 * 60 * 1000);
@@ -177,5 +186,29 @@ const Notificaciones = {
                 this.enviarNotificacionNativa("Tip de la mañana", tip.texto);
             }
         }, 60000);
+    },
+
+    
+
+    // --- NUEVO: Oído para el Mando Central ---
+    escucharMandoCentral(uuid) {
+        if (!uuid) return;
+
+        // 1. Escuchar Mensajes Privados (✉️ MSJ)
+        DA_Cloud.db.ref(`usuarios/${uuid}/comunicacion/mensajeDirecto`).on('value', (snap) => {
+            const data = snap.val();
+            if (data && !data.leido) {
+                this.enviarNotificacionNativa("MENSAJE DEL MAESTRO", data.texto);
+                // Opcional: Sonido de alerta
+            }
+        });
+
+        // 2. Escuchar Anuncios Globales (📢 Broadcast)
+        DA_Cloud.db.ref('config_global/anuncio').on('value', (snap) => {
+            const anuncio = snap.val();
+            if (anuncio && anuncio.mensaje) {
+                this.enviarNotificacionNativa("ANUNCIO GLOBAL", anuncio.mensaje);
+            }
+        });
     }
 };

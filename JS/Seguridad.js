@@ -3,13 +3,42 @@ const Seguridad = {
     intentosFallidos: 0,
 
     // 1. GESTIÓN DE CLAVES (Persistencia)
-    getClave() {
-        return Persistencia.cargar('dom_seguridad_pin') || '1234';
-    },
+getClave() {
+    const uuid = Persistencia.cargar('dom_id_unico') || 'DOMINUS-CORE';
+    let raw = Persistencia.cargar('dom_seguridad_pin');
 
-    setClave(nuevaClave) {
-        Persistencia.guardar('dom_seguridad_pin', nuevaClave);
-        alert("✅ PIN de seguridad actualizado con éxito.");
+    if (!raw) return '1234';
+
+    // 🚩 EL PARCHE: Si viene con comillas de JSON, las quitamos
+    if (typeof raw === 'string') {
+        raw = raw.replace(/^"|"$/g, ''); 
+    }
+
+    try {
+        const decodificado = atob(raw);
+        if (decodificado.startsWith(uuid)) {
+            return decodificado.replace(uuid, "");
+        }
+        return raw; // Caso de PIN viejo
+    } catch (e) {
+        return raw; // Caso de texto plano
+    }
+},
+
+    setClave(nuevoPin) {
+        const uuid = Persistencia.cargar('dom_id_unico') || 'DOMINUS-CORE';
+        
+        // CREAMOS LA FIRMA ÚNICA
+        const firma = btoa(uuid + nuevoPin);
+        
+        // GUARDAMOS
+        Persistencia.guardar('dom_seguridad_pin', firma);
+        
+        // LIMPIEZA DE SEGURIDAD: Borramos cualquier rastro del PIN viejo si existiera
+        // (Asegúrate de que no haya otra variable 'pin' flotando)
+        
+        console.log("🔐 Seguridad: PIN actualizado y firmado para este equipo.");
+        notificar("PIN Guardado correctamente", "exito");
     },
 
     vibrar(patron = [200, 100, 200]) {
@@ -77,86 +106,97 @@ const Seguridad = {
 
     // --- MEJORA: SOLICITAR PIN SIN PROMPT ---
 solicitarPIN() {
-        return new Promise((resolve) => {
-            // 1. Usamos tu función Persistencia.cargar()
-            const bloqueoGuardado = Persistencia.cargar('dom_seguridad_bloqueo');
-            const ahora = Date.now();
+    return new Promise((resolve) => {
+        const bloqueoGuardado = Persistencia.cargar('dom_seguridad_bloqueo');
+        const ahora = Date.now();
 
-            if (bloqueoGuardado && ahora < bloqueoGuardado) {
-                const restante = Math.ceil((bloqueoGuardado - ahora) / 1000);
-                notificar(`⚠️ Sistema bloqueado. Espera ${restante}s`, 'error');
-                return resolve(false);
-            }
+        if (bloqueoGuardado && ahora < bloqueoGuardado) {
+            const restante = Math.ceil((bloqueoGuardado - ahora) / 1000);
+            notificar(`⚠️ Sistema bloqueado. Espera ${restante}s`, 'error');
+            return resolve(false);
+        }
 
-            const overlay = Usuario.crearOverlay('overlay-seguridad-pin');
+        const overlay = Usuario.crearOverlay('overlay-seguridad-pin');
 
-            overlay.innerHTML = `
-                <div class="glass" style="width: 85%; max-width: 350px; padding: 35px 25px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                    <h2 style="color: #ffd700; margin-bottom: 10px; font-size: 1.5rem; letter-spacing: 2px;">DOMINUS</h2>
-                    <p style="color: white; opacity: 0.8; margin-bottom: 25px; font-size: 0.9em;">Seguridad Requerida</p>
+        overlay.innerHTML = `
+            <div class="glass" style="width: 85%; max-width: 350px; padding: 35px 25px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                <h2 style="color: #ffd700; margin-bottom: 10px; font-size: 1.5rem; letter-spacing: 2px;">DOMINUS</h2>
+                <p style="color: white; opacity: 0.8; margin-bottom: 25px; font-size: 0.9em;">Seguridad Requerida</p>
+                
+                <div style="position: relative; width: 100%; max-width: 180px; margin: 0 auto;">
+                    <input type="password" id="pin-invisible" 
+                           inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                           style="width: 100%; background: transparent; border: none; 
+                                 border-bottom: 2px solid #ffd700; color: white; 
+                                 font-size: 3rem; text-align: center; outline: none; 
+                                 letter-spacing: 15px; box-sizing: border-box; font-family: monospace;">
                     
-                    <div style="position: relative; width: 100%; max-width: 180px; margin: 0 auto;">
-                        <input type="password" id="pin-invisible" 
-                               inputmode="numeric" pattern="[0-9]*" maxlength="4"
-                               style="width: 100%; background: transparent; border: none; 
-                                     border-bottom: 2px solid #ffd700; color: white; 
-                                     font-size: 3rem; text-align: center; outline: none; 
-                                     letter-spacing: 15px; text-indent: 15px;
-                                     box-sizing: border-box; font-family: monospace;">
-                        
-                        <span id="ojo-pin-seg" 
-                              style="position: absolute; right: -40px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.2rem; filter: grayscale(1); user-select: none;"
-                              onclick="Usuario.togglePassword('pin-invisible', 'ojo-pin-seg')">
-                              🔒
-                        </span>
-                    </div>
-
-                    <div id="pin-error" style="color: #ff4444; margin-top: 20px; height: 20px; font-size: 0.8em; font-weight: bold; text-shadow: 0 0 10px rgba(255,0,0,0.3);"></div>
+                    <span id="ojo-pin-seg" 
+                          style="position: absolute; right: -40px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.2rem; filter: grayscale(1); user-select: none;"
+                          onclick="Usuario.togglePassword('pin-invisible', 'ojo-pin-seg')">
+                          🔒
+                    </span>
                 </div>
-            `;
 
-            document.body.appendChild(overlay);
-            const input = document.getElementById('pin-invisible');
-            const errorDiv = document.getElementById('pin-error');
-            input.focus();
+                <div id="pin-error" style="color: #ff4444; margin-top: 20px; height: 20px; font-size: 0.8em; font-weight: bold;"></div>
+                
+                <p id="btn-olvido-pin" style="color: #666; font-size: 0.7em; margin-top: 25px; cursor: pointer; text-decoration: underline;">
+                    ¿Olvidaste tu PIN?
+                </p>
+            </div>
+        `;
 
-            input.oninput = () => {
-                input.value = input.value.replace(/[^0-9]/g, '');
+        document.body.appendChild(overlay);
+        const input = document.getElementById('pin-invisible');
+        const errorDiv = document.getElementById('pin-error');
+        input.focus();
 
-                if (input.value.length === 4) {
-                    if (input.value === this.getClave()) {
-                        this.intentosFallidos = 0; 
-                        // Para "eliminar" el bloqueo usando tu función:
-                        Persistencia.guardar('dom_seguridad_bloqueo', null); 
-                        overlay.remove();
-                        resolve(true);
-                    } else {
-                        this.intentosFallidos++;
-                        this.vibrar([100, 50, 100]);
-                        input.value = "";
+        // Escotilla de emergencia: Si olvida el PIN, deslogueamos para que entre con su correo
+        document.getElementById('btn-olvido-pin').onclick = () => {
+            if(confirm("Si olvidaste tu PIN, deberás iniciar sesión nuevamente con tu correo y contraseña. ¿Continuar?")) {
+                Persistencia.eliminar('dom_sesion_activa'); // Borra la sesión para forzar login
+                location.reload();
+            }
+        };
+
+        input.oninput = () => {
+            input.value = input.value.replace(/[^0-9]/g, '');
+
+            if (input.value.length === 4) {
+                // Aquí usamos el getClave() que ya tiene el UUID integrado
+                if (input.value === this.getClave()) {
+                    this.intentosFallidos = 0; 
+                    Persistencia.guardar('dom_seguridad_bloqueo', null); 
+                    
+                    // ✅ CRÍTICO: Avisamos al sistema que la sesión es válida ahora
+                    Usuario.sesionValidadaPorPin = true; 
+                    
+                    overlay.remove();
+                    resolve(true);
+                } else {
+                    this.intentosFallidos++;
+                    this.vibrar([100, 50, 100]);
+                    input.value = "";
+                    
+                    if (this.intentosFallidos >= 3) {
+                        const tiempoBloqueo = Date.now() + 60000; // 1 minuto de bloqueo real
+                        Persistencia.guardar('dom_seguridad_bloqueo', tiempoBloqueo);
+                        this.intentosFallidos = 0;
                         
-                        if (this.intentosFallidos >= 3) {
-                            const tiempoBloqueo = Date.now() + 30000; 
-                            // Usamos tu función Persistencia.guardar()
-                            Persistencia.guardar('dom_seguridad_bloqueo', tiempoBloqueo);
-                            this.intentosFallidos = 0;
-                            
-                            errorDiv.innerText = "SISTEMA BLOQUEADO";
-                            notificar("Bloqueo de seguridad: 30s", 'error');
-                            setTimeout(() => { overlay.remove(); resolve(false); }, 1500);
-                        } else {
-                            errorDiv.innerText = `PIN INCORRECTO (${this.intentosFallidos}/3)`;
-                            input.parentElement.style.animation = "shake 0.3s ease";
-                            setTimeout(() => {
-                                errorDiv.innerText = "";
-                                input.parentElement.style.animation = "";
-                            }, 1500);
-                        }
+                        errorDiv.innerText = "SISTEMA BLOQUEADO";
+                        notificar("Demasiados intentos. Bloqueo: 60s", 'error');
+                        setTimeout(() => { overlay.remove(); resolve(false); }, 1500);
+                    } else {
+                        errorDiv.innerText = `PIN INCORRECTO (${this.intentosFallidos}/3)`;
+                        // Efecto de vibración visual en el input
+                        input.classList.add('shake-anim'); 
+                        setTimeout(() => input.classList.remove('shake-anim'), 300);
                     }
                 }
-            };
-        });
-    },
+            }
+        };
+    });
+},
     // 4. FUNCIÓN PARA AJUSTES
 async prepararCambioPIN() {
     // 1. Validar PIN Actual
