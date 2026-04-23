@@ -435,7 +435,7 @@ async function iniciarDominus() {
                 }
 
                 // 🔴 TAMBIÉN EL MODO MANTENIMIENTO GLOBAL
-                this.escucharComandosGlobales();
+                escucharComandosGlobales();
 
                 // 1. CARGA DE DATOS BASE
                 window.DOMINUS.historial = Persistencia.cargar('dom_ventas') || [];
