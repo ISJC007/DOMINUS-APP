@@ -8,28 +8,45 @@ const Usuario = {
     dbSimulada: 'dom_usuarios_db',
     sesionActual: 'dom_sesion_activa',
 
-    init() {
-        console.log("🔐 DOMI: Verificando sesión y estado de aprobación...");
-        const sesion = Persistencia.cargar(this.sesionActual);
+  init() {
+    console.log("🔐 DOMI: Verificando sesión y estado de aprobación...");
+    
+    // Cargamos lo que hay en LocalStorage (Offline First)
+    const sesion = Persistencia.cargar(this.sesionActual);
+    
+    if (sesion && sesion.perfil) {
+        this.datos = sesion.perfil;
         
-        if (sesion && sesion.logueado) {
-            this.datos = sesion.perfil;
-            
-            // FILTRO DE SEGURIDAD: Si está registrado pero falta tu aprobación
-            if (this.datos.estado === 'pendiente') {
-                console.log("⏳ Acceso retenido: Esperando aprobación del administrador.");
-                this.mostrarPantallaEspera(); // Lo mandamos a la espera
-                return false; // Bloqueamos el flujo hacia el Dashboard
-            }
+        // 🛡️ FILTRO DE SEGURIDAD INTEGRAL
+        // Verificamos si el estado es 'pendiente' o 'bloqueado_temp'
+        // Al estar aplanados en 'procesarLogin', los campos están en el primer nivel de this.datos
+        const estadoActual = this.datos.estado;
 
-            console.log(`👤 Sesión activa y aprobada: ${this.datos.usuario}`);
-            return true; // Acceso concedido al ecosistema
-        } else {
-            console.log("🎟️ No hay sesión activa. Mostrando Login...");
-            this.mostrarLogin();
+        if (estadoActual === 'pendiente' || !sesion.logueado) {
+            console.log("⏳ Acceso retenido: Esperando aprobación del Mando Central.");
+            this.mostrarPantallaEspera(); 
+            return false; 
+        }
+
+        if (estadoActual === 'bloqueado_temp' || estadoActual === 'suspendido') {
+            console.log("🚫 Acceso denegado: Esta cuenta se encuentra inactiva.");
+            notificar("Cuenta suspendida temporalmente", "error");
+            this.mostrarLogin(); 
             return false;
         }
-    },
+
+        console.log(`👤 Guerrero en línea: ${this.datos.usuario || this.datos.nombre}`);
+        
+        // Iniciamos el rastro de presencia en la nube
+        this.actualizarPresencia();
+        
+        return true; // Acceso concedido al Dashboard
+    } else {
+        console.log("🎟️ Sin sesión previa. Iniciando portal de acceso...");
+        this.mostrarLogin();
+        return false;
+    }
+},
 
     // --- OPTIMIZACIÓN DE MEDIA (GEMS: NIVEL 2) ---
     async procesarFotoRegistro(archivo) {
@@ -417,6 +434,17 @@ mostrarRegistro() {
     };
 },
 
+cerrarSesion() {
+    // 🔥 IMPORTANTE: Apagar radares para evitar fugas de datos
+    if (Usuario.datos && Usuario.datos.uid) {
+        DA_Cloud.db.ref(`usuarios/${Usuario.datos.uid}/comunicacion/mensajeDirecto`).off();
+        DA_Cloud.db.ref('config_global/anuncio').off();
+    }
+    
+    localStorage.removeItem('dom_sesion'); 
+    location.reload();
+},
+
 
     // ==========================================
     // PANTALLA 3: VERIFICACIÓN DE CORREO
@@ -503,72 +531,55 @@ mostrarVerificacion(perfil, codigoReal) {
     },
 
 async guardarEnBaseDeDatos(perfil) {
-    // 1. PREPARACIÓN DE LICENCIA (15 días de prueba + 1 de margen)
-    const ahora = new Date();
-    const fechaCorte = new Date();
-    fechaCorte.setDate(ahora.getDate() + 16); 
-
-    // 🔑 ASEGURAMOS EL ID MAESTRO (Hardware Binding)
+    // 1. PREPARACIÓN DE IDENTIDAD (Hardware Binding)
     const uuidMaestro = perfil.identidad?.idFinal || await this.obtenerIDUnico();
 
-    // 🛰️ CAPTURA DE METADATOS TÉCNICOS (Máxima administración)
+    // 🛰️ CAPTURA DE METADATOS (Añadimos la marca del dispositivo aquí también)
     const metadatos = {
         dispositivo: navigator.userAgent.includes("Android") ? "Android" : "PC/Browser",
         plataforma: navigator.platform,
-        browser: navigator.appName,
+        modelo: navigator.userAgentData?.brands[0]?.brand || "Estándar",
         idioma: navigator.language,
         resolucion: `${window.screen.width}x${window.screen.height}`,
-        versionApp: "1.0.5", // Control de versiones para soporte
-        zonaHoraria: Intland.DateTimeFormat().resolvedOptions().timeZone
+        versionApp: "1.0.5",
+        zonaHoraria: Intl.DateTimeFormat().resolvedOptions().timeZone
     };
 
-    // 🛡️ PREPARACIÓN DE RAMA DE SEGURIDAD (Para el Centinela)
-    const seguridadInicial = {
-        alertaHora: false,
-        multicuenta: false,
-        ultimoAcceso: ahora.toISOString(),
-        intentosPIN: 0
-    };
-
-    // 💎 PERFIL FINAL ENRIQUECIDO
-    const perfilFinal = {
+    // 💎 OBJETO DE TRASPASO
+    // Solo mandamos los datos crudos, Cloud.js se encargará de crear las carpetas
+    const datosParaRegistro = {
         ...perfil,
         idFinal: uuidMaestro,
-        uuid: uuidMaestro,
-        fechaRegistro: ahora.toISOString(),
-        fechaCorte: fechaCorte.toISOString(),
-        estado: 'pendiente', 
-        licenciaActiva: true,
-        metadatos: metadatos,      // Datos técnicos para el Admin
-        seguridad: seguridadInicial // Espacio para reportes de fraude
+        metadatos: metadatos
     };
 
-    // 2. RESPALDO LOCAL (Offline First)
-    this.datos = perfilFinal;
+    // 2. RESPALDO LOCAL PREVENTIVO (Offline First)
+    // Guardamos una versión plana localmente mientras esperamos aprobación
+    this.datos = datosParaRegistro;
     Persistencia.guardar(this.sesionActual, { 
-        logueado: true, 
-        perfil: perfilFinal,
+        logueado: false, // Importante: falso hasta que el Admin apruebe
+        perfil: datosParaRegistro,
         aprobado: false 
     });
 
     notificar("Vinculando hardware con red DOMINUS...", "info");
 
-    // 3. ENVÍO A LA NUBE
+    // 3. ENVÍO AL MOTOR DE NUBE
     try {
-        const exito = await Cloud.registrarNuevoUsuario(perfilFinal);
+        // Llamamos a la función de Cloud que ya organizamos antes
+        const perfilCreado = await Cloud.registrarNuevoUsuario(datosParaRegistro);
 
-        if (exito) {
-            // 🔔 AVISO AL MAESTRO POR TELEGRAM (Opcional si ya tienes el bot)
+        if (perfilCreado) {
+            // 🔔 AVISO AL MAESTRO POR TELEGRAM
             if (this.notificarMaestroTelegram) {
-                const msj = `🆕 *NUEVO GUERRERO*\n👤: ${perfil.nombre}\n🏢: ${perfil.negocio}\n📱: ${metadatos.dispositivo}\n🆔: ${uuidMaestro}`;
+                const msj = `🆕 *NUEVO GUERRERO*\n👤: ${perfil.nombre}\n🏢: ${perfil.negocio}\n📱: ${metadatos.modelo}\n🆔: ${uuidMaestro}`;
                 this.notificarMaestroTelegram(msj);
             }
 
-            notificar("¡Solicitud enviada al Admin!", "exito");
+            notificar("¡Solicitud enviada al Mando Central!", "exito");
             this.preguntarPorPIN();
         } else {
-            // Datos seguros en LocalStorage aunque no haya internet
-            notificar("Datos guardados en el dispositivo (Offline)", "alerta");
+            notificar("Perfil guardado localmente (Sin red)", "alerta");
             this.preguntarPorPIN();
         }
     } catch (error) {
@@ -579,8 +590,13 @@ async guardarEnBaseDeDatos(perfil) {
 
 // En Usuario.js (App del negocio)
 actualizarPresencia() {
-    if (!this.datos.uuid) return;
-    Cloud.db.ref(`usuarios/${this.datos.uuid}/perfil/ultimaConexion`).set(new Date().toISOString());
+    // Usamos el ID de hardware vinculado
+    const uuid = this.datos.idFinal || this.datos.uuid;
+    
+    if (!uuid) return;
+
+    // 🛡️ RUTA ACTUALIZADA: Guardamos el rastro en la carpeta de seguridad
+    Cloud.db.ref(`usuarios/${uuid}/seguridad/ultimaConexion`).set(new Date().toISOString());
 },
 
 // En Usuario.js
@@ -951,44 +967,52 @@ verificarAprobacionAutomatica() {
     const uuid = this.datos.idFinal || this.datos.identidad?.idFinal || this.datos.uuid;
     if (!uuid || !Cloud.db) return; 
 
-    console.log("📡 Centinela de Élite: Escuchando cambios en tiempo real...");
-    const refEstado = Cloud.db.ref(`usuarios/${uuid}/perfil/estado`);
+    console.log("📡 Centinela de Élite: Escuchando aprobación en tiempo real...");
     
-    // El método .on('value') reacciona instantáneamente cuando cambias el estado en el Admin
+    // 🛡️ CAMBIO DE RUTA: Ahora escuchamos dentro de la carpeta 'administracion'
+    const refEstado = Cloud.db.ref(`usuarios/${uuid}/administracion/estado`);
+    
     refEstado.on('value', async (snapshot) => {
         const estado = snapshot.val();
         
         if (estado === 'aprobado') {
-            console.log("⚡ ¡Acceso autorizado desde la red DOMINUS!");
-            refEstado.off(); // Importante: dejamos de escuchar para evitar bucles
+            console.log("⚡ ¡Acceso autorizado desde el Mando Central!");
+            
+            // Dejamos de escuchar para ahorrar recursos
+            refEstado.off(); 
             
             const contenedor = document.getElementById('contenedor-espera');
             const overlay = document.getElementById('overlay-espera');
             
             if (overlay) {
-                // Si la pantalla de espera está abierta, usamos la salida con animación
+                // Si está en la pantalla de espera, disolvemos el bloqueo con estilo
                 this.finalizarEsperaExitosa(overlay, contenedor, null); 
             } else {
-                // Si por alguna razón no hay overlay, ejecutamos la validación directa
+                // Si por alguna razón no hay overlay, forzamos la validación y recarga
                 await this.ejecutarVerificacionDeAcceso();
             }
         }
     });
 },
-
 async ejecutarVerificacionDeAcceso() {
     const uuid = this.datos.idFinal || this.datos.identidad?.idFinal || this.datos.uuid;
     if (!uuid) return false;
 
     try {
-        // Consultamos directamente a la base de datos
-        const perfilActualizado = await Cloud.obtenerEstadoUsuario(uuid);
+        // 🛰️ CONSULTA: Ahora Cloud.obtenerEstadoUsuario(uuid) nos trae el nodo 'administracion'
+        const adminData = await Cloud.obtenerEstadoUsuario(uuid);
 
-        if (perfilActualizado && perfilActualizado.estado === 'aprobado') {
-            // Sincronizamos los datos nuevos del servidor con los locales
-            this.datos = { ...this.datos, ...perfilActualizado };
+        // 🛡️ VERIFICACIÓN: Buscamos el estado dentro de la nueva carpeta 'administracion'
+        if (adminData && adminData.estado === 'aprobado') {
             
-            // ✅ PERSISTENCIA TOTAL: Marcamos logueado: true para entrar al ecosistema
+            // Sincronizamos: Mantenemos lo que tenemos y añadimos lo legal (administracion)
+            // Esto asegura que this.datos.estado ahora sea 'aprobado'
+            this.datos = { 
+                ...this.datos, 
+                ...adminData 
+            };
+            
+            // ✅ PERSISTENCIA TOTAL
             Persistencia.guardar(this.sesionActual, { 
                 logueado: true, 
                 perfil: this.datos 
@@ -996,19 +1020,16 @@ async ejecutarVerificacionDeAcceso() {
 
             notificar("¡ACCESO CONCEDIDO!", "exito");
             
-            // Tiempo para que el usuario lea el mensaje antes de recargar
             setTimeout(() => {
                 const overlay = document.getElementById('overlay-espera');
                 if (overlay) overlay.remove();
                 
-                // Recarga para que Main.js detecte la sesión activa y abra el Dashboard
                 location.reload(); 
             }, 1200);
 
             return true;
         }
         
-        // Si no está aprobado, notificamos sutilmente si fue manual
         return false;
     } catch (e) {
         console.error("❌ Fallo en la comunicación con la red DOMINUS:", e.message);
@@ -1049,64 +1070,70 @@ async procesarLogin(usuario, pass) {
 
     if (uid) {
         try {
-            notificar("Sincronizando perfil...", "alerta");
-            const snapshot = await Cloud.db.ref(`usuarios/${uid}/perfil`).once('value');
-            const perfilNube = snapshot.val();
+            notificar("Sincronizando perfil integral...", "alerta");
+            
+            // 🛰️ DESCARGA COMPLETA: Traemos todo el nodo del usuario (perfil + administracion + seguridad)
+            const snapshot = await Cloud.db.ref(`usuarios/${uid}`).once('value');
+            const dataNube = snapshot.val();
 
-            if (perfilNube) {
-                // 2. ACTUALIZACIÓN DE IDENTIDAD LOCAL
-                // Si el usuario cambió de equipo, bajamos su ID aprobado de la nube
-                if (perfilNube.idFinal) {
-                    Persistencia.guardar('dom_id_unico', perfilNube.idFinal);
-                }
-                
-                this.datos = perfilNube;
+            if (dataNube) {
+                // 2. RECONSTRUCCIÓN DEL GUERRERO (Aplanamos las carpetas para uso local)
+                const perfilPersonal = dataNube.perfil || {};
+                const adminData = dataNube.administracion || {};
+                const seguridadData = dataNube.seguridad || {};
 
-                // 3. FILTRO DE APROBACIÓN
-                // Si el Admin (tú) aún no lo ha aprobado, no puede estar "logueado" totalmente
-                const esAprobado = perfilNube.estado === 'aprobado';
+                // Consolidamos todo en this.datos para que la App no note el cambio de estructura
+                this.datos = { 
+                    ...perfilPersonal, 
+                    ...adminData, 
+                    idFinal: seguridadData.idFinal || uid 
+                };
+
+                // 3. ACTUALIZACIÓN DE IDENTIDAD FÍSICA
+                Persistencia.guardar('dom_id_unico', this.datos.idFinal);
+
+                // 4. FILTRO DE APROBACIÓN
+                const esAprobado = adminData.estado === 'aprobado';
                 
                 const datosSesion = { 
-                    logueado: esAprobado, // Solo es true si está aprobado
+                    logueado: esAprobado, 
                     perfil: this.datos 
                 };
 
                 Persistencia.guardar(this.sesionActual, datosSesion);
 
-                // 4. DIRECCIONAMIENTO SEGÚN ESTADO
+                // 5. DIRECCIONAMIENTO SEGÚN ESTADO
                 if (!esAprobado) {
                     notificar("Acceso pendiente de aprobación", "alerta");
                     setTimeout(() => this.mostrarPantallaEspera(), 1000);
                     return;
                 }
 
-                // 5. FEEDBACK Y ÉXITO
+                // 6. ÉXITO Y FEEDBACK
                 if (window.Interfaz && Interfaz.actualizarAvatarHeader) {
                     Interfaz.actualizarAvatarHeader(this.datos);
                 }
 
-                notificar(`Bienvenido, ${perfilNube.nombre}`, 'exito');
+                notificar(`Bienvenido, ${this.datos.nombre}`, 'exito');
                 
-                // 6. SALTO FINAL: ¿PIN o Dashboard?
                 setTimeout(() => {
                     if (this.datos.usaPin) {
-                        this.pantallaDesbloqueoPIN(); // Hueco 2 resuelto
+                        this.pantallaDesbloqueoPIN();
                     } else {
                         location.reload();
                     }
                 }, 1500);
 
             } else {
-                // Caso de seguridad: Existe en Auth pero no en Database
-                notificar("Error: Perfil no encontrado en la red", "error");
+                notificar("Error: Nodo de usuario inexistente", "error");
             }
 
         } catch (error) {
-            console.error("Error descargando perfil:", error);
-            notificar("Error al recuperar datos del perfil", "error");
+            console.error("❌ Error sincronizando datos:", error);
+            notificar("Fallo de red al recuperar perfil", "error");
         }
     } else {
-        notificar("Credenciales incorrectas o sin conexión.", 'error');
+        notificar("Credenciales incorrectas", 'error');
     }
 },
     // ==========================================

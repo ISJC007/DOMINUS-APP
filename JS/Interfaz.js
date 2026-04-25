@@ -1,3 +1,25 @@
+let lastScrollTop = 0;
+const header = document.querySelector('.main-header');
+
+// Ajustamos el body o el contenedor principal para que no empiece debajo del header
+document.body.style.paddingTop = header.offsetHeight + "px";
+
+window.addEventListener('scroll', () => {
+    let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+    if (scrollTop > lastScrollTop && scrollTop > 100) {
+        // El usuario baja -> Escondemos el header
+        header.classList.add('hidden');
+    } else {
+        // El usuario sube -> Mostramos el header
+        header.classList.remove('hidden');
+    }
+    
+    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; 
+}, { passive: true });
+
+
+
 const Interfaz = { //muestra todo en pantalla lo que se clickea//
 
 // --- REEMPLAZA ESTA FUNCIÓN EN Interfaz.js ---
@@ -295,31 +317,35 @@ confirmarAccion(titulo, mensaje, onConfirmar, onCancelar = null, textoConfirmar 
         console.log("Cambiando a:", id);
     }, 
 
-    cambiarTabAjustes(tabId) {
-        // Ocultar todas las secciones de ajustes
-        document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
-        
-        // Mostrar solo la que clickeamos
-        const tabActiva = document.getElementById(tabId);
-        if(tabActiva) tabActiva.style.display = 'block';
-        
-        // Cambiar colores de los botones para que sepa cuál está activo
-        const esUsuario = tabId === 'tab-usuario';
-        const btnUser = document.getElementById('btn-tab-usuario');
-        const btnSist = document.getElementById('btn-tab-sistema');
+ cambiarTabAjustes(tabId) {
+    console.log("Activando pestaña:", tabId);
 
-        if(esUsuario) {
-            btnUser.style.background = 'var(--primary)';
-            btnUser.style.color = 'black';
-            btnSist.style.background = 'transparent';
-            btnSist.style.color = 'white';
-        } else {
-            btnUser.style.background = 'transparent';
-            btnUser.style.color = 'white';
-            btnSist.style.background = 'var(--primary)';
-            btnSist.style.color = 'black';
-        }
-    },
+    // 1. Quitamos la clase 'active' de todas las pestañas
+    document.querySelectorAll('.tab-content').forEach(t => {
+        t.classList.remove('active');
+        t.style.display = ''; // Limpiamos estilos previos que puedan estorbar
+    });
+
+    // 2. Quitamos la clase 'active' de los botones de la cabecera
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // 3. Activamos la pestaña seleccionada
+    const tabActiva = document.getElementById(tabId);
+    if (tabActiva) {
+        tabActiva.classList.add('active');
+    }
+
+    // 4. Activamos el botón correspondiente (asumiendo que tus botones tienen IDs o clases)
+    const btnActivo = (tabId === 'tab-usuario') ? 
+        document.getElementById('btn-tab-usuario') : 
+        document.getElementById('btn-tab-sistema');
+
+    if (btnActivo) {
+        btnActivo.classList.add('active');
+    }
+},
 
     // 2. Intercambia el ⚙️ por la Foto Real en el Header y en el Panel
     actualizarAvatarHeader(perfil) {
@@ -382,7 +408,16 @@ toggleAjustes: function() {
     }
 },
 
- show(view) {
+show(view) {
+    // 0. ACTUALIZAR BOTONES DE NAVEGACIÓN (El "encendido" 3D)
+    // Buscamos todos los botones y quitamos la luz
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    
+    // Buscamos el botón que coincide con la vista actual y lo encendemos
+    // Nota: Asegúrate de que el 'onclick' pase el nombre exacto de la vista
+    const currentBtn = document.querySelector(`.nav-btn[onclick*="'${view}'"]`);
+    if (currentBtn) currentBtn.classList.add('active');
+
     // 1. Limpieza total de secciones
     document.querySelectorAll('.app-section').forEach(s => s.classList.add('hidden'));
     
@@ -398,6 +433,11 @@ toggleAjustes: function() {
 
     // 5. Carga de lógica específica por sección
     switch(view) {
+        case 'dashboard': // Cambié 'inicio' por 'dashboard' si ese es tu ID
+        case 'inicio':
+            console.log("🏠 Dashboard refrescado.");
+            break;
+
         case 'ventas':
             this.renderVentas();
             this.cargarSugerencias();
@@ -412,7 +452,6 @@ toggleAjustes: function() {
             break;
 
         case 'fiaos-list':
-            // 🛡️ CENTINELA: Marcar fiaos como leídos al entrar
             if (typeof Notificaciones !== 'undefined') {
                 Notificaciones.marcarComoLeido('fiaos');
             }
@@ -420,20 +459,18 @@ toggleAjustes: function() {
             break;
 
         case 'inventario':
-            // 🛡️ CENTINELA: Marcar stock como leído al entrar
             if (typeof Notificaciones !== 'undefined') {
                 Notificaciones.marcarComoLeido('inventario');
             }
             this.renderInventario();
             break;
-
-        case 'inicio':
-            console.log("🏠 Dashboard refrescado al entrar al inicio.");
-            break;
     }
     
     // 6. Guardar última vista
     Persistencia.guardar('dom_ultima_vista', view);
+    
+    // Extra: Feedback táctil para Johander
+    if (navigator.vibrate) navigator.vibrate(10);
 },
 
     cargarSugerencias() {

@@ -191,24 +191,92 @@ async capturarDireccionPush(uuid) {
     
 
     // --- NUEVO: Oído para el Mando Central ---
-    escucharMandoCentral(uuid) {
-        if (!uuid) return;
+// --- EL OÍDO DEL SISTEMA ---
+escucharMandoCentral(uuid) {
+    if (!uuid) return;
 
-        // 1. Escuchar Mensajes Privados (✉️ MSJ)
-        DA_Cloud.db.ref(`usuarios/${uuid}/comunicacion/mensajeDirecto`).on('value', (snap) => {
-            const data = snap.val();
-            if (data && !data.leido) {
-                this.enviarNotificacionNativa("MENSAJE DEL MAESTRO", data.texto);
-                // Opcional: Sonido de alerta
-            }
-        });
+    console.log("📡 Radar de Notificaciones: Sincronizado con Mando Central.");
 
-        // 2. Escuchar Anuncios Globales (📢 Broadcast)
-        DA_Cloud.db.ref('config_global/anuncio').on('value', (snap) => {
-            const anuncio = snap.val();
-            if (anuncio && anuncio.mensaje) {
-                this.enviarNotificacionNativa("ANUNCIO GLOBAL", anuncio.mensaje);
+    // 1. Escuchar Mensajes Privados
+    DA_Cloud.db.ref(`usuarios/${uuid}/comunicacion/mensajeDirecto`).on('value', (snap) => {
+        const data = snap.val();
+        // Solo lanzamos si hay mensaje y no ha sido marcado como leído
+        if (data && !data.leido) {
+            this.lanzarAnuncioVisual("✉️ MENSAJE PRIVADO", data.texto, "var(--accent)");
+        }
+    });
+
+    // 2. Escuchar Anuncios Globales (Broadcast)
+    DA_Cloud.db.ref('config_global/anuncio').on('value', (snap) => {
+        const anuncio = snap.val();
+        if (anuncio && anuncio.mensaje) {
+            // Evitamos anuncios de hace más de 24 horas
+            const esReciente = (Date.now() - anuncio.timestamp) < (24 * 60 * 60 * 1000);
+            if (esReciente) {
+                this.lanzarAnuncioVisual("📢 ANUNCIO GLOBAL", anuncio.mensaje, "var(--primary)");
+                this.enviarNotificacionNativa("DOMINUS: Anuncio Global", anuncio.mensaje);
             }
-        });
-    }
+        }
+    });
+},
+
+// --- LA INTERFAZ TÁCTIL ---
+lanzarAnuncioVisual(titulo, texto, colorBorde) {
+    // Evitar duplicados molestos
+    if (document.getElementById('anuncio-activo')) return;
+
+    const card = document.createElement('div');
+    card.id = 'anuncio-activo';
+    card.style = `
+        position: fixed; bottom: 85px; right: -450px; max-width: 320px;
+        padding: 18px; background: rgba(15, 15, 15, 0.98); backdrop-filter: blur(15px);
+        border-left: 6px solid ${colorBorde}; border-radius: 12px; color: white;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.8); z-index: 10000;
+        transition: right 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.3s ease, opacity 0.3s ease;
+        cursor: pointer; border-top: 1px solid rgba(255,255,255,0.1);
+        user-select: none; touch-action: pan-y;
+    `;
+
+    card.innerHTML = `
+        <div style="display:flex; gap:12px; align-items:flex-start;">
+            <div style="background:${colorBorde}; width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                <span style="font-size:1.3em;">⚡</span>
+            </div>
+            <div style="flex:1;">
+                <strong style="color:${colorBorde}; font-size:0.7em; text-transform:uppercase; letter-spacing:1.5px;">${titulo}</strong>
+                <p style="margin:4px 0 0 0; font-size:0.95em; font-weight:500; line-height:1.4;">${texto}</p>
+                <small style="display:block; margin-top:8px; opacity:0.4; font-size:0.7em;">Desliza para cerrar</small>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(card);
+    setTimeout(() => card.style.right = '20px', 100);
+
+    // Lógica de Swipe (Arrastre)
+    let startX = 0;
+    const cerrar = () => {
+        card.style.right = '-450px';
+        card.style.opacity = '0';
+        setTimeout(() => card.remove(), 600);
+    };
+
+    card.onclick = cerrar;
+    card.addEventListener('touchstart', (e) => startX = e.touches[0].clientX, {passive: true});
+    card.addEventListener('touchmove', (e) => {
+        let diff = e.touches[0].clientX - startX;
+        if (diff > 0) {
+            card.style.transform = `translateX(${diff}px)`;
+            card.style.opacity = 1 - (diff / 300);
+        }
+    }, {passive: true});
+    card.addEventListener('touchend', (e) => {
+        let diff = e.changedTouches[0].clientX - startX;
+        if (diff > 100) cerrar();
+        else {
+            card.style.transform = `translateX(0)`;
+            card.style.opacity = '1';
+        }
+    });
+}
 };

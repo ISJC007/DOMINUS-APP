@@ -62,54 +62,82 @@ const Cloud = {
      */
 async registrarNuevoUsuario(datos) {
     try {
-        // 1. Crear el usuario en Firebase Auth (Mantenemos el login por correo/pass)
+        // 1. Crear el usuario en Firebase Auth
         const userCredential = await this.auth.createUserWithEmailAndPassword(datos.correo, datos.pass);
         
-        // 🔑 CAMBIO MAESTRO: En lugar de usar el UID de Firebase, usamos TU idFinal
-        // 'datos.idFinal' debe venir desde Usuario.js (es tu UUID físico)
+        // 🔑 IDENTIDAD MAESTRA (Hardware Binding)
         const uidMaestro = datos.idFinal; 
         this.userId = uidMaestro;
 
-        // 🖼️ LÓGICA DE AVATAR (Por defecto)
-        let urlFoto = "https://cdn-icons-png.flaticon.com/512/6522/6522516.png"; 
+        const ahora = new Date();
+        const fechaCorte = new Date();
+        fechaCorte.setDate(ahora.getDate() + 16); // 15 días + 1 de margen
 
-        // 2. Crear el Perfil Extendido usando el UUID Físico
-        const perfilFinal = {
-            uid: uidMaestro, // Identidad vinculada al hardware
-            authUid: userCredential.user.uid, // Guardamos el de Firebase solo como referencia
-            nombre: datos.nombre,
-            apellido: datos.apellido || "",
-            negocio: datos.negocio,
-            usuario: datos.usuario,
-            correo: datos.correo,
-            telefono: datos.telefono || "Sin número",
-            fotoPerfil: urlFoto, 
-            fechaRegistro: new Date().toISOString(),
-            estado: 'pendiente' 
+        // 🛰️ CAPTURA DE METADATOS TÉCNICOS (Alineado con lo nuevo solicitado)
+        const metadatosEnriquecidos = {
+            dispositivo: navigator.userAgent.includes("Android") ? "Android" : "PC/Browser",
+            plataforma: navigator.platform,
+            // Captura de marca/modelo si está disponible, sino "Genérico"
+            modelo: navigator.userAgentData?.brands[0]?.brand || "Dispositivo Estándar",
+            idioma: navigator.language,
+            resolucion: `${window.screen.width}x${window.screen.height}`,
+            versionApp: "1.0.5",
+            zonaHoraria: Intl.DateTimeFormat().resolvedOptions().timeZone
         };
 
-        // 3. Guardar en Realtime Database usando el UUID como Llave
-        // Ahora el Centinela SÍ encontrará esta ruta
-        await this.db.ref(`usuarios/${uidMaestro}/perfil`).set(perfilFinal);
+        // 📦 ESTRUCTURA ORGANIZADA (POR COMPOSICIÓN)
+        const perfilEstructurado = {
+            perfil: {
+                nombre: datos.nombre,
+                apellido: datos.apellido || "",
+                negocio: datos.negocio,
+                usuario: datos.usuario,
+                correo: datos.correo,
+                telefono: datos.telefono || "Sin número",
+                fotoPerfil: "https://cdn-icons-png.flaticon.com/512/6522/6522516.png",
+                uid: uidMaestro,
+                authUid: userCredential.user.uid // Referencia de Firebase
+            },
+            administracion: {
+                estado: 'pendiente',
+                licenciaActiva: true,
+                fechaRegistro: ahora.toISOString(),
+                fechaCorte: fechaCorte.toISOString(),
+                fechaAprobacion: "" // Se llenará desde el Admin
+            },
+            seguridad: {
+                idFinal: uidMaestro,
+                ultimaConexion: ahora.toISOString(),
+                metadatos: metadatosEnriquecidos,
+                centinela: {
+                    alertaHora: false,
+                    intentosPIN: 0
+                }
+            }
+        };
+
+        // 2. Guardar el Perfil Completo en 'usuarios'
+        // Usamos la ruta completa para que Firebase cree las "carpetas"
+        await this.db.ref(`usuarios/${uidMaestro}`).set(perfilEstructurado);
         
-        // 4. NOTIFICAR AL ADMIN usando el UUID como Llave
-        // Así, cuando tú apruebes en el Admin, escribirás en la carpeta correcta
+        // 3. Crear el acceso rápido para el Admin en 'solicitudes_pendientes'
+        // Solo mandamos lo necesario para que tu Admin lo vea rápido
         await this.db.ref(`solicitudes_pendientes/${uidMaestro}`).set({
-            nombre: perfilFinal.nombre,
-            negocio: perfilFinal.negocio,
-            email: perfilFinal.correo,
-            telefono: perfilFinal.telefono,
-            uid: uidMaestro, // Tu UUID físico
-            fecha: perfilFinal.fechaRegistro
+            nombre: perfilEstructurado.perfil.nombre,
+            negocio: perfilEstructurado.perfil.negocio,
+            email: perfilEstructurado.perfil.correo,
+            uid: uidMaestro,
+            modelo: metadatosEnriquecidos.modelo,
+            fecha: perfilEstructurado.administracion.fechaRegistro
         });
 
-        console.log("🆕 Ecosistema DOMINUS vinculado al Hardware:", uidMaestro);
-        return perfilFinal;
+        console.log("🆕 Guerrero registrado y organizado:", uidMaestro);
+        return perfilEstructurado;
 
     } catch (error) {
         console.error("❌ Error crítico en registro:", error.message);
         let mensaje = "Error al crear cuenta";
-        if (error.code === 'auth/email-already-in-use') mensaje = "Este correo ya está registrado";
+        if (error.code === 'auth/email-already-in-use') mensaje = "Este correo ya está en uso";
         
         if (typeof notificar === "function") notificar(mensaje, "error");
         return null;
@@ -122,96 +150,135 @@ async aprobarUsuarioManualmente(uid) {
         const fechaCorte = new Date();
         fechaCorte.setDate(hoy.getDate() + 15); // Le damos 15 días de prueba
 
-        await this.db.ref(`usuarios/${uid}/perfil`).update({
+        // 🛡️ CAMBIO DE RUTA: Ahora escribimos en 'administracion'
+        await this.db.ref(`usuarios/${uid}/administracion`).update({
             estado: 'aprobado',
-            fechaCorte: fechaCorte.toISOString()
+            fechaAprobacion: hoy.toISOString(),
+            fechaCorte: fechaCorte.toISOString(),
+            licenciaActiva: true
         });
 
-        console.log("🔓 Usuario aprobado con éxito. Ya puede entrar.");
+        // 🧹 LIMPIEZA: Una vez aprobado, lo quitamos de la lista de espera
+        await this.db.ref(`solicitudes_pendientes/${uid}`).remove();
+
+        console.log("🔓 Guerrero aprobado y movido al ecosistema activo.");
+        return true;
     } catch (error) {
-        console.error("Error al aprobar:", error);
+        console.error("❌ Error al aprobar desde el Mando Central:", error);
+        return false;
     }
 },
 
     /**
      * CERRAR SESIÓN (Opcional, para cuando quieras salir)
      */
-    async cerrarSesion() {
-        try {
-            await this.auth.signOut();
-            this.userId = null;
-            console.log("🔌 Sesión de nube cerrada.");
-        } catch (error) {
-            console.error("❌ Error al cerrar sesión:", error.message);
-        }
-    },
+ 
 
     /**
      * RESPALDO AUTOMÁTICO (Punto 7: Base de Datos)
      * Envía los datos a la ruta privada del usuario actual
      */
-    respaldardatos(clave, datos) {
-        // Verificación de seguridad básica
-        if (!navigator.onLine) {
-            console.warn("🌐 Sin conexión: El respaldo de '" + clave + "' queda pendiente.");
-            return;
-        }
+/**
+ * Sincroniza datos específicos del negocio (Inventario, Ventas, Clientes) con la nube.
+ * @param {string} clave - El nombre de la categoría (ej: 'inventario', 'ventas')
+ * @param {object} datos - El objeto o array con la información
+ */
+respaldarDatos(clave, datos) { // ✅ Corregido: CamelCase (Mayúscula en la D)
+    // 1. Verificación de conexión
+    if (!navigator.onLine) {
+        console.warn(`🌐 Sin conexión: Sincronización de '${clave}' en espera.`);
+        return;
+    }
 
-        if (!this.userId) {
-            console.warn("⚠️ No se puede respaldar '" + clave + "': No hay un usuario identificado.");
-            return;
-        }
+    // 2. Verificación de identidad
+    if (!this.userId) {
+        console.warn(`⚠️ Error de respaldo: No hay un ID de hardware vinculado para '${clave}'.`);
+        return;
+    }
 
-        // El envío real a Firebase: usuarios / ID_UNICO / datos / nombre_del_dato
-        this.db.ref(`usuarios/${this.userId}/datos/${clave}`).set(datos)
-            .then(() => {
-                console.log(`✅ Nube sincronizada: '${clave}' actualizado.`);
-            })
-            .catch(error => {
-                console.error(`❌ Fallo crítico en el respaldo de ${clave}:`, error.message);
-            });
-    },
-
+    // 3. Envío organizado a la Nube
+    // RUTA: usuarios / ID_FISICO / operatividad / nombre_del_dato
+    this.db.ref(`usuarios/${this.userId}/operatividad/${clave}`).set(datos)
+        .then(() => {
+            console.log(`💎 DOMINUS Cloud: '${clave}' sincronizado correctamente.`);
+        })
+        .catch(error => {
+            console.error(`❌ Error en sincronización de ${clave}:`, error.message);
+            
+            // Si el error es de permisos, podrías avisar que la licencia expiró
+            if (error.message.includes("permission_denied")) {
+                if (typeof notificar === "function") {
+                    notificar("Error de acceso: Verifica tu suscripción", "error");
+                }
+            }
+        });
+},
     /**
      * Consulta el estado de aprobación del usuario (Usado por el Centinela)
      */
-    async obtenerEstadoUsuario(uid) {
-        try {
-            const snapshot = await this.db.ref(`usuarios/${uid}/perfil`).once('value');
-            return snapshot.val(); // Retornará el objeto perfil con el campo .estado
-        } catch (error) {
-            console.error("❌ Error al consultar estado:", error.message);
-            throw error;
+   /**
+ * Consulta el estatus legal y de aprobación del usuario (Usado por el Centinela)
+ * Ahora busca en la carpeta de administración para mayor seguridad.
+ */
+async obtenerEstadoUsuario(uid) {
+    try {
+        // 🛡️ CAMBIO DE RUTA: Apuntamos a 'administracion' en lugar de 'perfil'
+        const snapshot = await this.db.ref(`usuarios/${uid}/administracion`).once('value');
+        
+        const data = snapshot.val();
+
+        if (!data) {
+            console.warn("⚠️ Usuario no encontrado en los registros de administración.");
+            return null;
         }
-    },
+
+        // Retornamos el objeto de administración que contiene:
+        // .estado (aprobado/pendiente/bloqueado)
+        // .licenciaActiva (true/false)
+        // .fechaCorte (ISO String)
+        return data; 
+
+    } catch (error) {
+        console.error("❌ Error al consultar estado en la nube:", error.message);
+        throw error;
+    }
+},
 
     /**
      * Manda los datos a una zona de espera para que el Admin los apruebe
      */
-    async solicitarAccesoAdmin(perfil) {
-        try {
-            // Añadimos el estado inicial como pendiente
-            perfil.estado = 'pendiente';
-            perfil.fechaSolicitud = new Date().toISOString();
+   /**
+ * Envía o re-envía una solicitud de acceso al Mando Central.
+ * Útil para registros nuevos o usuarios que necesitan re-aprobación.
+ */
+async solicitarAccesoAdmin(perfilCompleto) {
+    try {
+        const uid = perfilCompleto.perfil.uid;
+        const fecha = new Date().toISOString();
 
-            // Lo guardamos en su perfil de la base de datos
-            await this.db.ref(`usuarios/${perfil.uid}/perfil`).set(perfil);
-            
-            // También lo guardamos en una lista global para el Administrador (Tú)
-            await this.db.ref(`solicitudes_pendientes/${perfil.uid}`).set({
-                nombre: perfil.nombre,
-                negocio: perfil.negocio,
-                uid: perfil.uid,
-                fecha: perfil.fechaSolicitud
-            });
+        // 1. Actualizamos solo la carpeta de administración
+        await this.db.ref(`usuarios/${uid}/administracion`).update({
+            estado: 'pendiente',
+            fechaRegistro: fecha
+        });
 
-            return true;
-        } catch (error) {
-            console.error("❌ Error al enviar solicitud:", error.message);
-            return false;
+        // 2. Notificamos al Mando Central (lo que tú ves en tu panel)
+        await this.db.ref(`solicitudes_pendientes/${uid}`).set({
+            nombre: perfilCompleto.perfil.nombre,
+            negocio: perfilCompleto.perfil.negocio,
+            email: perfilCompleto.perfil.correo,
+            uid: uid,
+            fecha: fecha
+        });
+
+        console.log("🛰️ Solicitud enviada al Mando Central con éxito.");
+        return true;
+    } catch (error) {
+        console.error("❌ Error al enviar solicitud:", error.message);
+        return false;
         }
     }
-};
+}
 
 // Encendemos el motor inmediatamente al cargar el script
 Cloud.init();

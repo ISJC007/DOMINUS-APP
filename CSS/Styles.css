@@ -1,978 +1,1646 @@
+/* ============================================================
+   BLOQUE 0: CIMENTACIÓN (Root y Body)
+   ============================================================ */
 :root {
-    --primary: #ffd700;
-    --bg: #121212;
-    --card-bg: rgba(255, 255, 255, 0.05);
+    --primary: #ffd700;       /* Dorado Dominus */
+    --bg-dark: #0a0a0a;       /* Negro Profundo para el fondo */
+    --glass: rgba(255, 255, 255, 0.05); /* Cristal base */
+    --glass-border: rgba(255, 255, 255, 0.1); /* Borde de cristal */
     --text: #ffffff;
-    --danger: #ff5252;
-    --success: #4caf50;
-    --header-height: 180px;
 }
 
-/*modo oscuro hay que hacerle unas cositas*/
-body.dark-mode {
-    --bg: #050505; 
-    --card-bg: rgba(255, 255, 255, 0.03);
-    --text: #e0e0e0;
-    --primary: #00ff88;
-}
-
-html, body {
-    overflow-x: hidden; 
-    width: 100%;
-    position: relative;
-    box-sizing: border-box; /* 🛡️ Seguridad: Incluye bordes y padding en el ancho */
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
-    background-color: var(--bg);
+    background-color: var(--bg-dark);
     color: var(--text);
-    font-family: 'Inter', -apple-system, sans-serif;
-    margin: 0; 
-    padding: 0; /* 🛡️ Arreglo: Limpiamos padding inicial para evitar desplazamientos */
-    padding-bottom: 90px;
-    transition: background-color 0.3s ease;
-    -webkit-tap-highlight-color: transparent;
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
     overflow-x: hidden;
+    /* Añade esto para que no se pueda arrastrar la pantalla hacia abajo en móviles */
+    overscroll-behavior-y: contain; 
+    height: 100vh;
+    width: 100vw;
 }
 
-.ajustes-sidebar {
-    position: fixed !important; 
-    top: 80px;                 
-    right: 20px;               
-    width: 200px;              
-    background: #1a1a1a;
-    border: 1px solid var(--primary);
-    border-radius: 12px;
-    padding: 10px;
-    z-index: 10000;            
-    box-shadow: 0 5px 20px rgba(0,0,0,0.8);
-    
-    display: none;
-}
-
-.ajustes-sidebar.active {
-    display: block !important;
-}
-
-.ajustes-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #333;
-    margin-bottom: 10px;
-    padding-bottom: 5px;
-    font-weight: bold;
-    font-size: 0.8rem;
-}
-
-.glass {
-    background: var(--card-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 15px;
-    padding: 15px;
-}
-
-input, select {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    padding: 12px; 
-    border-radius: 10px; 
-    color: white;
-    font-size: 16px;
-}
-
-input:focus, select:focus {
-    outline: 2px solid var(--primary);
-    background-color: rgba(255, 255, 255, 0.15);
-}
-
-select option {
-    background-color: #1a1a1a;
-    color: white;
-}
-
-.input-group { 
-    display: grid; 
-    grid-template-columns: 1fr 1fr; 
-    gap: 10px; 
-}
-
-.main-header {
-    position: sticky; 
-    top: 0; 
-    z-index: 100;
-    padding: 15px; 
-    border-radius: 0 0 20px 20px;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-    background: var(--bg); 
-}
-
-.header-top { 
-    position: relative;
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    text-align: center;
-}
-
-.btn-ajustes-top {
-    position: absolute;
-    right: 0;
-    top: 0;
-    background: rgba(255,255,255,0.1);
-    border: none;
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 50%;
-    color: white;
-   z-index: 101 !important; 
-    pointer-events: auto;     
-}
-
-.titulo-app { margin: 0; font-size: 1.8rem; letter-spacing: 2px; }
-
-.slogan {
-    font-weight: 400;
-    font-size: 0.75rem;
-    color: var(--primary);
-    opacity: 0.8;
-    text-align: center; 
-    margin-bottom: 15px;
-    margin-top: 5px;
-}
-
-.tasa-control {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-#tasa-global {
-    width: 60px;
-    padding: 5px;
-    text-align: center;
-}
-
-.dashboard-cards {
-    display: grid; 
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 10px; 
-    margin: 10px 15px; 
-}
-
-.card-mini { 
-    text-align: center; 
-    font-size: 0.8rem; 
-    min-width: 0; 
-}
-.card-mini b { display: block; font-size: 1.1rem; }
-
-.btn-main {
-    background: var(--primary); 
-    color: black; 
-    font-weight: bold;
-    border: none; 
-    padding: 15px; 
-    border-radius: 10px;
-    cursor: pointer;
-    width: 100%;
-}
-
-.btn-danger { background: var(--danger); color: white; }
-.btn-mini { padding: 5px 10px; border-radius: 5px; border: none; font-size: 0.7rem; cursor: pointer; }
-.btn-success { background: var(--success); color: white; }
-
-.btn-nocturno {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: var(--primary);
-    padding: 8px 12px;
-    border-radius: 50px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    backdrop-filter: blur(5px);
-    transition: 0.3s;
-}
-
-.bottom-nav {
-    position: fixed; 
-    bottom: 0; 
-    width: 100%;
-    height: 75px; 
-    display: flex; 
-    justify-content: space-around;
-    align-items: center; 
-    padding: 0; 
-    border-radius: 20px 20px 0 0;
-    z-index: 1000;
-    background: rgba(10, 10, 10, 0.95); 
-    backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(255, 215, 0, 0.2);
-    display: none; /* 🚩 CAMBIO 1: El menú nace oculto */
-    opacity: 0;    /* Para poder hacerle un efecto de aparecer suave */
-    transition: opacity 0.5s ease;
-}
-
-
-.bottom-nav button {
-    position: relative;
-    background: none; 
-    border: none; 
-    color: #666; 
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.3s ease;
-    flex: 1;
-}
-
-.bottom-nav.nav-visible {
-    display: flex; /* Se activa como flex para respetar tu justify-content */
-    opacity: 1;
-}
-
-.bottom-nav button.active {
-    color: var(--primary);
-    transform: translateY(-5px); 
-}
-
-.bottom-nav button i, .bottom-nav button span {
-    font-size: 1.4rem;
-}
-
-.app-section { 
-    padding-top: 10px; 
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.badge-notif {
-    position: absolute;
-    top: 2px;
-    right: 15%; /* Ajustado para que quede cerca del icono/emoji */
-    background: #ff4444;
-    color: white;
-    font-size: 0.65rem;
-    min-width: 16px;
-    height: 16px;
-    border-radius: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-weight: bold;
-    border: 2px solid #0a0a0a; /* Para que resalte sobre el fondo oscuro */
-    box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
-    pointer-events: none; /* Que no interfiera con el click del botón */
-    display: none; /* Oculta por defecto */
-}
-
-.badge-notif.active {
-    display: flex;
-    animation: pulse-notif 2s infinite;
-}
-
-@keyframes pulse-notif {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); }
-}
-
-.card-tip {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), rgba(0, 0, 0, 0.5));
-    border: 1px solid var(--primary);
-    padding: 15px;
-    border-radius: 15px;
-    margin: 15px 0;
-    border-left: 5px solid var(--primary);
-}
-
-.card-tip h4 {
-    margin: 5px 0;
-    color: var(--primary);
-    font-size: 1.1rem;
-}
-
-.card-tip p {
-    font-size: 0.9rem;
-    opacity: 0.9;
-    line-height: 1.4;
-}
-
-.card { 
-    margin: 15px; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 10px; 
-    max-width: calc(100% - 30px); 
-}
-
-.card-grafica {
-    margin: 20px 15px; /* Un poco más de aire arriba */
-    padding: 15px;
-    background: var(--card-bg);
-    backdrop-filter: blur(12px); /* Efecto de desenfoque detrás del cristal */
-    -webkit-backdrop-filter: blur(12px);
-    border-radius: 20px; /* Bordes más modernos y redondeados */
-    height: 250px; /* Subimos a 250px para que la gráfica respire mejor */
-    position: relative;
-    max-width: calc(100% - 30px);
-    border: 1px solid rgba(255, 255, 255, 0.05); /* Un borde sutil para definir la forma */
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); /* Sombra para dar elevación */
-    transition: transform 0.2s ease; /* Pequeño efecto al tocar */
-}
-
-/* Efecto visual cuando el usuario toca la gráfica */
-.card-grafica:active {
-    transform: scale(0.98);
-}
-
-/* Aseguramos que el canvas use todo el espacio interno */
-#graficaVentas {
-    width: 100% !important;
-    height: 100% !important;
-}
-
-.hidden { display: none !important; }
-
-.listado-container { padding-bottom: 20px; }
-
-.item-lista {
-    margin: 10px 15px; 
-    display: flex;
-    justify-content: space-between; 
-    align-items: center;
-    padding: 10px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 8px;
-    
-    box-sizing: border-box;
-    max-width: calc(100% - 30px); 
-    overflow: hidden; 
-}
-
-.item-lista span {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.item-lista span:last-child {
-    flex-shrink: 0; 
-    white-space: nowrap;
-    font-weight: bold;
-    color: var(--primary);
-}
-
-.border-fiao { border-left: 5px solid var(--primary); }
-
-.fecha-registro {
-    font-size: 0.7rem;
-    color: var(--primary);
-    display: block;
-    margin-top: 2px;
-}
-
-.ajustes-sidebar {
-    position: fixed;
-    top: 0;
-    right: -105%; 
-    width: 300px;
-    height: 100%;
-    background: #1a1a1a;
-    color: white;
-    transition: transform 0.3s ease-in-out;
-    z-index: 1001;
-    box-shadow: -5px 0 15px rgba(0,0,0,0.5);
-    padding: 20px;
-    border-left: 1px solid var(--primary);
-}
-
-.ajustes-sidebar.active { 
-    transform: translateX(-100%); 
-}
-
-.ajustes-header {
-    display: flex;
-    justify-content: space-between;
-    border-bottom: 2px solid var(--primary);
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-}
-
-.ajuste-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 0;
-    border-bottom: 1px solid #333;
-}
-
-.switch-dominus {
-    position: relative;
-    display: inline-block;
-    width: 50px;
-    height: 26px;
-}
-
-.switch-dominus input { opacity: 0; width: 0; height: 0; }
-
-.slider-dominus {
-    position: absolute;
-    cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-color: #ccc;
-    transition: .4s;
-    border-radius: 34px;
-}
-
-.slider-dominus:before {
-    position: absolute;
-    content: "";
-    height: 18px; width: 18px;
-    left: 4px; bottom: 4px;
-    background-color: white;
-    transition: .4s;
-    border-radius: 50%;
-}
-
-input:checked + .slider-dominus { background-color: var(--primary); }
-input:checked + .slider-dominus:before { transform: translateX(24px); }
-
-.switch { position: relative; display: inline-block; width: 40px; height: 20px; }
-.switch input { opacity: 0; width: 0; height: 0; }
-.slider {
-    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-    background-color: #ccc; transition: .4s; border-radius: 34px;
-}
-.switch input:checked + .slider { background-color: var(--success); }
-.slider:before {
-    position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px;
-    background-color: white; transition: .4s; border-radius: 50%;
-}
-.switch input:checked + .slider:before { transform: translateX(20px); }
-
+/* ============================================================
+   BLOQUE 1: SPLASH SCREEN (Moderno & 3D)
+   ============================================================ */
 .splash {
     position: fixed;
-    top: 0; 
-    left: 0; 
-    width: 100vw; 
-    height: 100vh; 
-    background: #0f0f0f; /* Fondo sólido del splash */
-    display: flex; 
-    flex-direction: column;
-    justify-content: center; 
-    align-items: center;
-    z-index: 999; /* Por debajo del overlay de seguridad */
-    text-align: center;
-    padding: 20px;
-    box-sizing: border-box;
-}
-
-.splash-fade-out {
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.8s ease, visibility 0.8s;
-}
-
-.logo-anim {
-    font-size: 3rem;
-    letter-spacing: 5px;
-    color: var(--primary);
-    margin-bottom: 10px;
-    animation: fadeIn 1.5s ease-in-out;
-}
-
-.loader {
-    border: 3px solid rgba(255,255,255,0.1);
-    border-top: 3px solid var(--primary);
-    border-radius: 50%;
-    width: 30px; height: 30px;
-    margin: 20px auto;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin { 100% { transform: rotate(360deg); } }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-
-.modal-tallas {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8);
-    backdrop-filter: blur(5px);
-    display: none;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
+    display: flex;
     justify-content: center;
     align-items: center;
     z-index: 10000;
 }
 
-.modal-content-tallas {
-    background: #1a1a1a;
-    border: 1px solid var(--primary);
-    padding: 20px;
-    border-radius: 15px;
-    width: 90%;
-    max-width: 400px;
-    max-height: 80vh;
-    overflow-y: auto;
+.splash-content {
+    text-align: center;
+    padding: 30px; /* Un poco menos en móvil ayuda */
+    background: var(--glass);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    
+    /* MODIFICACIÓN AQUÍ: */
+    width: min(90%, 400px); /* Nunca será más grande de 400px, pero en móvil ocupará el 90% */
 }
 
-.fila-talla {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    padding-bottom: 5px;
-    border-bottom: 1px solid #333;
-}
-
-.fila-talla input {
-    width: 60px;
-    background: #222;
+/* Mejora para el Logo (Responsive Text) */
+.logo-anim {
+    /* Usar clamp ayuda a que el logo se ajuste solo entre móvil y PC */
+    font-size: clamp(2em, 8vw, 3.5em); 
+    font-weight: 800;
     color: var(--primary);
-    border: 1px solid #444;
-    text-align: center;
-    border-radius: 5px;
+    letter-spacing: 8px;
+    margin: 0;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+    animation: float 3s ease-in-out infinite;
+    text-transform: uppercase; /* Asegura la consistencia visual */
 }
 
-#panelAjustes {
-    position: fixed !important;
-    top: 15px !important;
-    right: 15px !important;
-    left: auto !important;
-    bottom: auto !important;
-    transform: none !important;
+.slogan-anim {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9em;
+    letter-spacing: 1px;
+    margin-top: 10px;
 }
 
-.modal-seguridad {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.95); /* Negro profundo */
-    display: flex; justify-content: center; align-items: center;
-    z-index: 10000; /* Por encima de todo, incluso del splash */
-}
-.modal-contenido {
-    background: #1a1a1a;
-    padding: 30px;
-    border-radius: 15px;
-    border: 1px solid var(--primary); /* Tu color dorado/naranja */
-    text-align: center;
-}
-#pin-input {
-    background: #333;
-    color: white;
-    border: none;
-    padding: 15px;
-    font-size: 2em;
-    width: 100px;
-    text-align: center;
-    margin: 20px 0;
+/* Loader Moderno */
+.loader {
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top: 3px solid var(--primary);
+    border-radius: 50%;
+    margin: 30px auto;
+    animation: spin 1s linear infinite;
 }
 
-/* --- CORRECCIÓN DE MODALES --- */
-.modal-overlay, .modal-eleccion {
+/* Sabiduría (Frases) */
+.wisdom-container {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.wisdom-text {
+    font-style: italic;
+    font-size: 1.1em;
+    color: #e0e0e0;
+    line-height: 1.5;
+}
+
+.wisdom-author {
+    color: var(--primary);
+    font-weight: bold;
+    margin-top: 15px;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    opacity: 0.8;
+}
+
+/* Animaciones */
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   BLOQUE 2: AJUSTES (Moderno & 3D)
+   ============================================================ */
+.ajustes-sidebar {
     position: fixed;
     top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0,0,0,0.85);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    display: flex; /* Cambiado: no usar 'none' por defecto si JS lo controla */
-    justify-content: center;
-    align-items: center;
-    z-index: 100000;
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box; /* IMPORTANTE */
-}
-
-/* Ocultar por defecto si no es .active */
-.modal-eleccion {                
-    display: none;                
-}
-
-.modal-eleccion.active {
-    display: flex;                
-}
-
-/* --- TOASTS --- */
-
-/* Clase BASE para todos los Toasts superiores */
-.toast-general {
-    position: fixed;
-    top: 25px; 
-    left: 50%;
-    transform: translateX(-50%) translateY(-100px); /* Empieza fuera de pantalla (arriba) */
-    padding: 14px 28px;
-    border-radius: 50px; 
-    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-    z-index: 10001;
-    font-weight: 800;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    white-space: nowrap;
-    max-width: 90%;
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
-    opacity: 0;
-}
-
-/* Estado ACTIVO */
-.toast-general.show {
-    transform: translateX(-50%) translateY(0); /* Cae al centro superior */
-    opacity: 1;
-}
-
-/* Variaciones de Color (Solo fondo y texto) */
-.toast-exito { background: var(--primary); color: #000 !important; }
-.toast-gasto { background: #ff5252 !important; color: white !important; }
-.toast-stock { background: #2196f3 !important; color: white !important; }
-.toast-fiao  { background: #ff9800 !important; color: white !important; }
-.toast-error { background: #b71c1c !important; color: white !important; }
-.toast-alerta { background: #ffd700 !important; color: #000 !important; } /* Para stock crítico */
-
-.eleccion-content {
-    background: #1a1a1a;
-    width: 90%;
-    max-width: 400px;
-    padding: 30px;
-    border-radius: 25px; 
-    border: 1px solid var(--primary);
-    text-align: center;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-    animation: aparecerModal 0.3s ease-out;
-}
-
-@keyframes aparecerModal {
-    from { transform: scale(0.8); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-}
-
-.btns-eleccion {
-    display: flex;
-    flex-direction: column; 
-    gap: 12px;
-    margin-top: 25px;
-}
-
-/* EL COLOR (Para todos los botones de WhatsApp) */
-/* 1. La base: Solo el color */
-.btn-whatsapp {
-    background: #25D366 !important;
-    color: white !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-/* 2. Estilo para el Cierre (Rectangular y grande) */
-.btn-cierre-wa {
-    font-weight: 800;
-    padding: 15px;
-    border-radius: 12px;
+    right: -100%; /* Totalmente fuera de la pantalla a la derecha */
     width: 100%;
+    max-width: 400px; /* En PC no ocupa todo, en móvil sí */
+    height: 100vh;
+    background: rgba(10, 10, 10, 0.95); /* Negro profundo con transparencia */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 2000; /* Por encima del Header pero debajo del Splash */
+    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1); /* Movimiento fluido */
+    border-left: 1px solid var(--glass-border);
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
 }
 
-/* 3. Estilo para Fiados (Círculo pequeño) */
-.btn-redondo-wa {
-    border-radius: 50% !important;
-    width: 35px !important;
-    height: 35px !important;
-    padding: 0; /* Para centrar bien el emoji */
-    font-size: 1.2rem;
+/* La clase que activará tu JS */
+.ajustes-sidebar.active {
+    right: 0; /* Entra a la pantalla */
 }
 
-.btn-pdf { background: #f44336 !important; color: white !important; font-weight: 800; padding: 15px; border-radius: 12px; border: none; }
-.btn-no { background: #333 !important; color: #fff !important; padding: 12px; border-radius: 12px; border: none; }
+.ajustes-header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 20px; 
+    background: rgba(255, 255, 255, 0.03); /* Brillo sutil */
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.ajustes-title {
+    font-weight: 800;
+    color: var(--primary); 
+    letter-spacing: 2px;
+    font-size: 0.9em;
+    text-shadow: 0 0 10px var(--primary-glow); /* Brillo neón suave */
+}
+
+.btn-close-ajustes {
+    background: rgba(255, 255, 255, 0.1); 
+    border: none; 
+    color: white; 
+    font-size: 24px; 
+    width: 35px;
+    height: 35px;
+    border-radius: 50%; /* Botón circular */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-close-ajustes:active {
+    transform: scale(0.8); /* Efecto 3D al presionar */
+    background: var(--primary);
+    color: black;
+}
+
+/* ============================================================
+   BLOQUE: CUERPO DEL PANEL (Estructura)
+   ============================================================ */
+.panel-body {
+    padding: 0; 
+    display: flex; 
+    flex-direction: column; 
+    height: calc(100% - 70px); 
+    overflow-y: auto;
+    scrollbar-width: none;
+    /* Máscara de desvanecimiento para un look más fluido */
+    mask-image: linear-gradient(to bottom, 
+        transparent, 
+        black 5%, 
+        black 95%, 
+        transparent
+    );
+    -webkit-mask-image: linear-gradient(to bottom, 
+        transparent, 
+        black 5%, 
+        black 95%, 
+        transparent
+    );
+}
+
+.panel-body::-webkit-scrollbar {
+    display: none; /* Oculta scrollbar en Chrome/Safari */
+}
+
+.tabs-nav {
+    display: flex; 
+    background: rgba(15, 15, 15, 0.6); /* Más oscuro y profundo */
+    margin: 20px 15px; /* Un poco más de aire */
+    border-radius: 16px;
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    /* Sombra interna para efecto de bajorrelieve */
+    box-shadow: 
+        inset 0 4px 12px rgba(0, 0, 0, 0.8),
+        0 1px 1px rgba(255, 255, 255, 0.05);
+    position: relative;
+    backdrop-filter: blur(10px);
+}
+
+/* Estilo de los Botones (Efecto Táctil) */
+.tab-btn {
+    flex: 1; 
+    padding: 10px; 
+    border: none; 
+    background: transparent; 
+    color: rgba(255, 255, 255, 0.4); 
+    font-weight: 500;
+    font-size: 0.75rem;
+    text-transform: uppercase; /* Más profesional */
+    letter-spacing: 1.5px;
+    cursor: pointer; 
+    border-radius: 12px;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    display: flex;
+    flex-direction: row; /* Icono al lado del texto para ahorrar espacio vertical */
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Estado Activo: Oro Líquido con Resplandor */
+.tab-btn.active {
+    background: linear-gradient(135deg, var(--primary), #e6c200); 
+    color: #000;
+    font-weight: 900;
+    /* Resplandor externo e interno para volumen */
+    box-shadow: 
+        0 0 20px rgba(255, 215, 0, 0.3),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.2);
+    transform: translateY(-1px) scale(1.02);
+}
+/* Efecto al presionar (Feedback físico) */
+.tab-btn:not(.active):hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================================
+   BLOQUE: PERFIL DE USUARIO (Identidad 3D)
+   ============================================================ */
+
+/* Contenedor de scroll suave */
+.settings-content {
+    flex-grow: 1; 
+    overflow-y: auto; 
+    /* Padding fluido: 15px en móvil, 25px en pantallas más grandes */
+    padding: clamp(15px, 4vw, 25px); 
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    /* Evita el rebote elástico que a veces rompe el layout en iOS */
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Tarjeta de Perfil Estilo Glass-3D */
+.profile-card {
+    text-align: center; 
+    margin-bottom: 25px; 
+    background: var(--glass); 
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: clamp(20px, 5vw, 30px); 
+    border-radius: 24px; /* Un poco más redondeado para look moderno */
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-3d);
+    /* Asegura que la tarjeta no se vea gigante en tablets */
+    max-width: 100%;
+}
+
+.settings-section-title {
+    color: var(--primary); 
+    font-size: 0.75em; 
+    font-weight: 800;
+    text-transform: uppercase; 
+    margin-bottom: 20px; 
+    text-align: left;
+    letter-spacing: 2px;
+    opacity: 0.8;
+}
+
+/* Contenedor del Avatar con Sombra de Piso */
+.avatar-container {
+    position: relative; 
+    /* Tamaño ajustable según el ancho de pantalla */
+    width: clamp(90px, 20vw, 120px); 
+    height: clamp(90px, 20vw, 120px); 
+    margin: 0 auto 15px;
+    perspective: 1000px;
+}
+
+.avatar-wrapper {
+    width: 100%; 
+    height: 100%; 
+    border-radius: 50%; 
+    border: 3px solid rgba(255, 255, 255, 0.1); 
+    background: #1a1a1a; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer; 
+    position: relative;
+    overflow: hidden;
+    /* Sombra de "piso" más realista */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 
+                inset 0 0 15px rgba(255, 215, 0, 0.05);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Efecto al pasar el mouse o tocar */
+.avatar-wrapper:active {
+    transform: scale(0.92) translateY(5px) rotateX(10deg);
+    border-color: var(--primary);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.8);
+}
+
+.avatar-placeholder { 
+    /* Tamaño de fuente basado en el contenedor */
+    font-size: 2.5rem; 
+    filter: drop-shadow(0 5px 10px rgba(0,0,0,0.8));
+    transition: transform 0.3s ease;
+}
+
+.avatar-wrapper:active .avatar-placeholder {
+    transform: scale(0.9);
+}
+
+.avatar-img {
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover;
+    display: none; /* Se activa cuando hay foto */
+}
+
+/* Indicador de Red (Estilo LED 3D) */
+.status-indicator {
+    position: absolute; 
+    bottom: 5px; 
+    right: 5px; 
+    width: 18px; 
+    height: 18px; 
+    border-radius: 50%; 
+    background: #555; /* Offline */
+    border: 3px solid #1a1a1a; 
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    transition: all 0.3s ease;
+    z-index: 2;
+}
+
+/* Clases que el JS activará para el estado de red */
+.status-online { 
+    background: #00ff88 !important; 
+    box-shadow: 0 0 12px #00ff88 !important; 
+}
+.status-offline { 
+    background: #ff4757 !important; 
+    box-shadow: 0 0 12px #ff4757 !important; 
+}
+
+/* ============================================================
+   BLOQUE: EDICIÓN DE PERFIL (Feedback & 3D)
+   ============================================================ */
+
+/* Utilidades Invisibles */
+.hidden-input { display: none; }
+
+/* Botón Editar Foto (Efecto Elevado) */
+.btn-edit-photo {
+    position: absolute; 
+    bottom: 2px; 
+    right: 2px; 
+    background: var(--primary); 
+    border: 2px solid #1a1a1a; /* Crea separación física */
+    border-radius: 50%; 
+    width: 32px; /* Un poco más grande para el dedo */
+    height: 32px; 
+    font-size: 14px; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    z-index: 3;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Botón Editar Foto: Área táctil aumentada */
+.btn-edit-photo::after {
+    content: '';
+    position: absolute;
+    width: 48px; /* El dedo tocará esto aunque el botón sea más chico */
+    height: 48px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.btn-edit-photo:active {
+    transform: scale(0.8);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.8);
+}
+
+/* Nombre Editable Moderno */
+.profile-name-container {
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    margin-top: 10px;
+}
+
+/* Nombre Editable: Evitar saltos de línea raros */
+.editable-name {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap; /* Evita que el nombre se rompa en dos líneas si es largo */
+    text-overflow: ellipsis;
+    min-width: 50px; /* Evita que el campo desaparezca si borran todo el texto */
+}
+
+/* Efecto cuando el usuario hace clic para escribir */
+.editable-name:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.3); /* Efecto hundido al escribir */
+    color: var(--primary);
+}
+
+.user-tag {
+    color: rgba(255, 255, 255, 0.4); 
+    font-size: 0.85em;
+    font-family: 'Monospace', sans-serif; /* Estilo código/tag */
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+}
 
 
-/* --- ESTILOS PARA LA TARJETA DE FIAO --- */
-.card-fiao {
-    margin-bottom: 12px;
-    padding: 18px;
-    border-radius: 15px;
-    background: rgba(255, 255, 255, 0.05); /* Efecto Glass */
-    border: 1px solid rgba(255, 255, 255, 0.1);
+/* Botón Logout (Glass-Red) */
+.btn-logout {
+    background: rgba(231, 76, 60, 0.1); 
+    color: #ff4757; 
+    padding: 10px 25px;
+    font-size: 0.75em;
+    font-weight: 800;
+    letter-spacing: 2px;
+    border-radius: 12px; 
+    border: 1px solid rgba(231, 76, 60, 0.2); 
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.btn-logout:active {
+    background: #e74c3c;
     color: white;
-    transition: transform 0.2s;
+    transform: scale(0.95);
+    box-shadow: 0 0 20px rgba(231, 76, 60, 0.4);
 }
 
-.card-fiao:hover {
+/* ============================================================
+   BLOQUE: MENSAJERÍA INTELIGENTE (Glass & Interactive)
+   ============================================================ */
+
+.settings-card {
+    text-align: left; 
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01)); 
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    padding: 22px; 
+    border-radius: 24px; /* Un poco más redondeado para un look moderno */
+    margin-bottom: 20px;
+    border: 1px solid rgba(255, 215, 0, 0.1); /* Borde con un toque de oro sutil */
+    box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.5),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1); /* Brillo en el borde superior */
+}
+
+.settings-card-title {
+    color: var(--primary); 
+    font-size: 0.7rem; 
+    font-weight: 900;
+    margin-bottom: 20px; 
+    text-transform: uppercase; 
+    letter-spacing: 3px; /* Más espaciado para elegancia */
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Selector de Franja Horaria (Efecto de Botonera 3D) */
+.time-selector-group {
+    display: flex; 
+    gap: 5px; 
+    margin-bottom: 25px;
+    background: rgba(0, 0, 0, 0.4); /* Más oscuro para contraste */
+    padding: 6px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.btn-time {
+    flex: 1; 
+    padding: 12px 5px; 
+    font-size: 0.65rem; 
+    font-weight: 700;
+    cursor: pointer; 
+    background: transparent; 
+    color: rgba(255, 255, 255, 0.3); 
+    border: none; 
+    border-radius: 10px; 
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Rebote sutil */
+    text-transform: uppercase;
+}
+
+.btn-time.active {
+    background: var(--primary); 
+    color: #000;
+    /* Resplandor que baña el botón */
+    box-shadow: 
+        0 5px 15px rgba(255, 215, 0, 0.4),
+        inset 0 2px 2px rgba(255, 255, 255, 0.5); 
+    transform: translateY(-2px) scale(1.05);
+}
+
+.btn-time:not(.active):hover {
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Grupo del Área de Texto */
+.input-label {
+    display: block;
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.4); /* Menos contraste inicial para elegancia */
+    margin-bottom: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+.main-textarea {
+    width: 100%; 
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff; 
+    border: 1px solid rgba(255, 255, 255, 0.05); 
+    border-radius: 16px; /* Más redondeado */
+    padding: 18px; 
+    font-size: 0.9rem;
+    min-height: 130px;
+    resize: none; 
+    line-height: 1.6;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.main-textarea:focus {
+    outline: none;
+    border-color: rgba(212, 175, 55, 0.5); /* Dorado translúcido */
+    background: rgba(0, 0, 0, 0.6);
+    /* Brillo externo e interno simultáneo */
+    box-shadow: 
+        0 0 20px rgba(212, 175, 55, 0.05),
+        inset 0 0 10px rgba(0, 0, 0, 0.8);
     transform: translateY(-2px);
 }
 
-.fiao-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
+/* Scrollbar personalizada para el textarea */
+.main-textarea::-webkit-scrollbar {
+    width: 4px;
+}
+.main-textarea::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
 }
 
-.fiao-info strong {
-    font-size: 1.1em;
+/* Botones de acción secundarios */
+.textarea-actions {
+    display: flex; 
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.btn-secondary-outline, .btn-primary-outline {
+    flex: 1;
+    padding: 12px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-radius: 12px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Hover de botones */
+.btn-secondary-outline:hover {
+    background: rgba(255, 68, 68, 0.1);
+    border-color: rgba(255, 68, 68, 0.3);
+    color: #ff4444;
+}
+
+.btn-primary-outline {
+    color: var(--primary);
+    border-color: rgba(212, 175, 55, 0.2);
+}
+
+.btn-primary-outline:hover {
+    background: rgba(212, 175, 55, 0.1);
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.1);
+}
+
+.btn-secondary-outline:active, .btn-primary-outline:active {
+    transform: scale(0.96);
+}
+
+
+.settings-row-special {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    /* Degradado sutil para dar profundidad */
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.08) 0%, transparent 100%);
+    padding: 18px; 
+    border-radius: 18px;
+    margin-top: 25px;
+    border: 1px solid rgba(255, 215, 0, 0.15);
+    /* Sombra suave para separarlo del fondo de la tarjeta */
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.settings-row-special:hover {
+    border-color: rgba(255, 215, 0, 0.3);
+    background: rgba(255, 215, 0, 0.12);
+}
+
+.label-info .main-label {
     display: block;
+    font-weight: 800;
+    font-size: 0.85rem;
+    color: #fff;
+    letter-spacing: 0.5px;
     margin-bottom: 2px;
 }
 
-.monto-usd {
-    color: var(--primary);
-    font-size: 0.9rem;
-    font-weight: bold;
+.label-info .sub-label {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
 }
 
-.fiao-actions {
-    text-align: right;
-}
-
-.monto-bs {
-    display: block;
-    font-size: 1.1rem;
-    font-weight: bold;
-    margin-bottom: 5px;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-}
-
-
-
-
-.btn-abonar {
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: none;
-    background: var(--primary);
-    color: white;
-    cursor: pointer;
-}
-
-/* --- ESTILOS PARA LOS DETALLES DESPLEGABLES --- */
-.fiao-details {
-    margin-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 10px;
-    font-size: 0.9em;
-    color: #ccc;
-}
-
-.fiao-details summary {
+.main-select {
+    background: #0a0a0a; /* Negro profundo */
+    color: var(--primary); 
+    border: 1px solid rgba(212, 175, 55, 0.3); 
+    border-radius: 10px; 
+    padding: 10px 15px; 
+    font-size: 0.75rem;
+    font-weight: 900;
     cursor: pointer;
     outline: none;
-    list-style: none; /* Quita la flechita por defecto */
-}
-
-.details-content {
-    margin-top: 10px;
-    max-height: 150px;
-    overflow-y: auto; /* Scroll si hay muchas deudas */
-}
-
-.detail-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.detail-product small {
-    opacity: 0.7;
-    margin-left: 5px;
-}
-
-/* --- ESTILOS PARA EL HISTORIAL DE VENTAS --- */
-.bloque-hora-container {
-    border-left: 2px solid var(--primary);
-    margin: 10px 0;
-    padding-left: 10px;
-    background: rgba(0,0,0,0.1);
-    border-radius: 4px;
-}
-
-.bloque-hora-titulo {
-    font-size: 11px;
-    font-weight: bold;
-    color: var(--primary);
-    margin-bottom: 5px;
-    padding-top: 5px;
-}
-
-.detalles-historial {
-    margin-top: 10px;
-    border: 1px solid var(--primary);
-    border-radius: 8px;
-}
-
-.summary-historial {
-    padding: 12px;
-    cursor: pointer;
     text-align: center;
-    font-weight: bold;
-    color: var(--primary);
-    list-style: none; /* Oculta la flechita */
+    /* Eliminamos el estilo nativo para mayor control visual */
+    appearance: none;
+    -webkit-appearance: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
 }
 
-.detalles-content {
-    max-height: 400px;
-    overflow-y: auto;
-    padding: 5px;
+.main-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+    transform: scale(1.05);
 }
 
-/* --- ESTILOS PARA LA FILA DE VENTA --- */
-.item-venta {
-    margin-bottom: 8px;
-    padding: 12px;
-    border-radius: 10px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.05);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: white;
+/* Un pequeño truco para que el select parezca un botón premium */
+.main-select:hover {
+    background: #111;
+    border-color: var(--primary);
 }
 
-.venta-info {
-    display: flex;
+/* ============================================================
+    BLOQUE: RESPONSIVIDAD PRO (PC & TABLETS) - VERSIÓN XL
+   ============================================================ */
+@media (min-width: 1024px) {
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: radial-gradient(circle at top right, #1a1a1a, #0b0b0b);
+        min-height: 100vh;
+        margin: 0;
+        overflow: hidden;
+    }
+
+    /* El contenedor maestro ahora más robusto */
+  .app-viewport {
+        width: 95%;
+        max-width: 600px; 
+        height: 85vh; 
+        position: relative;
+        background: var(--bg-dark);
+        border-radius: 32px;
+        border: 12px solid #1a1a1a;
+        box-shadow: 0 40px 80px rgba(0,0,0,0.9);
+        
+        /* CAMBIO CRUCIAL AQUÍ: */
+        display: flex;
+        flex-direction: column; /* Alinea Header arriba y Contenido abajo */
+        overflow-y: auto;       /* Permite el scroll vertical */
+        overflow-x: hidden;     /* Evita que se mueva hacia los lados */
+    }
+
+    /* Opcional: Para que el scroll se vea igual de "Dorado" que el resto */
+    .app-viewport::-webkit-scrollbar {
+        width: 6px;
+    }
+    .app-viewport::-webkit-scrollbar-thumb {
+        background: var(--primary);
+        border-radius: 10px;
+    }
+
+.app-content {
+    flex: 1;
+    overflow-y: auto; 
+    height: 100%;
+}
+
+/* Busca tu contenedor principal (donde está el dashboard/inventario) */
+.main-container {
+    height: 100%; /* Ocupa el alto del viewport */
+    overflow-y: auto !important; /* Fuerza la aparición del scroll */
+    overflow-x: hidden;
+    display: block; /* Asegura que se comporte como un bloque que puede crecer */
+}
+
+    /* Aseguramos que el contenido se adapte al nuevo ancho */
+    .splash, 
+.ajustes-sidebar {
+        /* Cambiamos o reforzamos estas propiedades */
+        position: absolute; 
+        top: 0;
+        right: -100%; /* Escondido */
+        width: 100%;
+        height: 100%; /* Ocupa todo el alto del viewport fijo */
+        z-index: 5000; /* Por encima de TODO el contenido que hace scroll */
+        
+        /* IMPORTANTE: */
+        transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Cuando el panel está activo, se queda clavado en el 0 de la derecha */
+    .ajustes-sidebar.active {
+        right: 0;
+    }
+
+    /* Ajuste de fuentes para PC (Opcional pero recomendado) */
+    .app-viewport {
+        font-size: 16px; /* Aumenta ligeramente la base para pantallas grandes */
+    }
+
+    /* Scrollbar con estilo Dominus Gold */
+    .panel-body::-webkit-scrollbar,
+    .settings-content::-webkit-scrollbar {
+        display: block;
+        width: 6px;
+    }
+
+    .panel-body::-webkit-scrollbar-thumb,
+    .settings-content::-webkit-scrollbar-thumb {
+        background: var(--primary);
+        border-radius: 10px;
+    }
+}
+
+.tab-content {
+    display: none !important;
+}
+
+.tab-content.active {
+    display: flex !important;
     flex-direction: column;
-    gap: 2px;
-}
-
-.venta-info strong {
-    font-size: 0.95rem;
-}
-
-.cantidad-badge {
-    color: var(--primary);
-    font-weight: bold;
-    margin-left: 5px;
-}
-
-.btn-liquidar {
-    background: #ffd700;
-    color: #000;
-    border: none;
-    padding: 3px 8px;
-    border-radius: 5px;
-    font-size: 10px;
-    cursor: pointer;
-    margin-left: 5px;
-    font-weight: bold;
-    text-transform: uppercase;
-}
-
-.tag-pagado {
-    color: #4caf50;
-    font-size: 10px;
-    margin-left: 5px;
-    font-weight: bold;
-    text-transform: uppercase;
-}
-
-.venta-fecha {
-    opacity: 0.8;
-    font-size: 0.8rem;
-    margin-top: 4px;
-}
-
-.venta-metodo {
-    color: var(--primary);
-    font-size: 0.8rem;
-}
-
-.venta-montos {
-    text-align: right;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.monto-bs-venta {
-    font-weight: bold;
-    font-size: 1rem;
-}
-
-.monto-usd-venta {
-    opacity: 0.6;
-    font-size: 0.85rem;
-}
-.detail-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-.detail-price-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.detail-btns {
-    display: flex;
-    gap: 5px;
-}
-
-.btn-edit-small, .btn-delete-small {
-    background: rgba(255,255,255,0.1);
-    border: none;
-    border-radius: 4px;
-    padding: 2px 5px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: 0.3s;
-}
-
-.btn-edit-small:hover { background: #ffd700; }
-.btn-delete-small:hover { background: #ff4444; }
-
-.btn-eliminar-todo {
     width: 100%;
-    margin-top: 15px;
-    background: transparent;
-    color: #ff4444;
-    border: 1px solid #ff4444;
-    padding: 5px;
-    border-radius: 8px;
-    font-size: 11px;
-    cursor: pointer;
-    opacity: 0.6;
+    padding: 15px 10px;
+    gap: 8px; /* Espaciado técnico constante */
+    animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-eliminar-todo:hover { opacity: 1; background: rgba(255,68,68,0.1); }
+/* 2. El Ítem de Ajuste (Módulo Táctico) */
+.ajuste-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    min-height: 70px; /* Altura consistente para botones y switches */
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+    margin-bottom: 8px;
+    padding: 12px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0; /* Mantiene su forma pase lo que pase */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
 
-/* Añade esto a tu archivo CSS/Styles.css */
-/* Contenedor principal del Escáner */
-/* 1. Aseguramos que el contenedor sea una "caja negra" absoluta */
-/* Esto asegura que el contenedor sea visible */
-/* Limpieza absoluta */
-/* En lugar de ocultar todo, ponemos la cámara POR ENCIMA de todo */
+/* Efecto de luz al pasar el mouse (Hover) */
+.ajuste-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(212, 175, 55, 0.3); /* Brillo dorado sutil */
+    transform: translateX(5px); /* Desplazamiento lateral sutil */
+}
+
+/* 3. Textos e Información */
+.ajuste-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.ajuste-label {
+    color: #fff; 
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+.ajuste-desc {
+    color: rgba(255, 255, 255, 0.4); 
+    font-size: 0.65rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* 4. Separador Elegante */
+.ajuste-divider {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    margin: 20px 0;
+    opacity: 0.2;
+}
+
+/* Animación de entrada refinada */
+@keyframes fadeIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(10px) scale(0.98); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+    }
+}
+
+.ajuste-info {
+    display: flex; 
+    flex-direction: column;
+    gap: 4px;
+}
+
+
+
+.btn-danger-full {
+    width: 100%;
+    padding: 16px;
+    /* Fondo con gradiente oscuro y rojizo */
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.1), rgba(231, 76, 60, 0.05));
+    color: #ff6b6b;
+    border: 1px solid rgba(231, 76, 60, 0.3);
+    border-radius: 16px;
+    font-weight: 800;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    margin-top: 10px;
+}
+
+.btn-danger-full:hover {
+    background: rgba(231, 76, 60, 0.8);
+    color: white;
+    border-color: #e74c3c;
+    box-shadow: 0 0 20px rgba(231, 76, 60, 0.4);
+    transform: scale(1.02);
+}
+
+.btn-danger-full:active {
+    transform: scale(0.95);
+}
+/* El contenedor del switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 42px; /* Un poco más compacto para elegancia */
+    height: 22px;
+}
+
+.switch input { opacity: 0; width: 0; height: 0; }
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: rgba(255, 255, 255, 0.05); /* Fondo casi invisible */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 34px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+}
+
+/* El círculo del switch */
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px; 
+    width: 14px;
+    left: 4px; 
+    bottom: 3px;
+    background-color: #555; /* Color neutro apagado */
+    transition: .4s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Movimiento con rebote */
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* ESTADO ACTIVO: Oro Líquido */
+input:checked + .slider {
+    background-color: rgba(212, 175, 55, 0.1);
+    border-color: var(--primary);
+}
+
+input:checked + .slider:before {
+    transform: translateX(20px);
+    background-color: var(--primary); /* Se vuelve dorado */
+    box-shadow: 0 0 10px var(--primary-glow); /* Brilla al encenderse */
+}
+
+.btn-action-small {
+    background: rgba(255, 215, 0, 0.05); /* Fondo dorado casi invisible */
+    border: 1px solid rgba(212, 175, 55, 0.4); 
+    color: var(--primary); 
+    padding: 8px 16px;
+    border-radius: 10px; 
+    font-weight: 900;
+    cursor: pointer; 
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(5px);
+}
+
+.btn-action-small:hover {
+    background: var(--primary);
+    color: #000;
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+    transform: translateY(-2px);
+}
+
+.btn-action-small:active {
+    transform: scale(0.92);
+}
+
+.ajuste-divider {
+    border: 0; 
+    height: 1px;
+    /* Degradado que desaparece en los bordes para mayor elegancia */
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.1) 20%, 
+        var(--primary) 50%, 
+        rgba(255, 255, 255, 0.1) 80%, 
+        transparent
+    ); 
+    margin: 30px 0;
+    opacity: 0.3;
+}
+
+/* Botón de Destrucción/Limpieza (PC & Móvil) */
+.btn-danger-full {
+    background: linear-gradient(145deg, #ff4d4d, #b30000);
+    color: white;
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 15px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    box-shadow: 0 10px 20px rgba(255, 68, 68, 0.2);
+    transition: all 0.3s ease;
+}
+
+.btn-danger-full:active {
+    transform: scale(0.96);
+    box-shadow: 0 5px 10px rgba(255, 68, 68, 0.4);
+}
+
+/* ============================================================
+   BLOQUE: COMPONENTES GLOBALES (Glassmorphism)
+   ============================================================ */
+.glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid var(--glass-border);
+}
+
+/* ============================================================
+   BLOQUE: HEADER PRINCIPAL (Navegación & Status)
+   ============================================================ */
+.main-header {
+    width: 100%;
+    position: fixed; /* Cambiamos a fixed para que no empuje el contenido */
+    top: 0;
+    z-index: 1000;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(15px);
+}
+
+/* LA MAGIA: Cuando el usuario baja, el header sube y desaparece */
+.main-header.hidden {
+    transform: translateY(-100%);
+    box-shadow: none;
+}
+
+/* Ajuste para PC */
+@media (min-width: 1024px) {
+    .main-header {
+        max-width: 100%; /* O el ancho de tu viewport de PC */
+        border-radius: 0 0 20px 20px;
+        margin: 0 auto;
+        left: 0;
+        right: 0;
+    }
+}
+
+.header-top {
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    padding: 12px 20px;
+}
+
+.avatar-trigger {
+    width: 48px; /* Un poco más grande para mejor ergonomía */
+    height: 48px; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    position: relative;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Efecto de elevación y rotación sutil al tocarlo */
+.avatar-trigger:active {
+    transform: scale(0.85) rotate(-5deg);
+}
+
+/* El pequeño engranaje (Badge) estilo Fibra de Carbono */
+.avatar-badge {
+    font-size: 9px;
+    position: absolute; 
+    top: -1px; 
+    right: -1px; 
+    background: #000; 
+    border-radius: 50%; 
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    border: 1px solid var(--primary);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+    color: var(--primary);
+}
+
+.avatar-nav-container {
+    width: 100%; 
+    height: 100%; 
+    border-radius: 50%; 
+    border: 2px solid rgba(255, 215, 0, 0.3); /* Borde dorado sutil */
+    overflow: hidden; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    background: #1a1a1a;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    transition: border-color 0.3s;
+}
+
+/* Cuando pasas el mouse en PC, el borde brilla */
+.avatar-trigger:hover .avatar-nav-container {
+    border-color: var(--primary);
+}
+
+.avatar-nav-icon { 
+    font-size: 22px; 
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+.avatar-nav-img {
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover;
+    display: none;
+}
+
+
+/* ============================================================
+   BLOQUE: IDENTIDAD DE MARCA (Brand & Slogan)
+   ============================================================ */
+.brand-container {
+    flex-grow: 1; 
+    text-align: center;
+}
+
+.titulo-app {
+    margin: 0; 
+    font-size: 1.8rem;
+    font-weight: 800; /* Peso máximo para impacto visual */
+    color: var(--primary);
+    letter-spacing: 5px; /* Espaciado estilo marca de lujo */
+    text-transform: uppercase;
+    text-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+.slogan {
+    margin: 0; 
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 400;
+}
+
+.header-spacer {
+    width: 42px; /* Mantiene el logo perfectamente centrado en PC y Móvil */
+}
+
+/* ============================================================
+   BLOQUE: CONTROL DE TASA (Utility Control)
+   ============================================================ */
+.tasa-control {
+    margin-top: 5px; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    gap: 8px; 
+    padding-bottom: 15px;
+    background: transparent;
+}
+
+.tasa-label {
+    font-size: 0.75em; 
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.input-tasa {
+    width: 85px; 
+    background: rgba(255, 255, 255, 0.05); /* Glass sutil */
+    border: 1px solid var(--glass-border); 
+    color: var(--primary); 
+    border-radius: 8px; 
+    padding: 6px;
+    font-size: 1em;
+    font-weight: 800;
+    text-align: center;
+    outline: none;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Efecto al enfocar (cuando vas a cambiar la tasa) */
+.input-tasa:focus {
+    border-color: var(--primary);
+    background: rgba(255, 215, 0, 0.1);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+    transform: scale(1.05); /* Pequeño salto 3D */
+}
+
+/* Quitar flechas del input number para estética limpia */
+.input-tasa::-webkit-inner-spin-button, 
+.input-tasa::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+}
+
+/* ============================================================
+   BLOQUE: DASHBOARD (Métricas Financieras)
+   ============================================================ */
+.dashboard-cards {
+    display: grid;
+    /* En PC se ven amplias, en móvil se ajustan al espacio */
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 12px;
+    padding: 10px 20px 25px;
+    perspective: 1000px; /* Habilita efectos 3D en las tarjetas */
+}
+
+.card-mini {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 15px 10px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border: 1px solid var(--glass-border);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* Efecto de elevación al pasar el mouse (PC) o tocar */
+.card-mini:active, .card-mini:hover {
+    transform: translateY(-5px) scale(1.02);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 215, 0, 0.3);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+}
+
+.card-label {
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 6px;
+}
+
+.card-amount {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.5px;
+}
+
+.card-sub-amount {
+    font-size: 0.7rem;
+    color: var(--primary);
+    font-weight: 600;
+    margin-top: 4px;
+    background: rgba(255, 215, 0, 0.1);
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+/* Colores de Estado Modernos */
+.text-warning { 
+    color: #ffcc00 !important; 
+    text-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+}
+
+.text-danger { 
+    color: #ff4d4d !important; 
+    text-shadow: 0 0 10px rgba(255, 77, 77, 0.3);
+}
+
+@media (max-width: 360px) {
+    .dashboard-cards {
+        gap: 8px;
+        padding: 10px 10px 20px;
+    }
+    .card-amount {
+        font-size: 0.9rem;
+    }
+    .card-label {
+        font-size: 0.55rem;
+    }
+}
+
+/* ============================================================
+   BLOQUE: NAVEGACIÓN INFERIOR (Dock 3D)
+   ============================================================ */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 500px; /* Un poco más amplia para respirar */
+    height: 70px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: linear-gradient(to top, rgba(10, 10, 10, 0.9), rgba(20, 20, 20, 0.7));
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    z-index: 1000;
+    padding-bottom: env(safe-area-inset-bottom);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Ajuste Estético para PC (Isla Flotante) */
+@media (min-width: 1024px) {
+    .bottom-nav {
+        bottom: 25px; /* Flota elegantemente */
+        border-radius: 25px;
+        width: 420px;
+        border: 1px solid rgba(255, 215, 0, 0.1);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8);
+    }
+}
+
+.nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: none;
+    border: none;
+    outline: none;
+    color: rgba(255, 255, 255, 0.2); /* APAGADO: Gris oscuro profundo */
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.nav-icon { 
+    font-size: 1.5rem; 
+    margin-bottom: 2px;
+    /* Efecto 3D apagado (como grabado en el panel) */
+    filter: drop-shadow(0 -1px 1px rgba(0,0,0,0.5));
+    transition: all 0.4s ease;
+}
+
+/* --- ESTADO ACTIVO (ENCENDIDO) --- */
+.nav-btn.active {
+    color: var(--primary); /* El Dorado de Dominus */
+    transform: translateY(-8px); /* Elevación física */
+}
+
+.nav-btn.active .nav-icon {
+    /* Resplandor de encendido */
+    filter: drop-shadow(0 0 12px var(--primary-glow));
+    transform: scale(1.1);
+}
+
+/* Indicador de "Luz de encendido" debajo del icono */
+.nav-btn.active::after {
+    content: "";
+    position: absolute;
+    bottom: -5px;
+    width: 5px;
+    height: 5px;
+    background: var(--primary);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--primary);
+    animation: pulseLight 2s infinite;
+}
+
+@keyframes pulseLight {
+    0% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.5); }
+    100% { opacity: 0.5; transform: scale(1); }
+}
+
+.nav-btn:active {
+    transform: scale(0.9) translateY(0);
+    transition: 0.1s;
+}
+
+.nav-text { 
+    font-size: 0.55rem; /* Un poco más pequeño para elegancia */
+    font-weight: 900; 
+    text-transform: uppercase;
+    letter-spacing: 1.2px; /* Más aire entre letras para look Premium */
+    color: inherit; /* Sigue el color del padre (apagado o encendido) */
+    opacity: 0.8;
+    transition: all 0.3s ease;
+}
+
+/* En el estado activo, el texto respira */
+.nav-btn.active .nav-text {
+    opacity: 1;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+}
+
+.badge-notif {
+    position: absolute;
+    top: 8px;
+    right: 20%;
+    width: 10px;
+    height: 10px;
+    background: var(--primary);
+    border-radius: 50%;
+    border: 2px solid #121212;
+    box-shadow: 0 0 5px var(--primary);
+    z-index: 2;
+}
+
+/* Animación de pulso para alertas críticas (Stock Bajo) */
+.badge-notif.danger { 
+    background: #ff4d4d; 
+    box-shadow: 0 0 10px #ff4d4d;
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.main-content-wrapper {
+    padding-bottom: 90px; /* Esto asegura que las gráficas terminen antes de la barra */
+}
+
+@media (min-width: 1024px) {
+    .main-content-wrapper {
+        padding-bottom: 120px; /* Más espacio en PC para que la isla flote tranquila */
+    }
+}
+
+.app-section {
+    padding-bottom: 100px !important; /* Espacio de seguridad para la barra */
+    min-height: 100vh; /* Asegura que siempre haya scroll si es necesario */
+}
+
+@media (min-width: 1024px) {
+    .app-section {
+        padding-bottom: 150px !important; /* Más aire en PC */
+    }
+}
+/* ============================================================
+   BLOQUE: CONTENIDO PRINCIPAL (Dashboard & Charts)
+   ============================================================ */
+
+/* Tarjetas de Dashboard con Profundidad */
+.dashboard-card {
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    padding: 28px; /* Un poco más de aire para el contenido */
+    border-radius: 28px; /* Curvatura más moderna */
+    margin-top: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    /* Sombra de profundidad dual: externa e interna */
+    box-shadow: 
+        0 15px 35px rgba(0, 0, 0, 0.4),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1); 
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(212, 175, 55, 0.3);
+}
+
+/* Efecto de resplandor sutil en la esquina superior */
+.dashboard-card::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(212, 175, 55, 0.05) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.welcome-title {
+    color: var(--primary);
+    font-size: 1.8rem; /* Un poco más grande para impactar */
+    font-weight: 900;
+    margin: 0 0 10px 0;
+    letter-spacing: -1px;
+    /* Degradado de texto para efecto metálico */
+    background: linear-gradient(to bottom, var(--primary), #b89600);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.welcome-text {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.5); /* Color más suave para que el título brille */
+    line-height: 1.6;
+    font-weight: 400;
+    max-width: 90%; /* Evita que el texto ocupe todo el ancho en pantallas grandes */
+}
+
+/* Botón de Reporte (Estilo Action Blue) */
+.btn-action-report {
+    margin-top: 20px;
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #2196F3, #1565C0);
+    color: white;
+    border: none;
+    border-radius: 15px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.75em;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+    transition: all 0.3s ease;
+}
+
+.btn-action-report:active {
+    transform: scale(0.96);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.5);
+}
+
+/* Contenedor de la gráfica interactiva */
+.chart-container {
+    cursor: pointer;
+    position: relative;
+    min-height: 280px;
+    background: radial-gradient(circle at top left, rgba(255, 215, 0, 0.05), transparent);
+    padding: 20px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px; /* Más espacio para que respire el Canvas */
+}
+
+.chart-indicator {
+    font-size: 0.65rem;
+    font-weight: 900;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Punto de luz "Live" */
+.chart-indicator::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    background: var(--primary);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--primary);
+    animation: pulse-light 2s infinite;
+}
+
+.chart-hint {
+    font-size: 0.55rem;
+    color: var(--primary);
+    background: rgba(212, 175, 55, 0.1);
+    padding: 5px 10px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    font-weight: 700;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+/* --- Ajuste Maestro para el Canvas --- */
+#graficaVentas {
+    max-height: 220px !important;
+    width: 100% !important;
+    /* Efecto de cristal sobre la línea de la gráfica */
+    filter: drop-shadow(0 5px 15px rgba(212, 175, 55, 0.2)); 
+    margin-top: 10px;
+}
+
+@keyframes pulse-light {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+}
+/* ============================================================
+   BLOQUE: VENTAS Y ESCÁNER (Full Screen Precision)
+   ============================================================ */
+
+/* Contenedor del Escáner (Tus ajustes optimizados) */
 #contenedor-camara {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: black;
-    z-index: 9999; /* El número más alto para que tape todo */
-    display: none; /* Se activa por JS */
+    background: #000;
+    z-index: 9999; 
+    display: none; 
 }
 
 #reader-ventas, #reader {
@@ -980,50 +1648,1009 @@ input:checked + .slider-dominus:before { transform: translateX(24px); }
     height: 100% !important;
 }
 
-/* Para que el video llene la pantalla sin deformarse */
 #contenedor-camara video {
     object-fit: cover;
     width: 100%;
     height: 100%;
 }
 
-.btn-borrar-item:hover {
-    color: #ff4757 !important;
-    transform: scale(1.2);
+.btn-close-cam {
+    position: absolute;
+    top: 30px;
+    right: 25px;
+    background: rgba(255, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 24px;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    z-index: 10001;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+/* Acciones Rápidas de Venta */
+.ventas-quick-actions {
+    display: flex; 
+    gap: 12px; 
+    margin-bottom: 20px;
+}
+
+.btn-scan {
+    flex: 1.2; /* El botón de escanear es más importante */
+    background: linear-gradient(145deg, #2ecc71, #27ae60);
+    border: none; 
+    padding: 14px; 
+    border-radius: 12px; 
+    color: white; 
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
+}
+
+.btn-refund {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(243, 156, 18, 0.3);
+    color: #f39c12;
+    padding: 14px; 
+    border-radius: 12px;
+    font-weight: 800;
+}
+
+.btn-refund.locked {
+    opacity: 0.4;
+    filter: grayscale(1);
+    cursor: not-allowed;
+}
+
+.btn-scan:active { transform: scale(0.95); }
+
+/* ============================================================
+   BLOQUE: MODO PUNTO (Servicios & Comisiones)
+   ============================================================ */
+
+.btn-service-toggle {
+    width: 100%; 
+    padding: 14px; 
+    margin-bottom: 15px; 
+    background: rgba(255, 255, 255, 0.02);
+    border: 2px dashed rgba(255, 215, 0, 0.3); 
+    color: var(--primary);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer; 
+    border-radius: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-service-toggle.active {
+    background: rgba(255, 215, 0, 0.15);
+    border: 2px solid var(--primary);
+    box-shadow: 0 0 15px var(--primary-glow);
+    color: #fff;
+    transform: scale(1.02);
+}
+
+.btn-service-toggle:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.commission-wrapper {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 18px;
+    border-radius: 15px;
+    margin-bottom: 20px;
+    border: 1px solid var(--glass-border);
+    animation: fadeInSlide 0.3s ease-out; /* Animación de entrada */
+}
+
+@keyframes fadeInSlide {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.quick-selectors {
+    display: flex; 
+    gap: 8px; 
+    margin-top: 15px;
+}
+
+.btn-mini {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 10px 5px;
+    border-radius: 8px;
+    font-size: 0.75em;
+    font-weight: 800;
+    cursor: pointer;
     transition: all 0.2s;
 }
 
-/* Estilos del Semáforo de Mora */
-.fiao-verde { border-left: 5px solid #4caf50 !important; }
-.fiao-amarillo { border-left: 5px solid #ffeb3b !important; }
-.fiao-rojo { border-left: 5px solid #f44336 !important; animation: pulse-red 2s infinite; }
-
-@keyframes pulse-red {
-    0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.4); }
-    70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+.btn-mini.btn-reset {
+    background: rgba(255, 77, 77, 0.1);
+    color: #ff4d4d;
+    border-color: rgba(255, 77, 77, 0.2);
 }
 
-.mora-tag {
-    font-size: 0.75em;
-    color: #bbb;
-    background: rgba(255,255,255,0.1);
-    padding: 2px 8px;
-    border-radius: 12px;
-    display: inline-block;
-    margin-top: 4px;
+.btn-mini:hover {
+    background: var(--primary);
+    color: #000;
+    border-color: var(--primary);
 }
 
-.badge-stock-warning {
-    display: block;
-    font-size: 0.75em;
-    color: #ff4444; /* Rojo vibrante */
+.btn-mini:active {
+    transform: scale(0.9);
+}
+
+.main-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    padding: 12px;
+    color: white;
+    font-size: 1rem;
     font-weight: bold;
-    text-transform: uppercase;
-    margin-top: 2px;
-    animation: blinker 1.5s linear infinite;
+    outline: none;
+    transition: border-color 0.3s;
 }
 
-@keyframes blinker {
-    50% { opacity: 0.4; }
+.main-input:focus {
+    border-color: var(--primary);
 }
+
+/* ============================================================
+   BLOQUE: ENTRADA DE DATOS (Escaneo & Manual)
+   ============================================================ */
+
+.venta-input-group {
+    margin-bottom: 25px;
+    perspective: 1000px;
+}
+
+.venta-label {
+    font-size: 0.65rem;
+    color: rgba(212, 175, 55, 0.5); /* Dorado más técnico */
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 10px; 
+    display: block;
+    margin-left: 10px;
+    transition: color 0.3s ease;
+}
+
+.venta-input-main {
+    width: 100%; 
+    padding: 18px; 
+    border-radius: 18px; 
+    border: 1px solid rgba(255, 255, 255, 0.05); 
+    background: linear-gradient(145deg, rgba(0, 0, 0, 0.5) 0%, rgba(15, 15, 15, 0.3) 100%); 
+    color: var(--primary); 
+    font-size: 1.4rem; /* Legibilidad extrema */
+    font-weight: 900;
+    box-sizing: border-box; 
+    text-align: center; 
+    letter-spacing: 4px; /* Estilo de terminal técnica */
+    outline: none;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+        inset 0 4px 15px rgba(0, 0, 0, 0.6),
+        0 2px 2px rgba(255, 255, 255, 0.02);
+    /* Fuente monoespaciada para que los números no bailen */
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* Estado de Enfoque: El input "se enciende" */
+.venta-input-main:focus {
+    border-color: var(--primary);
+    background: rgba(0, 0, 0, 0.7);
+    transform: translateZ(10px) translateY(-2px); /* Efecto 3D real */
+    box-shadow: 
+        0 15px 30px rgba(0, 0, 0, 0.5), 
+        0 0 20px rgba(212, 175, 55, 0.15);
+}
+
+/* Cambiamos el color del label cuando el input está activo */
+.venta-input-group:focus-within .venta-label {
+    color: var(--primary);
+    text-shadow: 0 0 8px var(--primary-glow);
+}
+
+/* Estilo para el Placeholder */
+.venta-input-main::placeholder {
+    color: rgba(255, 255, 255, 0.1);
+    letter-spacing: 1px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    font-family: sans-serif; /* Placeholder normal, input técnico */
+}
+
+/* ============================================================
+   BLOQUE: FORMULARIO DE VENTAS (Inputs & Selects)
+   ============================================================ */
+
+/* 1. Campos de Entrada y Selectores (Look de Cristal Oscuro) */
+.input-venta-full, 
+.select-venta-full {
+    width: 100%;
+    padding: 15px 18px; /* Un poco más de cuerpo */
+    border-radius: 15px; /* Radio consistente con el resto de la app */
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.3); /* Fondo más profundo para resaltar el texto blanco */
+    color: #fff;
+    margin-bottom: 18px;
+    box-sizing: border-box;
+    font-size: 0.95rem;
+    font-weight: 600;
+    outline: none;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Enfoque Dinámico: El campo "cobra vida" */
+.input-venta-full:focus, 
+.select-venta-full:focus {
+    border-color: var(--primary);
+    background: rgba(212, 175, 55, 0.05);
+    box-shadow: 
+        0 0 20px rgba(212, 175, 55, 0.1),
+        inset 0 0 10px rgba(0,0,0,0.5);
+    transform: translateY(-2px); /* Elevación sutil al interactuar */
+}
+
+/* 2. Selectores con Identidad Visual */
+.select-venta-full {
+    appearance: none; 
+    /* Tu icono SVG pero con el dorado exacto de Dominus */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23d4af37' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C2.185 5.355 2.403 5 2.808 5h9.384c.405 0 .623.355.357.658l-4.796 5.482a.5.5 0 0 1-.706 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 18px center;
+    cursor: pointer;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    padding-right: 40px; /* Evita que el texto tape la flecha */
+}
+
+/* 3. Estructura de Filas y Agrupación */
+.input-group-row {
+    display: flex; 
+    gap: 15px; /* Más aire entre columnas */
+    margin-bottom: 8px;
+}
+
+.flex-2 { flex: 2; }
+.flex-1 { flex: 1; }
+
+/* 4. Labels: Micro-copy con Estilo */
+label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 8px;
+    margin-left: 8px;
+    transition: all 0.3s ease;
+}
+
+/* El label especial (como "Total" o "Monto") */
+.label-especial {
+    color: var(--primary);
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+    letter-spacing: 2px;
+}
+/* Contenedores con animación de aparición */
+.container-campo {
+    margin-bottom: 15px;
+    animation: slideDown 0.4s ease forwards;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Clase para ocultar suavemente */
+.hidden { display: none !important; }
+
+/* ============================================================
+   BLOQUE: ACCIONES FINALES (Carrito & Checkout)
+   ============================================================ */
+
+/* Botón Secundario (Añadir al Carrito / Otros) */
+.btn-outline-primary {
+    width: 100%;
+    padding: 16px;
+    background: transparent;
+    border: 2px solid rgba(212, 175, 55, 0.4); 
+    color: var(--primary);
+    border-radius: 16px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 20px;
+}
+
+.btn-outline-primary:hover {
+    background: rgba(212, 175, 55, 0.1);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(212, 175, 55, 0.1);
+}
+
+.btn-main-success {
+    width: 100%; 
+    font-size: 1.1rem; 
+    padding: 20px; 
+    background: var(--primary); /* El Oro de Dominus */
+    color: #000;
+    border: none;
+    border-radius: 18px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-main-success:hover {
+    transform: scale(1.02) translateY(-3px);
+    box-shadow: 0 15px 40px rgba(212, 175, 55, 0.4);
+}
+
+.btn-main-success:active {
+    transform: scale(0.96);
+}
+
+.carrito-container-main {
+    margin-top: 30px; 
+    border: 1px solid rgba(255, 255, 255, 0.05); 
+    border-radius: 24px; 
+    padding: 24px; 
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.2));
+    backdrop-filter: blur(15px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.carrito-header {
+    margin: 0 0 20px 0; 
+    color: var(--primary); 
+    text-align: left; /* Alineado a la izquierda se ve más moderno */
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-weight: 900;
+    opacity: 0.7;
+}
+
+.carrito-lista {
+    max-height: 250px;
+    overflow-y: auto; 
+    margin-bottom: 20px;
+    padding-right: 8px;
+}
+
+/* Scrollbar Minimalista */
+.carrito-lista::-webkit-scrollbar { width: 3px; }
+.carrito-lista::-webkit-scrollbar-thumb { 
+    background: rgba(212, 175, 55, 0.5); 
+    border-radius: 10px; 
+}
+
+.empty-msg {
+    text-align: center; 
+    color: rgba(255,255,255,0.3);
+    font-size: 0.85em;
+    padding: 20px 0;
+}
+
+.carrito-footer {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-end; /* Alineado abajo para jerarquía */
+    border-top: 1px dashed rgba(255, 255, 255, 0.1); 
+    padding-top: 25px;
+    margin-bottom: 25px;
+}
+
+.total-label { 
+    font-size: 0.75rem; 
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.total-bs {
+    color: var(--primary); 
+    font-size: 2rem; /* Que el número sea el rey */
+    font-weight: 900;
+    display: block;
+    line-height: 1;
+    text-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+}
+
+.total-usd {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-top: 5px;
+}
+
+.historial-header {
+    margin-top: 40px;
+    font-size: 0.7rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--primary);
+    letter-spacing: 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 12px;
+    opacity: 0.6;
+}
+/* ============================================================
+   BLOQUE: GASTOS (Registro de Egresos)
+   ============================================================ */
+
+/* Labels: Discretos pero firmes */
+.label-gasto {
+    font-size: 0.65rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    display: block;
+    color: rgba(255, 77, 77, 0.5); /* Rojo tenue para diferenciar de ventas */
+    margin-left: 10px;
+}
+
+/* Inputs de Gasto: Estética de "Advertencia" */
+.input-gasto-full, .select-gasto-full {
+    width: 100%;
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 77, 77, 0.15); 
+    background: rgba(10, 10, 10, 0.6);
+    color: #fff;
+    margin-bottom: 18px;
+    box-sizing: border-box;
+    font-size: 1rem;
+    font-weight: 600;
+    outline: none;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+}
+
+.input-gasto-full:focus {
+    border-color: #ff4d4d;
+    background: rgba(255, 77, 77, 0.05);
+    box-shadow: 0 0 20px rgba(255, 77, 77, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Botón de Registro de Gasto (Poder y Decisión) */
+.btn-gasto-final {
+    width: 100%;
+    padding: 18px;
+    /* Degradado agresivo pero elegante */
+    background: linear-gradient(135deg, #cc0000 0%, #660000 100%);
+    color: white;
+    border: none;
+    border-radius: 18px;
+    font-weight: 900;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    cursor: pointer;
+    box-shadow: 0 8px 25px rgba(204, 0, 0, 0.3);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.btn-gasto-final:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 30px rgba(204, 0, 0, 0.4);
+    filter: brightness(1.2);
+}
+
+.btn-gasto-final:active {
+    transform: scale(0.95);
+}
+
+/* Historial: El registro del pasado */
+.historial-titulo {
+    margin-top: 40px;
+    color: #ff4d4d;
+    font-size: 0.75rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 77, 77, 0.1);
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+    opacity: 0.8;
+}
+
+/* Contenedor de listado para el scroll (Cámara de Datos) */
+.listado-container {
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 10px;
+    mask-image: linear-gradient(to bottom, black 90%, transparent 100%);
+}
+
+.listado-container::-webkit-scrollbar {
+    width: 3px;
+}
+
+.listado-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(#ff4d4d, #660000);
+    border-radius: 10px;
+}
+
+/* ============================================================
+   BLOQUE: CRÉDITOS (Cuentas por Cobrar)
+   ============================================================ */
+
+   
+/* Contenedor del Buscador con Profundidad */
+.search-container {
+    margin-bottom: 25px; 
+    position: relative;
+    perspective: 1000px;
+}
+
+.input-search-fiao {
+    width: 100%; 
+    padding: 16px 48px 16px 20px; 
+    border-radius: 18px; 
+    border: 1px solid rgba(255, 255, 255, 0.05); 
+    background: linear-gradient(145deg, rgba(20, 20, 20, 0.8), rgba(10, 10, 10, 0.6)); 
+    color: white; 
+    font-size: 0.95rem;
+    font-weight: 600;
+    outline: none;
+    box-sizing: border-box;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.input-search-fiao:focus {
+    border-color: var(--primary);
+    background: rgba(212, 175, 55, 0.05);
+    box-shadow: 
+        0 10px 25px rgba(0, 0, 0, 0.4),
+        0 0 15px rgba(212, 175, 55, 0.1);
+    transform: translateZ(5px);
+}
+
+/* Botón de Limpiar: Feedback de Alerta */
+.btn-clear-search {
+    position: absolute; 
+    right: 15px; 
+    top: 50%; 
+    transform: translateY(-50%); 
+    background: rgba(255, 255, 255, 0.03); 
+    border: 1px solid rgba(255, 255, 255, 0.05); 
+    color: rgba(255, 255, 255, 0.3); 
+    font-size: 0.8rem;
+    cursor: pointer;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.btn-clear-search:hover {
+    background: rgba(255, 77, 77, 0.15);
+    color: #ff4d4d;
+    border-color: rgba(255, 77, 77, 0.3);
+    transform: translateY(-50%) rotate(90deg); /* Giro elegante al borrar */
+}
+
+/* Lista de Fiaos: El Gran Tablón de Confianza */
+#lista-fiaos.listado-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    /* Ajuste dinámico crucial: Dejamos espacio para el Header y el Nav */
+    max-height: calc(100vh - 260px); 
+    overflow-y: auto;
+    padding: 5px 5px 120px 5px; /* Padding bottom extra para que la última tarjeta no quede tapada */
+    scrollbar-width: thin;
+}
+
+/* Título de Sección con Aura Dorada */
+#view-fiaos-list h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--primary);
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: 900;
+    opacity: 0.8;
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+}
+/* ============================================================
+   BLOQUE: INDICADORES DE ESTADO (Semáforo de Mora)
+   ============================================================ */
+
+/* --- Semáforo de Créditos (Fiaos) --- */
+.fiao-verde { border-left: 6px solid #2ecc71 !important; }
+.fiao-amarillo { border-left: 6px solid #f1c40f !important; }
+
+.fiao-rojo { 
+    border-left: 6px solid #e74c3c !important; 
+    /* Efecto de luz de emergencia interna */
+    animation: pulse-red-border 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; 
+    background: linear-gradient(90deg, rgba(231, 76, 60, 0.05) 0%, transparent 20%);
+}
+
+@keyframes pulse-red-border {
+    0% { box-shadow: inset 8px 0 15px -5px rgba(231, 76, 60, 0.5); }
+    50% { box-shadow: inset 25px 0 35px -10px rgba(231, 76, 60, 0.15); }
+    100% { box-shadow: inset 8px 0 15px -5px rgba(231, 76, 60, 0.5); }
+}
+
+/* Etiqueta de Mora (Tiempo de retraso) */
+.mora-tag {
+    font-size: 0.6rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.6);
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 12px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 8px;
+    display: inline-block;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+/* --- Alerta de Stock Bajo (Efecto Neon-Warning) --- */
+.badge-stock-warning {
+    display: inline-block;
+    font-size: 0.65rem;
+    color: #ff4d4d;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    background: rgba(255, 77, 77, 0.15);
+    padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 77, 77, 0.3);
+    animation: blinker-neon 2s ease-in-out infinite;
+}
+
+@keyframes blinker-neon {
+    0%, 100% { opacity: 1; filter: drop-shadow(0 0 2px #ff4d4d); }
+    50% { opacity: 0.4; filter: drop-shadow(0 0 10px #ff4d4d); }
+}
+
+/* Botón de Borrar (Destrucción Precisa) */
+.btn-borrar-item {
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    cursor: pointer;
+    opacity: 0.4;
+}
+
+.btn-borrar-item:hover {
+    color: #ff4757 !important;
+    opacity: 1;
+    transform: scale(1.4) rotate(15deg);
+    filter: drop-shadow(0 0 8px rgba(255, 71, 87, 0.4));
+}
+
+/* ============================================================
+   BLOQUE: INVENTARIO (Carga de Productos)
+   ============================================================ */
+
+/* Contenedor con profundidad de archivo */
+.inv-fieldset {
+    border: 1px solid rgba(255, 255, 255, 0.05); 
+    border-radius: 20px; 
+    padding: 24px; 
+    margin-bottom: 25px; 
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.01) 0%, rgba(0, 0, 0, 0.2) 100%);
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* El título que corta la línea: Look de Manual Técnico */
+.inv-legend {
+    color: var(--primary); 
+    padding: 0 12px; 
+    font-weight: 900;
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    background: #121212; /* Ajustar al color exacto de tu fondo */
+    position: absolute;
+    top: -10px;
+    left: 20px;
+}
+
+.inv-label {
+    display: block; 
+    margin-bottom: 10px; 
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-left: 8px;
+}
+
+/* Input de Código: El Sensor Principal */
+.inv-input-highlight {
+    width: 100%;
+    padding: 16px; 
+    border-radius: 15px; 
+    border: 1.5px solid var(--primary); 
+    background: rgba(212, 175, 55, 0.03); 
+    color: var(--primary);
+    font-family: 'Courier New', Courier, monospace; 
+    font-weight: 700;
+    font-size: 1.2rem;
+    box-sizing: border-box;
+    text-align: center;
+    letter-spacing: 4px;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.05), inset 0 0 10px rgba(0,0,0,0.4);
+    outline: none;
+    transition: all 0.4s ease;
+}
+
+.inv-input-highlight:focus {
+    background: rgba(212, 175, 55, 0.08);
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.15), inset 0 0 15px rgba(0,0,0,0.6);
+    transform: scale(1.01);
+}
+
+/* Inputs estándar: Discreción y Funcionalidad */
+.inv-input-dark {
+    width: 100%;
+    padding: 15px; 
+    border-radius: 14px; 
+    border: 1px solid rgba(255, 255, 255, 0.08); 
+    background: rgba(0, 0, 0, 0.4); 
+    color: white;
+    font-weight: 600;
+    box-sizing: border-box;
+    outline: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.inv-input-dark:focus {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-2px);
+}
+
+.inv-row { display: flex; gap: 15px; margin-bottom: 15px; }
+
+/* Botón de Configuración: Acceso a Parámetros */
+.btn-config {
+    background: rgba(255, 255, 255, 0.03);
+    color: rgba(255, 255, 255, 0.6); 
+    border: 1px solid rgba(255, 255, 255, 0.1); 
+    border-radius: 14px; 
+    flex: 1; 
+    padding: 15px; 
+    font-size: 0.65rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.4s ease;
+}
+
+.btn-config:hover {
+    background: var(--primary);
+    color: #000;
+    border-color: var(--primary);
+    box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3);
+    transform: translateY(-2px);
+}
+/* ============================================================
+   BLOQUE: CABECERA DE STOCK & BUSCADOR
+   ============================================================ */
+/* 1. Header del Inventario: Balance de Operaciones */
+.inv-header-box { 
+    margin: 30px 0 15px 0; 
+    padding: 0 10px;
+}
+
+.flex-between-align {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    margin-bottom: 20px;
+    font-size: 0.75rem; /* Más pequeño para que el botón destaque */
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.4);
+}
+
+/* Botón de Escaneo: El Activador Táctico */
+.btn-scan-inv {
+    background: linear-gradient(135deg, var(--primary) 0%, #b89600 100%);
+    color: #000; 
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    letter-spacing: 1.5px;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(212, 175, 55, 0.2);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.btn-scan-inv:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
+    filter: brightness(1.1);
+}
+
+/* 2. Buscador Sticky: Radar Siempre Presente */
+.search-box-sticky {
+    position: sticky; 
+    top: 15px; 
+    z-index: 100;
+    margin-bottom: 25px;
+    padding: 0 5px; /* Un poco de margen para no tocar los bordes */
+}
+
+.input-search-modern {
+    width: 100%; 
+    padding: 18px 18px 18px 50px; 
+    border-radius: 18px; 
+    border: 1px solid rgba(255, 255, 255, 0.1); 
+    background: rgba(10, 10, 10, 0.7); 
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: white; 
+    font-size: 0.95rem; 
+    box-sizing: border-box;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    outline: none;
+    transition: all 0.4s ease;
+}
+
+.input-search-modern:focus {
+    border-color: var(--primary);
+    background: rgba(20, 20, 20, 0.9);
+    box-shadow: 0 0 25px rgba(212, 175, 55, 0.1);
+}
+
+/* ============================================================
+   BLOQUE: MODAL DE GESTIÓN (Desglose)
+   ============================================================ */
+
+.modal-overlay {
+    display: none; /* Se activa por JS */
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85); /* Fondo oscuro para enfocar el modal */
+    backdrop-filter: blur(8px);
+    z-index: 11000;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.modal-content-tallas {
+    width: 100%;
+    max-width: 420px;
+    padding: 25px;
+    border-radius: 25px;
+    border: 1px solid var(--glass-border);
+    background: linear-gradient(135deg, rgba(30,30,30,0.9), rgba(10,10,10,0.95));
+    text-align: center;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+    animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalPop {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.modal-title { 
+    color: var(--primary); 
+    margin-bottom: 20px; 
+    font-size: 1.1rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.tallas-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+/* ============================================================
+   BLOQUE: CAMARA ESCANER (Desglose)
+   ============================================================ */
+
+.camera-full-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: #000;
+    z-index: 12000;
+}
+
+.reader-box { width: 100%; height: 100%; }
+
+.btn-close-generic {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ff4757;
+    color: white;
+    border: none;
+    padding: 15px 40px;
+    border-radius: 30px;
+    font-weight: 800;
+    text-transform: uppercase;
+    z-index: 12001;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

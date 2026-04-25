@@ -2,465 +2,512 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
     <title>Dominus - Gestión de Negocio</title>
     
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="CSS/Styles.css">
+    
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ffd700">
-
     <link rel="icon" type="image/png" sizes="192x192" href="IMG/icon-192.png">
     <link rel="apple-touch-icon" href="IMG/icon-192.png">
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
-    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
-
-</head>
+    <style>
+        /* Estilos críticos mínimos para evitar el flash blanco */
+        .splash {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: #0a0a0a; /* Fondo más profundo para que pegue con el diseño moderno */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        .logo-anim {
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            color: #ffd700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+    </style>
+    
+    </head>
 
 <body>
 
    <div id="splash-screen" class="splash">
-    <div class="splash-content">
+ <div class="splash-content">
         <h1 class="logo-anim">DOMINUS</h1>
         <p class="slogan-anim">Domina tu negocio, Domina tu vida</p>
         
         <div class="loader"></div>
 
-        <div id="contenedor-sabiduria" style="margin-top: 30px; width: 100%; display: flex; flex-direction: column; align-items: center; max-width: 500px;">
-            <p id="frase-splash" style="font-style: italic; font-size: 1.1em; color: white; min-height: 3.5em; line-height: 1.4; text-align: center;">
-                </p>
-            
-            <p id="autor-splash" style="color: var(--primary); font-weight: bold; margin-top: 10px; text-transform: uppercase; letter-spacing: 2px; font-size: 0.8em; opacity: 0;">
-                — DOMINUS AI
-            </p>
+        <div id="contenedor-sabiduria" class="wisdom-container">
+            <p id="frase-splash" class="wisdom-text"></p>
+            <p id="autor-splash" class="wisdom-author">— DOMINUS AI</p>
         </div>
     </div>
 </div>
 
-<div id="panelAjustes" class="ajustes-sidebar">
-    <div class="ajustes-header" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #333; background: #1a1a1a;">
-        <span style="font-weight: bold; color: #ffd700;">DOMINUS CONFIG</span>
-        <button onclick="Interfaz.toggleAjustes()" style="background:none; border:none; color:white; font-size:28px; cursor:pointer;">&times;</button>
-    </div>
+<div class="app-viewport"> 
 
-    <div class="panel-body" style="padding: 0; display: flex; flex-direction: column; height: calc(100% - 60px);">
-        <div style="display: flex; background: rgba(0,0,0,0.2); flex-shrink: 0;">
-            <button id="btn-tab-usuario" onclick="Interfaz.cambiarTabAjustes('tab-usuario')" 
-                    style="flex: 1; padding: 15px; border: none; background: var(--primary); color: black; font-weight: bold; cursor: pointer; transition: 0.3s;">
-                👤 PERFIL
-            </button>
-            <button id="btn-tab-sistema" onclick="Interfaz.cambiarTabAjustes('tab-sistema')" 
-                    style="flex: 1; padding: 15px; border: none; background: transparent; color: white; font-weight: bold; cursor: pointer; transition: 0.3s;">
-                ⚙️ SISTEMA
-            </button>
+    <div id="panelAjustes" class="ajustes-sidebar">
+        <div class="ajustes-header">
+            <span class="ajustes-title">DOMINUS CONFIG</span>
+            <button class="btn-close-ajustes" onclick="Interfaz.toggleAjustes()">&times;</button>
         </div>
 
-        <div style="flex-grow: 1; overflow-y: auto; padding: 20px; scroll-behavior: smooth;">
-            
-            <div id="tab-usuario" class="tab-content">
-                <div id="perfil-info-ajustes" style="text-align: center; margin-bottom: 25px; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px;">
-                    <h4 style="color: #ffd700; font-size: 0.8em; text-transform: uppercase; margin-bottom: 15px; text-align: left;">👤 Ajustes de Perfil</h4>
-                    
-                    <div style="position: relative; width: 85px; height: 85px; margin: 0 auto 10px;">
-                        <div onclick="document.getElementById('input-foto-perfil').click()" 
-                             style="width: 100%; height: 100%; border-radius: 50%; border: 2px solid #ffd700; overflow: hidden; background: #222; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative;">
+        <div class="panel-body">
+            <div class="tabs-nav">
+                <button id="btn-tab-usuario" class="tab-btn active" onclick="Interfaz.cambiarTabAjustes('tab-usuario')">
+                    👤 PERFIL
+                </button>
+                <button id="btn-tab-sistema" class="tab-btn" onclick="Interfaz.cambiarTabAjustes('tab-sistema')">
+                    ⚙️ SISTEMA
+                </button>
+            </div>
+
+            <div class="settings-content">
+                
+                <div id="tab-usuario" class="tab-content active">
+                    <div id="perfil-info-ajustes" class="profile-card">
+                        <h4 class="settings-section-title">👤 Ajustes de Perfil</h4>
+                        
+                        <div class="avatar-container">
+                            <div class="avatar-wrapper" onclick="document.getElementById('input-foto-perfil').click()">
+                                <span id="perfil-avatar-placeholder" class="avatar-placeholder">👤</span>
+                                <img id="perfil-avatar-img" class="avatar-img">
+                                <div id="estado-red-punto" class="status-indicator"></div>
+                            </div>
+                                 
+                            <input type="file" id="input-foto-perfil" accept="image/*" class="hidden-input" onchange="Usuario.cambiarFoto(this)">
+                            <button class="btn-edit-photo" onclick="document.getElementById('input-foto-perfil').click()">📸</button>
+                        </div> 
+
+                        <div class="profile-name-container">
+                            <h3 id="perfil-nombre-negocio" class="editable-name" contenteditable="true" onblur="Usuario.guardarNombreNegocio()">
+                                Mi Negocio
+                            </h3>
+                        </div>
+
+                        <p id="perfil-usuario-tag" class="user-tag">@usuario</p>
+
+                        <button onclick="Usuario.cerrarSesion()" class="btn-logout">CERRAR SESIÓN</button>
+                    </div> <div id="ajustes-cobranza" class="settings-card">
+                        <h4 class="settings-card-title">💰 Mensajería Inteligente</h4>
+                        
+                        <div class="time-selector-group">
+                            <button id="btn-msj-mañana" class="btn-time active" onclick="Usuario.cambiarFranjaMensaje('mañana')">☀️ DÍA</button>
+                            <button id="btn-msj-tarde" class="btn-time" onclick="Usuario.cambiarFranjaMensaje('tarde')">⛅ TARDE</button>
+                            <button id="btn-msj-noche" class="btn-time" onclick="Usuario.cambiarFranjaMensaje('noche')">🌙 NOCHE</button>
+                        </div>
+
+                        <div class="textarea-group">
+                            <label class="input-label">Personalizar Mensaje:</label>
+                            <textarea id="cfg-msj-maestro" class="main-textarea" placeholder="Escribe tu mensaje..." onblur="Usuario.guardarPlantilla()"></textarea>
                             
-                            <span id="perfil-avatar-placeholder" style="font-size: 2.5rem;">👤</span>
-                            <img id="perfil-avatar-img" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-                            
-                            <div id="estado-red-punto" 
-                                 style="position: absolute; bottom: 5px; right: 5px; width: 15px; height: 15px; border-radius: 50%; background: #888; border: 2px solid #1a1a1a; transition: 0.3s;">
+                            <div class="textarea-actions">
+                                <button class="btn-secondary-outline" onclick="Usuario.restablecerPlantilla()">⚠️ Restablecer</button>
+                                <button class="btn-primary-outline" onclick="Usuario.mostrarEjemplo()">👁️ Ver Ejemplo</button>
                             </div>
                         </div>
-                        
-                        <input type="file" id="input-foto-perfil" accept="image/*" style="display: none;" onchange="Usuario.cambiarFoto(this)">
-                        
-                        <button onclick="document.getElementById('input-foto-perfil').click()" 
-                                style="position: absolute; bottom: 0; right: 0; background: #ffd700; border: none; border-radius: 50%; width: 25px; height: 25px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
-                            📸
-                        </button>
+
+                        <div class="settings-row-special">
+                            <div class="label-info">
+                                <span class="main-label">Límite de Confianza</span>
+                                <small class="sub-label">Días antes de alerta roja</small>
+                            </div>
+                            <select id="cfg-limite-confianza" class="main-select" onchange="Usuario.guardarConfigCobro()">
+                                <option value="3">3 días</option>
+                                <option value="5" selected>5 días</option>
+                                <option value="7">7 días</option>
+                                <option value="15">15 días</option>
+                            </select>
+                        </div>
+                    </div> </div> <div id="tab-sistema" class="tab-content">
+                    <div class="ajuste-item">
+                        <span class="ajuste-label">🌙 Modo Oscuro</span>
+                        <label class="switch">
+                            <input type="checkbox" id="checkDarkMode" onchange="Controlador.toggleDarkMode(this.checked)">
+                            <span class="slider round"></span>
+                        </label>
                     </div>
 
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                        <h3 id="perfil-nombre-negocio" contenteditable="true" onblur="Usuario.guardarNombreNegocio()" style="color: white; margin: 5px 0; padding: 2px 10px; border-radius: 4px; border: 1px dashed rgba(255,215,0,0.3);">
-                            Mi Negocio
-                        </h3>
+                    <div class="ajuste-item">
+                        <span class="ajuste-label">📦 Control Stock</span>
+                        <label class="switch">
+                            <input type="checkbox" id="check-inv" onchange="Controlador.toggleInv(this.checked)">
+                            <span class="slider round"></span>
+                        </label>
                     </div>
-                    <p id="perfil-usuario-tag" style="color: #888; font-size: 0.85em; margin-bottom: 15px;">@usuario</p>
+
+                    <div class="ajuste-item">
+                        <div class="ajuste-info">
+                            <span class="ajuste-label">🏧 Modo Punto</span>
+                            <small class="ajuste-desc">Mostrar opción de servicios en ventas</small>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="check-modo-punto" onchange="Controlador.toggleModoPunto(this.checked)">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="ajuste-item">
+                        <div class="ajuste-info">
+                            <span class="ajuste-label">🔐 Seguridad PIN</span>
+                            <small class="ajuste-desc">Proteger acceso a la app</small>
+                        </div>
+                        <button class="btn-action-small" onclick="Seguridad.prepararCambioPIN()">CAMBIAR</button>
+                    </div>
+
+                    <hr class="ajuste-divider">
                     
-                    <button onclick="Usuario.cerrarSesion()" class="btn-main" style="background: #e74c3c; color: white; padding: 8px 15px; font-size: 0.8em; border-radius: 20px; border: none; cursor: pointer;">
-                        CERRAR SESIÓN
+                    <button type="button" class="btn-danger-full" onclick="DOMINUS.resetTotal()">
+                        🗑️ Limpiar Toda la App
                     </button>
-                </div>
+                </div> </div> </div> </div> </div> 
 
-                <div id="ajustes-cobranza" style="text-align: left; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px;">
-                    <h4 style="color: #ffd700; font-size: 0.8em; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 1px;">💰 Mensajería Inteligente</h4>
-                    
-                    <div style="display: flex; gap: 5px; margin-bottom: 12px;">
-                        <button onclick="Usuario.cambiarFranjaMensaje('mañana')" id="btn-msj-mañana" style="flex:1; padding: 8px; font-size: 0.7em; cursor: pointer; background: #ffd700; color: black; border: none; border-radius: 6px; font-weight: bold;">☀️ DÍA</button>
-                        <button onclick="Usuario.cambiarFranjaMensaje('tarde')" id="btn-msj-tarde" style="flex:1; padding: 8px; font-size: 0.7em; cursor: pointer; background: #333; color: white; border: none; border-radius: 6px; font-weight: bold;">⛅ TARDE</button>
-                        <button onclick="Usuario.cambiarFranjaMensaje('noche')" id="btn-msj-noche" style="flex:1; padding: 8px; font-size: 0.7em; cursor: pointer; background: #333; color: white; border: none; border-radius: 6px; font-weight: bold;">🌙 NOCHE</button>
-                    </div>
 
-                    <div style="margin-bottom: 15px;">
-                        <label style="color: #eee; font-size: 0.8em; display: block; margin-bottom: 5px;">Personalizar Mensaje:</label>
-                        <textarea id="cfg-msj-maestro" placeholder="Escribe tu mensaje..." style="width: 100%; background: rgba(0,0,0,0.3); color: white; border: 1px solid #444; border-radius: 8px; padding: 10px; font-size: 0.85em; min-height: 110px; resize: none; line-height: 1.4;" onblur="Usuario.guardarPlantilla()"></textarea>
-                        
-                        <div style="display: flex; justify-content: space-between; margin-top: 8px;">
-                            <button onclick="Usuario.restablecerPlantilla()" style="background: none; border: 1px solid #555; color: #888; font-size: 0.7em; padding: 5px 10px; border-radius: 4px; cursor: pointer;">⚠️ Restablecer</button>
-                            <button onclick="Usuario.mostrarEjemplo()" style="background: rgba(255,215,0,0.1); border: 1px solid #ffd700; color: #ffd700; font-size: 0.7em; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold;">👁️ Ver Ejemplo</button>
-                        </div>
-                    </div>
 
-                    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 10px; margin-top: 10px;">
-                        <div style="max-width: 60%;">
-                            <span style="color: #eee; font-size: 0.85em; display: block;">Límite de Confianza</span>
-                            <small style="color: #888; font-size: 0.75em;">Días antes de alerta roja</small>
-                        </div>
-                        <select id="cfg-limite-confianza" onchange="Usuario.guardarConfigCobro()" style="background: #333; color: white; border: 1px solid #555; border-radius: 6px; padding: 6px; font-size: 0.85em;">
-                            <option value="3">3 días</option>
-                            <option value="5" selected>5 días</option>
-                            <option value="7">7 días</option>
-                            <option value="15">15 días</option>
-                        </select>
-                    </div>
-                </div>
-            </div> 
 
-            <div id="tab-sistema" class="tab-content" style="display: none;">
-                <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                    <span style="color: white; font-weight: 600;">🌙 Modo Oscuro</span>
-                    <label class="switch">
-                        <input type="checkbox" id="checkDarkMode" onchange="Controlador.toggleDarkMode(this.checked)">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
 
-                <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                    <span style="color: white; font-weight: 600;">📦 Control Stock</span>
-                    <label class="switch">
-                        <input type="checkbox" id="check-inv" onchange="Controlador.toggleInv(this.checked)">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
 
-                <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                    <div style="display: flex; flex-direction: column;">
-                        <span style="color: white; font-weight: 600;">🏧 Modo Punto</span>
-                        <small style="color: #888; font-size: 0.75em;">Mostrar opción de servicios en ventas</small>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" id="check-modo-punto" onchange="Controlador.toggleModoPunto(this.checked)">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-
-                <div class="ajuste-item" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                    <div style="display: flex; flex-direction: column;">
-                        <span style="color: white; font-weight: 600;">🔐 Seguridad PIN</span>
-                        <small style="color: #888; font-size: 0.75em;">Proteger acceso a la app</small>
-                    </div>
-                    <button onclick="Seguridad.prepararCambioPIN()" style="background: var(--primary); border: none; color: black; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 0.8em;">CAMBIAR</button>
-                </div>
-
-                <hr style="border: 0; border-top: 1px solid #333; margin: 20px 0;">
-                
-                <button type="button" class="btn-main" style="background: #ff4444; width: 100%;" onclick="DOMINUS.resetTotal()">
-                    🗑️ Limpiar Toda la App
-                </button>
-            </div> 
-        </div> 
-    </div> 
-</div> 
 
 <header class="main-header glass">
-    <div class="header-top" style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px;">
-        <div id="user-trigger" onclick="Interfaz.toggleAjustes()" style="width: 42px; height: 42px; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative;">
+    <div class="header-top">
+        
+        <div id="user-trigger" class="avatar-trigger" onclick="Interfaz.toggleAjustes()">
             
-            <span id="nav-icon-default" style="font-size: 16px; color: white; position: absolute; top: 0; right: 0; background: rgba(0,0,0,0.5); border-radius: 50%; padding: 2px; z-index: 2;">⚙️</span>
+            <span id="nav-icon-default" class="avatar-badge">⚙️</span>
             
-            <div style="width: 100%; height: 100%; border-radius: 50%; border: 2px solid #ffd700; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #222;">
-                <span id="nav-avatar-placeholder" style="font-size: 20px;">👤</span>
-                <img id="nav-img-perfil" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+            <div class="avatar-nav-container">
+                <span id="nav-avatar-placeholder" class="avatar-nav-icon">👤</span>
+                <img id="nav-img-perfil" class="avatar-nav-img">
             </div>
+            
+        </div>
+    
+   <div class="brand-container">
+            <h1 class="titulo-app">DOMINUS</h1>
+            <p class="slogan">Domina tu negocio, Domina tu vida</p>
         </div>
         
-        <div style="flex-grow: 1; text-align: center;">
-            <h1 class="titulo-app" style="margin: 0; font-size: 1.8rem; color: #ffd700;">DOMINUS</h1>
-            <p class="slogan" style="margin: 0; font-size: 0.7rem; opacity: 0.8; color: white;">Domina tu negocio, Domina tu vida</p>
-        </div>
-        
-        <div style="width: 42px;"></div> </div>
-
-    <div class="tasa-control" style="margin-top: 10px; display: flex; justify-content: center; align-items: center; gap: 10px; padding-bottom: 10px;">
-        <span style="font-size: 0.9em; opacity: 0.8; color: white;">Tasa:</span>
-        <input type="number" id="tasa-global" onchange="Conversor.setTasa(this.value)" step="0.1" 
-               style="width: 70px; background: rgba(255,255,255,0.05); border: 1px solid var(--primary); color: white; border-radius: 5px; text-align: center;">
+        <div class="header-spacer"></div> 
+    </div>
+    
+    <div class="tasa-control">
+        <span class="tasa-label">Tasa:</span>
+        <input type="number" id="tasa-global" class="input-tasa" 
+               onchange="Conversor.setTasa(this.value)" step="0.1">
     </div>
 
-    <div class="dashboard-cards">
+<div class="dashboard-cards">
         <div class="card-mini">
-            <small>Caja</small>
-            <b id="total-caja">0 Bs</b>
-            <span id="total-usd">$ 0.00</span>
+            <small class="card-label">Caja</small>
+            <span id="total-caja" class="card-amount">0 Bs</span>
+            <span id="total-usd" class="card-sub-amount">$ 0.00</span>
         </div>
+
         <div class="card-mini">
-            <small>Por Cobrar</small>
-            <b id="total-fiaos" style="color: #ff9800;">0 Bs</b>
+            <small class="card-label">Por Cobrar</small>
+            <span id="total-fiaos" class="card-amount text-warning">0 Bs</span>
         </div>
+
         <div class="card-mini">
-            <small>Gastos</small>
-            <b id="total-gastos" style="color: #ff5252;">0 Bs</b>
+            <small class="card-label">Gastos</small>
+            <span id="total-gastos" class="card-amount text-danger">0 Bs</span>
         </div>
     </div>
 </header>
 
-    <nav class="bottom-nav glass">
-    <button type="button" onclick="Interfaz.show('dashboard')">
-        🏠 Inicio
+<main class="main-container"> 
+
+
+   <nav class="bottom-nav glass">
+    <button type="button" class="nav-btn active" onclick="Interfaz.show('dashboard')">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-text">Inicio</span>
         <div id="badge-inicio" class="badge-notif"></div>
     </button>
-    <button type="button" onclick="Interfaz.show('ventas')">💰 Ventas</button>
-    <button type="button" onclick="Interfaz.show('gastos')">📉 Gastos</button>
-    <button type="button" onclick="Interfaz.show('fiaos-list')">
-        🤝 Créditos
+
+    <button type="button" class="nav-btn" onclick="Interfaz.show('ventas')">
+        <span class="nav-icon">💰</span>
+        <span class="nav-text">Ventas</span>
+    </button>
+
+    <button type="button" class="nav-btn" onclick="Interfaz.show('gastos')">
+        <span class="nav-icon">📉</span>
+        <span class="nav-text">Gastos</span>
+    </button>
+
+    <button type="button" class="nav-btn" onclick="Interfaz.show('fiaos-list')">
+        <span class="nav-icon">🤝</span>
+        <span class="nav-text">Créditos</span>
         <div id="badge-fiaos" class="badge-notif"></div>
     </button>
-    <button type="button" onclick="Interfaz.show('inventario')">
-        📦 Stock
-        <div id="badge-stock" class="badge-notif"></div>
+
+    <button type="button" class="nav-btn" onclick="Interfaz.show('inventario')">
+        <span class="nav-icon">📦</span>
+        <span class="nav-text">Stock</span>
+        <div id="badge-stock" class="badge-notif danger"></div>
     </button>
 </nav>
 
-    <main id="app-content">
-        
-    <section id="view-dashboard" class="app-section">
-    <div class="welcome-card glass">
-        <h2>Bienvenido</h2>
-        <p>Usa el menú inferior para registrar movimientos.</p>
-        <button type="button" class="btn-main" style="margin-top: 20px; background: #2196F3; color: white;" onclick="Controlador.generarCierre()">
-            📊 Generar Cierre del Día
-        </button>
-    </div>
 
-    <div class="card-grafica glass" 
-         onclick="Controlador.rotarGrafica()" 
-         style="cursor: pointer; position: relative; padding: 15px; margin-top: 20px; border-radius: 20px; min-height: 250px;">
+   <main id="app-content">
+    
+    <section id="view-dashboard" class="app-section">
         
-        <div style="position: absolute; top: 10px; right: 15px; font-size: 0.7rem; color: rgba(255,255,255,0.4); display: flex; align-items: center; gap: 5px;">
+        <div class="welcome-card dashboard-card">
+            <h2 class="welcome-title">Bienvenido</h2>
+            <p class="welcome-text">Usa el menú inferior para registrar movimientos.</p>
+            <button type="button" class="btn-action-report" onclick="Controlador.generarCierre()">
+                📊 Generar Cierre del Día
+            </button>
         </div>
 
-        <canvas id="graficaVentas"></canvas>
-    </div>
-</section>
+        <div id="contenedor-grafica" class="chart-container dashboard-card" onclick="Controlador.rotarGrafica()">
+            <div class="chart-header">
+                <span id="chart-label" class="chart-indicator">Ventas de la semana</span>
+                <span class="chart-hint">Toca para cambiar 🔄</span>
+            </div>
+            <canvas id="graficaVentas"></canvas>
+        </div>
+
+    </section>
 
 <section id="view-ventas" class="app-section hidden">
-    <div id="contenedor-camara" style="display:none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 9999;">
-        <div id="reader-ventas" style="width: 100%; height: 100%;"></div>
+    <div id="contenedor-camara" class="camera-overlay">
+        <div id="reader-ventas" class="full-reader"></div>
+        <button class="btn-close-cam" onclick="Scanner.detenerEscanner()">×</button>
     </div>
 
     <div class="card glass">
-        
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <button type="button" class="btn-main btn-success" 
-                style="flex: 1; background:linear-gradient(45deg, #2ecc71, #27ae60); border:none; padding:12px; border-radius:8px; color:white; font-weight:bold; cursor:pointer;" 
+        <div class="ventas-quick-actions">
+            <button type="button" class="btn-scan" 
                 onclick="Scanner.iniciarEscannerCamara(codigo => Controlador.procesarEscaneoVentaRapida(codigo))">
                 📷 Escanear
             </button>
             
-            <button type="button" class="btn-main" 
-        style="flex: 1; background:linear-gradient(45deg, #f39c12, #e67e22); border:none; padding:12px; border-radius:8px; color:white; font-weight:bold; cursor:pointer;" 
-        onclick="Interfaz.notificarProximamente()">
-    🔄 Devolución 🔒
-</button>
+            <button type="button" class="btn-refund locked" onclick="Interfaz.notificarProximamente()">
+                🔄 Devolución 🔒
+            </button>
         </div>
 
-        <div id="reader-ventas" style="display:none;"></div>
+        <h3 class="section-title">Nueva Venta</h3>
+</div>
 
-        <h3>Nueva Venta</h3>
+        
 
-        <button type="button" id="btn-modo-punto" class="glass" 
-            onclick="Interfaz.alternarModoPunto()"
-            style="width: 100%; padding: 12px; margin-bottom: 10px; border: 1px dashed var(--primary); color: var(--primary); font-weight: bold; cursor: pointer; border-radius: 8px;">
-            🏦 ¿Es Servicio de Punto?
-        </button>
+       <button type="button" id="btn-modo-punto" class="btn-service-toggle glass" onclick="Interfaz.alternarModoPunto()">
+        🏦 ¿Es Servicio de Punto?
+    </button>
 
-        <div id="wrapper-comision" class="hidden">
-            <label for="v-comision">Comisión %:</label>
-            <input type="number" id="v-comision" name="v-comision" placeholder="Comisión %" style="margin-bottom: 5px;">
-            <div class="comision-selector" style="display: flex; gap: 5px; margin-bottom: 10px;">
-                <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=5">5%</button>
-                <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=10">10%</button>
-                <button type="button" class="btn-mini" onclick="document.getElementById('v-comision').value=15">15%</button>
-                <button type="button" class="btn-mini" style="background:#607d8b" onclick="document.getElementById('v-comision').value=0">0%</button>
-            </div>
+    <div id="wrapper-comision" class="commission-wrapper hidden">
+        <label for="v-comision" class="input-label">Comisión %:</label>
+        <input type="number" id="v-comision" class="main-input" placeholder="Comisión %">
+        
+        <div class="quick-selectors">
+            <button type="button" class="btn-mini" onclick="Ventas.setPresetComision(5)">5%</button>
+            <button type="button" class="btn-mini" onclick="Ventas.setPresetComision(10)">10%</button>
+            <button type="button" class="btn-mini" onclick="Ventas.setPresetComision(15)">15%</button>
+            <button type="button" class="btn-mini btn-reset" onclick="Ventas.setPresetComision(0)">0%</button>
         </div>
-<div id="wrapper-codigo-venta" style="margin-bottom: 15px;">
-    <label for="v-codigo" style="font-size: 0.85em; color: var(--primary); font-weight: bold; margin-bottom: 5px; display: block;">
+    </div>
+
+
+<div id="wrapper-codigo-venta" class="venta-input-group">
+    <label for="v-codigo" class="venta-label">
         🔍 Código Detectado / Manual
     </label>
-    <input type="text" id="v-codigo" name="v-codigo" placeholder="Escribe o escanea..." 
-           style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); color: var(--primary); font-size: 1em; box-sizing: border-box; text-align: center; letter-spacing: 2px;"
+    <input type="text" 
+           id="v-codigo" 
+           name="v-codigo" 
+           placeholder="Escribe o escanea..." 
+           class="venta-input-main"
            onkeypress="if(event.key === 'Enter') Controlador.procesarEscaneoVentaRapida(this.value)">
 </div>
 
-        <label for="v-producto">Producto:</label>
-        <input type="text" id="v-producto" name="v-producto" list="sugerencias-ventas" 
-               oninput="Interfaz.actualizarSelectorTallas(this.value)" placeholder="(Ej: Pollo)" autocomplete="off">
-        <datalist id="sugerencias-ventas"></datalist>
 
-        <label for="v-cantidad">Cantidad:</label>
-        <input type="number" id="v-cantidad" name="v-cantidad" placeholder="Cantidad" value="1" 
-               style="margin-bottom: 10px;" autocomplete="off">
+<label for="v-producto">Producto:</label>
+<input type="text" id="v-producto" name="v-producto" list="sugerencias-ventas" 
+       class="input-venta-full" oninput="Interfaz.actualizarSelectorTallas(this.value)" 
+       placeholder="(Ej: Pollo)" autocomplete="off">
+<datalist id="sugerencias-ventas"></datalist>
 
-        <div id="contenedor-talla" class="hidden" style="margin-bottom: 10px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                <label for="v-talla" style="color: var(--primary); font-size: 0.9em;">Seleccione Medida:</label>
-            </div>
-            <select id="v-talla" name="v-talla" class="glass" 
-                    style="width: 100%; padding: 10px; border-radius: 8px; background: #222; color: white; border: 1px solid var(--primary);"
-                    onchange="Controlador.mostrarStockDisponible(this.value)"> 
-                <option value="">Seleccione Medida...</option>
-            </select>
+<label for="v-cantidad">Cantidad:</label>
+<input type="number" id="v-cantidad" name="v-cantidad" value="1" 
+       class="input-venta-full" placeholder="Cantidad" autocomplete="off">
+
+<div id="contenedor-talla" class="hidden container-campo">
+    <div class="flex-between">
+        <label for="v-talla" class="label-especial">Seleccione Medida:</label>
+    </div>
+    <select id="v-talla" name="v-talla" class="select-venta-full glass" 
+            onchange="Controlador.mostrarStockDisponible(this.value)"> 
+        <option value="">Seleccione Medida...</option>
+    </select>
+</div>
+
+<div class="input-group-row">
+    <div class="flex-2">
+        <label for="v-monto">Monto:</label>
+        <input type="number" id="v-monto" name="v-monto" class="input-venta-full" 
+               placeholder="Monto" autocomplete="off">
+    </div>
+    <div class="flex-1">
+        <label for="v-moneda">Moneda:</label>
+        <select id="v-moneda" name="v-moneda" class="select-venta-full">
+            <option value="USD">$ USD</option>
+            <option value="BS">Bs</option>
+        </select>
+    </div>
+</div>
+
+<label for="v-metodo">Método de Pago:</label>
+<select id="v-metodo" name="v-metodo" class="select-venta-full" 
+        onchange="Interfaz.toggleClienteField(this.value)">
+    <option value="Efectivo $">Efectivo $</option>
+    <option value="Pago Móvil">Pago Móvil</option>
+    <option value="Punto de Venta">Punto de Venta</option>
+    <option value="Fiao">Crédito</option>
+    <option value="Biopago">Biopago</option>
+</select>
+
+<div id="wrapper-cliente" class="hidden container-campo">
+    <label for="v-cliente">Cliente:</label>
+    <input type="text" id="v-cliente" name="v-cliente" class="input-venta-full" 
+           placeholder="Nombre del Cliente">
+</div>
+
+
+<button type="button" class="btn-outline-primary" onclick="Controlador.ejecutarVenta()">
+    ➕ Añadir a la Cuenta
+</button>
+
+<div id="contenedor-carrito" class="carrito-container-main">
+    <h4 class="carrito-header">🛒 Cuenta Actual</h4>
+
+    <div id="lista-carrito-temporal" class="carrito-lista">
+        <p class="empty-msg">La cuenta está vacía</p>
+    </div>
+
+    <div class="carrito-footer">
+        <b class="total-label">TOTAL:</b>
+        <div class="total-values">
+            <b id="total-carrito-bs" class="total-bs">0.00 Bs</b><br>
+            <small id="total-carrito-usd" class="total-usd">$0.00</small>
         </div>
+    </div>
 
-        <div class="input-group">
-            <div style="flex:2">
-                <label for="v-monto">Monto:</label>
-                <input type="number" id="v-monto" name="v-monto" placeholder="Monto" autocomplete="off">
+    <button type="button" class="btn-main-success" onclick="Controlador.ejecutarCobroFinal()">
+        ✅ COBRAR TOTAL
+    </button>
+</div>
+
+<h4 class="historial-header">Últimas Ventas</h4>
+<div id="lista-ventas-historial" class="listado-container"></div>
+
+</section>
+
+      <section id="view-gastos" class="app-section hidden">
+    <div class="card glass">
+        <h3>Registrar Gasto</h3>
+        
+        <label for="g-desc" class="label-gasto">Descripción:</label>
+        <input type="text" id="g-desc" name="g-desc" class="input-gasto-full" placeholder="¿En qué gastaste?">
+
+        <div class="input-group-row">
+            <div class="flex-2">
+                <label for="g-monto" class="label-gasto">Monto:</label>
+                <input type="number" id="g-monto" name="g-monto" class="input-gasto-full" 
+                       placeholder="Monto" inputmode="decimal">
             </div>
-            <div style="flex:1">
-                <label for="v-moneda">Moneda:</label>
-                <select id="v-moneda" name="v-moneda">
+            <div class="flex-1">
+                <label for="g-moneda" class="label-gasto">Moneda:</label>
+                <select id="g-moneda" name="g-moneda" class="select-gasto-full">
                     <option value="USD">$ USD</option>
                     <option value="BS">Bs</option>
                 </select>
             </div>
         </div>
 
-        <label for="v-metodo">Método de Pago:</label>
-        <select id="v-metodo" name="v-metodo" onchange="Interfaz.toggleClienteField(this.value)">
-            <option value="Efectivo $">Efectivo $</option>
-            <option value="Pago Móvil">Pago Móvil</option>
-            <option value="Punto de Venta">Punto de Venta</option>
-            <option value="Fiao">Crédito</option>
-            <option value="Biopago">Biopago</option>
-        </select>
-        
-        <div id="wrapper-cliente" class="hidden">
-            <label for="v-cliente">Cliente:</label>
-            <input type="text" id="v-cliente" name="v-cliente" placeholder="Nombre del Cliente">
-        </div>
-
-<button type="button" class="btn-main" onclick="Controlador.ejecutarVenta()" style="background: transparent; border: 2px solid var(--primary); color: var(--primary);">
-            ➕ Añadir a la Cuenta
+        <button type="button" class="btn-gasto-final" onclick="Controlador.ejecutarGasto()">
+            Guardar Gasto
         </button>
+    </div>
 
-        <div id="contenedor-carrito" style="margin-top: 20px; border: 1px solid var(--primary); border-radius: 12px; padding: 15px; background: rgba(0,0,0,0.4);">
-            <h4 style="margin: 0 0 10px 0; color: var(--primary); text-align: center; font-size: 1.1em;">🛒 Cuenta Actual</h4>
-
-            <div id="lista-carrito-temporal" style="max-height: 180px; overflow-y: auto; margin-bottom: 15px;">
-                <p style="text-align:center; opacity:0.5; font-size:0.9em;">La cuenta está vacía</p>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #555; padding-top: 15px; margin-bottom: 15px;">
-                <b style="font-size: 1.2em;">TOTAL:</b>
-                <div style="text-align: right;">
-                    <b id="total-carrito-bs" style="color: var(--primary); font-size: 1.4em;">0.00 Bs</b><br>
-                    <small id="total-carrito-usd" style="opacity: 0.8; font-size: 1em;">$0.00</small>
-                </div>
-            </div>
-
-            <button type="button" class="btn-main" onclick="Controlador.ejecutarCobroFinal()" style="width: 100%; font-size: 1.2em; padding: 15px; box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);">
-                ✅ COBRAR TOTAL
-            </button>
-        </div>
-        
-        <h4>Últimas Ventas</h4>
-    <div id="lista-ventas-historial" class="listado-container"></div>
+    <h4 class="historial-titulo">Historial de Gastos</h4>
+    <div id="lista-gastos-historial" class="listado-container"></div>
 </section>
 
-        <section id="view-gastos" class="app-section hidden">
-            <div class="card glass">
-                <h3>Registrar Gasto</h3>
-                <label for="g-desc">Descripción:</label>
-                <input type="text" id="g-desc" name="g-desc" placeholder="¿En qué gastaste?">
-                <div class="input-group">
-                    <div style="flex:2">
-                        <label for="g-monto">Monto:</label>
-                        <input type="number" id="g-monto" name="g-monto" placeholder="Monto">
-                    </div>
-                    <div style="flex:1">
-                        <label for="g-moneda">Moneda:</label>
-                        <select id="g-moneda" name="g-moneda">
-                            <option value="USD">$ USD</option>
-                            <option value="BS">Bs</option>
-                        </select>
-                    </div>
-                </div>
-                <button type="button" class="btn-main btn-danger" onclick="Controlador.ejecutarGasto()">Guardar Gasto</button>
-            </div>
-            <h4>Historial de Gastos</h4>
-            <div id="lista-gastos-historial" class="listado-container"></div>
-        </section>
-
-      <section id="view-fiaos-list" class="app-section hidden">
+<section id="view-fiaos-list" class="app-section hidden">
     <h3>Cuentas por Cobrar (Bs)</h3>
     
-    <div class="search-container" style="margin-bottom: 15px; position: relative;">
+    <div class="search-container">
         <input type="text" 
                id="search-deudores" 
                placeholder="🔍 Buscar cliente por nombre..." 
-               oninput="Interfaz.filtrarFiaos()"
-               style="width: 100%; padding: 12px 40px 12px 15px; border-radius: 10px; border: 1px solid #444; background: rgba(255,255,255,0.05); color: white; font-size: 0.9em;">
-        <button onclick="document.getElementById('search-deudores').value=''; Interfaz.filtrarFiaos();" 
-                style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #888; cursor: pointer;">
+               class="input-search-fiao"
+               oninput="Interfaz.filtrarFiaos()">
+        
+        <button type="button" 
+                class="btn-clear-search"
+                onclick="document.getElementById('search-deudores').value=''; Interfaz.filtrarFiaos();">
             ✕
         </button>
     </div>
 
-    <div id="lista-fiaos" class="listado-container"></div>
+    <div id="lista-fiaos" class="listado-container">
+        </div>
 </section>
 
-       <section id="view-inventario" class="app-section hidden" style="overflow-x: hidden;">
+     <section id="view-inventario" class="app-section hidden">
     <div class="card glass">
         <h3>📦 Cargar Inventario</h3>
         
-      <fieldset style="border: 1px solid #444; border-radius: 10px; padding: 12px; margin-bottom: 15px; background: rgba(0,0,0,0.2);">
-    <legend style="color: var(--primary); padding: 0 10px; font-weight: bold; font-size: 0.9em;">DATOS DEL PRODUCTO</legend>
-    
-    <div style="margin-bottom: 15px;">
-        <label for="inv-codigo" style="display: block; margin-bottom: 5px; font-size: 0.85em; opacity: 0.8;">Código de Barras:</label>
-        <input type="text" id="inv-codigo" name="inv-codigo" 
-               placeholder="Escanea o escribe el código..." 
-               style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--primary); background: rgba(255,215,0,0.05); color: white; box-sizing: border-box;">
-    </div>
+        <fieldset class="inv-fieldset">
+            <legend class="inv-legend">DATOS DEL PRODUCTO</legend>
+            
+            <div class="inv-field-group">
+                <label for="inv-codigo" class="inv-label">Código de Barras:</label>
+                <input type="text" id="inv-codigo" name="inv-codigo" 
+                       class="inv-input-highlight" placeholder="Escanea o escribe el código...">
+            </div>
 
-    <div style="margin-bottom: 15px;">
-        <label for="inv-nombre" style="display: block; margin-bottom: 5px; font-size: 0.85em; opacity: 0.8;">Nombre del Producto:</label>
-        <input type="text" id="inv-nombre" name="inv-nombre" placeholder="Ej: Camisa Ovejita..." 
-               style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #555; background: #222; color: white; box-sizing: border-box;">
-    </div>
+            <div class="inv-field-group">
+                <label for="inv-nombre" class="inv-label">Nombre del Producto:</label>
+                <input type="text" id="inv-nombre" name="inv-nombre" 
+                       class="inv-input-dark" placeholder="Ej: Camisa Ovejita...">
+            </div>
 
-    <div style="display: flex; gap: 10px;">
-        <div style="flex: 1;"> 
-            <label for="inv-cant" style="display: block; margin-bottom: 5px; font-size: 0.85em; opacity: 0.8;">Stock Inicial:</label>
-            <input type="number" id="inv-cant" name="inv-cant" placeholder="0" min="0" 
-                   style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #555; background: #222; color: white; box-sizing: border-box;">
-        </div>
-        <div style="flex: 1;">
-            <label for="inv-precio" style="display: block; margin-bottom: 5px; font-size: 0.85em; opacity: 0.8;">Precio Venta ($):</label>
-            <input type="number" id="inv-precio" name="inv-precio" placeholder="0.00" min="0" step="0.01" 
-                   style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #555; background: #222; color: white; box-sizing: border-box;">
-        </div>
-    </div>
-</fieldset>
+            <div class="inv-row">
+                <div class="flex-1"> 
+                    <label for="inv-cant" class="inv-label">Stock Inicial:</label>
+                    <input type="number" id="inv-cant" name="inv-cant" 
+                           class="inv-input-dark" placeholder="0" min="0">
+                </div>
+                <div class="flex-1">
+                    <label for="inv-precio" class="inv-label">Precio Venta ($):</label>
+                    <input type="number" id="inv-precio" name="inv-precio" 
+                           class="inv-input-dark" placeholder="0.00" min="0" step="0.01">
+                </div>
+            </div>
+        </fieldset>
 
-        <label for="inv-unidad">Unidad de Medida / Tipo:</label>
-        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
-            <select id="inv-unidad" name="inv-unidad" class="glass" style="flex: 2; padding: 10px; color: white; background: #222; box-sizing: border-box;">
+        <label for="inv-unidad" class="inv-label">Unidad de Medida / Tipo:</label>
+        <div class="inv-row-align">
+            <select id="inv-unidad" name="inv-unidad" class="inv-select-glass">
                 <option value="Und">Unidad (Und)</option>
                 <option value="Paca">Paca (Paq)</option>
                 <option value="Kg">Kilogramos (Kg)</option>
@@ -468,81 +515,96 @@
                 <option value="Talla">Talla (Ropa/Calzado)</option>
             </select>
             
-            <button type="button" class="btn-mini" style="background:#444; flex: 1; padding: 10px; font-size: 0.9em;" onclick="AbrirGestorTallas()">
-                 ⚙️ Desglosar
+            <button type="button" class="btn-config" onclick="AbrirGestorTallas()">
+                ⚙️ Desglosar
             </button>
         </div>
 
-        <button type="button" class="btn-main" onclick="Controlador.guardarEnInventario()">Cargar Producto</button>
+        <button type="button" class="btn-main" onclick="Controlador.guardarEnInventario()">
+            Cargar Producto
+        </button>
     </div>
 
-    <div style="margin: 25px 15px 0 15px;"> 
-        <h4 style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-    Stock Actual 
 
-    
-<button class="btn-mini" style="background: var(--primary); color: black; font-weight: bold;" 
-    onclick="Scanner.iniciarEscannerCamara(codigo => Controlador.prepararEdicionInventario(codigo))">
-    📷 Escanear Producto
-</button>
+  <div class="inv-header-box"> 
+        <h4 class="flex-between-align">
+            Stock Actual 
+            <button class="btn-scan-inv" 
+                    onclick="Scanner.iniciarEscannerCamara(codigo => Controlador.prepararEdicionInventario(codigo))">
+                📷 Escanear Producto
+            </button>
+        </h4>
 
-</h4>
+        <div class="search-box-sticky glass">
+            <input type="text" id="busqueda-real-inv" class="input-search-modern" placeholder="🔍 Buscar producto...">
+        </div>
+    </div>
 
-<div class="search-box glass" style="margin-bottom: 15px; position: sticky; top: 0; z-index: 5; box-sizing: border-box;">
-    <input type="text" id="busqueda-real-inv" placeholder="🔍 Buscar producto..." 
-           style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--primary); background: rgba(0,0,0,0.3); color: white; font-size: 1em; box-sizing: border-box;">
-</div>
+    <div id="contenedor-camara-inv" class="camera-full-overlay">
+        <div id="reader" class="reader-box"></div>
+        <button class="btn-close-generic" onclick="Scanner.detenerEscanner()">Cerrar</button>
+    </div>
 
-<div id="contenedor-camara-inv" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:10000; flex-direction:column; align-items:center; justify-content:center;">
-    <div id="reader" style="width: 100%; max-width: 600px; border-radius: 12px; border: 2px solid var(--primary); overflow: hidden; background: #000;"></div>
-</div>
-
-<div id="lista-inventario" class="listado-container" style="width: 100%; overflow-x: hidden;"></div>
+    <div id="lista-inventario" class="listado-container inv-list-scroll"></div>
 </section>
 
-<div id="modal-gestor-tallas" class="modal-tallas">
+<div id="modal-gestor-tallas" class="modal-overlay">
     <div class="modal-content-tallas glass">
-        <h3 style="color:var(--primary); margin-bottom:15px;">⚙️ Desglose Por Tipo</h3>
+        <h3 class="modal-title">⚙️ Desglose Por Tipo</h3>
         
-        <div id="contenedor-filas-tallas"></div>
+        <div id="contenedor-filas-tallas" class="tallas-grid"></div>
         
-        <button type="button" class="btn-main" style="margin-top:15px;" onclick="CerrarGestorTallas()">Confirmar Cantidades</button>
+        <button type="button" class="btn-main mt-15" onclick="CerrarGestorTallas()">
+            Confirmar Cantidades
+        </button>
     </div>
 </div>
 
+
 <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-storage-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-messaging-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-messaging-compat.js"></script>
 
-<script src="JS/Cloud.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://unpkg.com/html5-qrcode"></script>
-<script src="JS/frases.js"></script>
-<script src="JS/Offline.js"></script> <script src="JS/Usuario.js"></script>
-<script src="JS/Seguridad.js"></script> 
-<script src="JS/Servicios.js"></script>
-<script src="JS/Audio.js"></script>
+    <script src="JS/Cloud.js"></script>
+    <script src="JS/Offline.js"></script> 
+    <script src="JS/Usuaro.js"></script>
+    <script src="JS/Seguridad.js"></script> 
+    <script src="JS/Centinela.js"></script>
+    <script src="JS/Audio.js"></script>
+    <script src="JS/frases.js"></script>
 
-<script src="JS/Interfaz.js"></script> 
-<script src="JS/Conversor.js"></script>
-<script src="JS/Inventario.js"></script>
-<script src="JS/Ventas.js"></script> 
-<script src="JS/Notificaciones.js"></script>
-<script src="JS/Centinela.js"></script>
-<script src="JS/Controlador.js"></script> 
-<script src="JS/scaner.js"></script> <script src="JS/Teclado.js"></script>
+    <script src="JS/Interfaz.js"></script> 
+    <script src="JS/Conversor.js"></script>
+    <script src="JS/Servicios.js"></script>
+    <script src="JS/Inventario.js"></script>
+    <script src="JS/Ventas.js"></script> 
+    <script src="JS/Notificaciones.js"></script>
+    <script src="JS/scaner.js"></script> 
+    <script src="JS/Teclado.js"></script>
 
-<script src="JS/Main.js"></script>
+    <script src="JS/Controlador.js"></script> 
+    <script src="JS/Main.js"></script>
 
-<script>
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js');
-}
-</script>
-
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log("DOMINUS PWA: Activa", reg.scope))
+                    .catch(err => console.error("DOMINUS PWA: Error", err));
+            });
+        }
+    </script>
+</main>
+</main>
+</div>
 </body>
 </html>

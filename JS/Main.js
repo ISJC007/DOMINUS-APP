@@ -299,6 +299,8 @@ function efectoEscritura(elemento, texto, velocidad = 50) {
     });
 }
 
+// --- FUNCIONES DE ARRANQUE Y CARGA ---
+
 async function iniciarCargaSistemas() {
     console.log("⚙️ DOMINUS: Acceso verificado. Sincronizando entorno...");
     
@@ -307,26 +309,24 @@ async function iniciarCargaSistemas() {
         await window.promesaEscritura;
     }
 
-    // Al terminar la promesa de arriba, el autor ya se hace visible por el .then() de iniciarDominus
+    // Al terminar la promesa de arriba, el autor ya se hace visible
     console.log("⏱️ Frase completa y autor en pantalla. Iniciando conteo de 5s para finalizar...");
     
     // 🛡️ RE-ESCANEAMIENTO DE SEGURIDAD
-    // Justo antes de entrar, forzamos una revisión final para que las burbujas 
-    // se rendericen con los datos más frescos antes de que el usuario vea el menú.
     if (typeof Notificaciones !== 'undefined') {
         Notificaciones.revisarTodo();
     }
 
-    // Espera de 5 segundos de cortesía tras la animación para lectura antes de entrar
+    // Espera de 5 segundos de cortesía tras la animación
     setTimeout(() => {
         finalizarArranque();
         
-        // 💡 LANZAMIENTO DEL PRIMER TIP
-        // A los 2 segundos de entrar a la app, lanzamos el primer "Sabías que" 
-        // para darle la bienvenida con conocimiento.
+        // 💡 LANZAMIENTO DEL PRIMER TIP (Sincronizado con la nueva lógica visual)
         setTimeout(() => {
-            if (typeof Notificaciones !== 'undefined') {
-                Notificaciones.lanzarTipFlotante();
+            if (typeof Notificaciones !== 'undefined' && Notificaciones.tips) {
+                const tip = Notificaciones.tips[Math.floor(Math.random() * Notificaciones.tips.length)];
+                // Usamos la nueva función visual persistente
+                Notificaciones.lanzarAnuncioVisual(`💡 TIP: ${tip.titulo}`, tip.texto, "var(--accent)");
             }
         }, 2000);
 
@@ -335,7 +335,7 @@ async function iniciarCargaSistemas() {
 
 function finalizarArranque() {
     const splash = document.getElementById('splash-screen');
-    const nav = document.querySelector('.bottom-nav'); // 🚩 Nueva referencia
+    const nav = document.querySelector('.bottom-nav');
 
     if (splash) {
         splash.classList.add('splash-fade-out');
@@ -374,31 +374,27 @@ async function iniciarDominus() {
             if (checkDark) checkDark.checked = true;
         }
 
-        // --- PREPARACIÓN DE DATOS PARA EL SPLASH ---
-        // Inicializamos Usuario antes para saber si hay inducción psicológica
+        // B. PREPARACIÓN DE DATOS Y SESIÓN
         const haySesionLocal = Usuario.init(); 
 
-        // B. FRASES Y AUTORES CON EFECTO DE ESCRITURA (Inducción Psicológica)
         if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
             const txtFrase = document.getElementById('frase-splash');
             const txtAutor = document.getElementById('autor-splash');
             
             if (txtFrase) {
                 let seleccion;
-
-                // 🧠 Lógica de Inducción Dominus
                 const diaUso = haySesionLocal ? Usuario.obtenerDiasDeUso() : 0;
+                
+                // 🧠 Lógica de Inducción Dominus
                 const frasesInduccion = {
                     5:  { texto: "En solo 5 días, tu negocio ya respira el orden de DOMINUS. El control es el primer paso al éxito.", autor: "EQUIPO DOMINUS" },
                     10: { texto: "10 días transformando datos en decisiones. Tu disciplina y DOMINUS son el equipo perfecto.", autor: "EQUIPO DOMINUS" },
                     14: { texto: "Mañana se cumplen 15 días de evolución. Mira atrás y observa cuánto ha crecido tu claridad operativa.", autor: "EQUIPO DOMINUS" },
-                    15: { texto: "Hoy celebramos 15 días de una nueva era educativa en tu negocio. No pierdas .", autor: "EQUIPO DOMINUS" }
+                    15: { texto: "Hoy celebramos 15 días de una nueva era educativa en tu negocio. No pierdas el enfoque.", autor: "EQUIPO DOMINUS" }
                 };
 
-                // Prioridad: Inducción > Banco de frases
                 if (frasesInduccion[diaUso]) {
                     seleccion = frasesInduccion[diaUso];
-                    console.log(`🧠 GEMS: Aplicando mensaje de inducción - Día ${diaUso}`);
                 } else {
                     seleccion = bancoFrases[Math.floor(Math.random() * bancoFrases.length)];
                 }
@@ -416,38 +412,42 @@ async function iniciarDominus() {
             }
         }
 
-        // C. CONTROL DE ACCESO (Ya inicializado arriba)
+        // C. CONTROL DE ACCESO
         if (haySesionLocal) {
             if (typeof Interfaz !== 'undefined' && Interfaz.actualizarAvatarHeader) {
                 Interfaz.actualizarAvatarHeader(Usuario.datos);
             }
 
-            // 🔐 EL MURO: Validamos el PIN.
             const accesoConcedido = await Seguridad.iniciarProteccion();
             
             if (accesoConcedido) {
-                console.log("🔓 Acceso concedido. Iniciando carga de datos...");
+                console.log("🔓 Acceso concedido. Sincronizando Mando Central...");
 
-                // 🔥 AQUÍ ACTIVAMOS LA CONEXIÓN CON EL ADMIN
+                // 🔥 ACTIVACIÓN DE COMUNICACIÓN CON ADMIN
                 if (typeof Usuario !== 'undefined' && Usuario.datos) {
                     Usuario.actualizarPresencia(); 
-                    Usuario.escucharMensajesAdmin();
+                    
+                    // Activamos el "oído" para mensajes y anuncios globales
+                    if (typeof Notificaciones !== 'undefined' && Notificaciones.escucharMandoCentral) {
+                        Notificaciones.escucharMandoCentral(Usuario.datos.uid); 
+                    }
                 }
 
-                // 🔴 TAMBIÉN EL MODO MANTENIMIENTO GLOBAL
-                escucharComandosGlobales();
+                // 🔴 MODO MANTENIMIENTO GLOBAL
+                if (typeof escucharComandosGlobales === 'function') {
+                    escucharComandosGlobales();
+                }
 
-                // 1. CARGA DE DATOS BASE
+                // D. CARGA DE DATOS LOCALES
                 window.DOMINUS.historial = Persistencia.cargar('dom_ventas') || [];
                 window.DOMINUS.deudas = Persistencia.cargar('dom_fiaos') || [];
                 window.DOMINUS.gastos = Persistencia.cargar('dom_gastos') || [];
 
-                // 🛡️ INICIALIZAR EL CENTINELA
                 if (typeof Notificaciones !== 'undefined') {
                     Notificaciones.init();
                 }
 
-                // 2. CONFIGURACIÓN DE INVENTARIO
+                // E. CONFIGURACIÓN DE INVENTARIO
                 const configGuardada = localStorage.getItem('dom_config');
                 let invActivo = (configGuardada === null) ? true : JSON.parse(configGuardada).invActivo;
                 
@@ -462,7 +462,7 @@ async function iniciarDominus() {
                     if (Inventario.init) Inventario.init();
                 }
 
-                // 3. PREFERENCIAS Y AUTO-LLENADO
+                // F. PREFERENCIAS Y AUTO-LLENADO
                 if (typeof Controlador !== 'undefined' && Controlador.verificarPreferenciaPunto) {
                     Controlador.verificarPreferenciaPunto();
                 }
@@ -522,16 +522,51 @@ if ('serviceWorker' in navigator) {
 
 // Pon esto fuera o dentro de Notificaciones, pero que se ejecute al inicio
 function escucharComandosGlobales() {
-    DA_Cloud.db.ref('config_global/mantenimiento').on('value', (snap) => {
+    console.log("🛰️ Mando Central: Escuchando directivas globales...");
+
+    // 1. MODO MANTENIMIENTO (Bloqueo Total)
+    // Usamos Cloud.db que es la instancia real de tu Firebase
+    Cloud.db.ref('config_global/mantenimiento').on('value', (snap) => {
         if (snap.val() === true) {
-            // Mostramos un bloqueo total en la pantalla del usuario
             document.body.innerHTML = `
-                <div style="height:100vh; display:flex; align-items:center; justify-content:center; background:#111; color:white; text-align:center; flex-direction:column; font-family:sans-serif;">
-                    <h1>⚒️ MANTENIMIENTO</h1>
-                    <p>Estamos mejorando DOMINUS para ti.</p>
-                    <p style="color:var(--primary)">Vuelve en unos minutos.</p>
+                <div style="height:100vh; display:flex; align-items:center; justify-content:center; background:#050505; color:white; text-align:center; flex-direction:column; font-family:sans-serif; padding:20px;">
+                    <div style="font-size:4rem; margin-bottom:20px;">⚒️</div>
+                    <h1 style="color:#ff3333; letter-spacing:5px; margin:0;">MANTENIMIENTO</h1>
+                    <p style="font-size:1.2rem; margin-top:15px; opacity:0.9;">El Gran Maestro está ajustando los engranajes.</p>
+                    <p style="color:#666; font-size:0.9rem;">DOMINUS volverá a estar en línea pronto.</p>
+                    <div style="margin-top:30px; width:50px; height:2px; background:#ff3333; border-radius:2px; animation: pulse 1.5s infinite;"></div>
                 </div>
+                <style>
+                    @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+                </style>
             `;
+        }
+    });
+
+    // 2. BROADCAST GLOBAL (Anuncios en Tarjeta)
+    // Sincronizado con la ruta 'config_global/anuncio' que usa tu Admin
+    Cloud.db.ref('config_global/anuncio').on('value', (snap) => {
+        const anuncio = snap.val();
+        
+        if (anuncio && anuncio.mensaje) {
+            // Validamos que el anuncio sea de las últimas 24 horas para no mostrar spam viejo
+            const esReciente = (Date.now() - anuncio.timestamp) < (24 * 60 * 60 * 1000);
+            
+            if (esReciente && typeof Notificaciones !== 'undefined') {
+                // Lanzamos la tarjeta visual que diseñamos con swipe
+                Notificaciones.lanzarAnuncioVisual(
+                    "📢 ANUNCIO GLOBAL", 
+                    anuncio.mensaje, 
+                    "var(--primary)"
+                );
+            }
+        } else {
+            // Si el Admin borró el anuncio (null), quitamos la tarjeta si existe
+            const cardExistente = document.getElementById('anuncio-activo');
+            if (cardExistente) {
+                cardExistente.style.right = '-450px';
+                setTimeout(() => cardExistente.remove(), 600);
+            }
         }
     });
 }
