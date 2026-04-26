@@ -1,3 +1,59 @@
+// Pon esto fuera o dentro de Notificaciones, pero que se ejecute al inicio
+/**
+ * Escucha directivas en tiempo real desde Firebase.
+ * Permite control remoto de la aplicación.
+ */
+function escucharComandosGlobales() {
+    console.log("🛰️ Mando Central: Conectado al satélite de datos...");
+
+    // 1. MODO MANTENIMIENTO (Kill Switch)
+    Cloud.db.ref('config_global/mantenimiento').on('value', (snap) => {
+        if (snap.val() === true) {
+            document.body.innerHTML = `
+                <div class="pantalla-mantenimiento">
+                    <div class="mantenimiento-icon">⚒️</div>
+                    <h1 class="mantenimiento-titulo">MANTENIMIENTO</h1>
+                    <p style="font-size:1.2rem; margin-top:15px; opacity:0.8;">
+                        El Gran Maestro está ajustando los engranajes.
+                    </p>
+                    <p style="color:#666; font-size:0.9rem; margin-top:5px;">
+                        DOMINUS volverá a estar en línea pronto.
+                    </p>
+                    <div class="pulsor-mantenimiento"></div>
+                </div>
+            `;
+            // Bloqueamos cualquier interacción adicional
+            window.stop(); 
+        }
+    });
+
+    // 2. BROADCAST GLOBAL (Sistema de Anuncios)
+    Cloud.db.ref('config_global/anuncio').on('value', (snap) => {
+        const anuncio = snap.val();
+        
+        if (anuncio && anuncio.mensaje) {
+            // Validamos frescura del mensaje (máximo 24h)
+            const hace24Horas = Date.now() - (24 * 60 * 60 * 1000);
+            const esReciente = anuncio.timestamp > hace24Horas;
+            
+            if (esReciente && typeof Notificaciones !== 'undefined') {
+                Notificaciones.lanzarAnuncioVisual(
+                    "📢 ANUNCIO GLOBAL", 
+                    anuncio.mensaje, 
+                    "var(--primary)"
+                );
+            }
+        } else {
+            // Limpieza automática si el administrador retira el anuncio
+            const cardExistente = document.getElementById('anuncio-activo');
+            if (cardExistente) {
+                cardExistente.style.transform = 'translateX(120%)';
+                setTimeout(() => cardExistente.remove(), 600);
+            }
+        }
+    });
+}
+
 const Notificaciones = {
     // Base de datos de conocimiento
     tips: [
@@ -21,136 +77,172 @@ const Notificaciones = {
         this.checkCierre();
     },
 
-   checkStock() {
-        const badge = document.getElementById('badge-stock');
-        if (!badge || typeof Inventario === 'undefined' || this.vistoStock) {
-            if (badge && this.vistoStock) badge.classList.remove('active');
-            return;
-        }
-        
-        const criticos = Inventario.productos.filter(p => {
-            const cant = parseFloat(p.cantidad) || 0;
-            const min = parseFloat(p.stockMinimo) || 3;
-            return cant <= min;
-        });
-        
-        if (criticos.length > 0) {
-            badge.innerText = criticos.length;
-            badge.classList.add('active');
-        } else {
-            badge.classList.remove('active');
-        }
-    },
+  /**
+ * Monitorea productos con bajo stock.
+ */
+checkStock() {
+    const badge = document.getElementById('badge-stock');
+    
+    // 🛡️ Blindaje: Si no hay badge, no hay inventario o ya se vió, limpiamos y salimos
+    if (!badge || typeof Inventario === 'undefined' || this.vistoStock) {
+        if (badge) badge.classList.remove('active');
+        return;
+    }
+    
+    const criticos = Inventario.productos.filter(p => {
+        const cant = parseFloat(p.cantidad) || 0;
+        const min = parseFloat(p.stockMinimo) || 3; // 3 es el estándar de seguridad
+        return cant <= min;
+    });
+    
+    if (criticos.length > 0) {
+        badge.innerText = criticos.length;
+        badge.classList.add('active');
+    } else {
+        badge.classList.remove('active');
+    }
+},
 
-    // MODIFICAMOS checkFiaos
-    checkFiaos() {
-        const badge = document.getElementById('badge-fiaos');
-        // Si ya lo vio, quitamos la burbuja aunque sigan existiendo deudas
-        if (!badge || this.vistoFiaos) {
-            if (badge) badge.classList.remove('active');
-            return;
-        }
+/**
+ * Monitorea la cantidad de deudas (Fiaos) activas.
+ */
+checkFiaos() {
+    const badge = document.getElementById('badge-fiaos');
+    
+    // 🛡️ Si ya se revisó la sección de fiaos, ocultamos la burbuja
+    if (!badge || this.vistoFiaos) {
+        if (badge) badge.classList.remove('active');
+        return;
+    }
 
-        const datos = (typeof Persistencia !== 'undefined') ? (Persistencia.cargar('dom_fiaos') || []) : [];
-        
-        if (datos.length > 0) {
-            badge.innerText = datos.length > 9 ? "+9" : datos.length;
-            badge.classList.add('active');
-        } else {
-            badge.classList.remove('active');
-        }
-    },
+    // Cargamos datos de fiaos de manera segura
+    const datos = (typeof Persistencia !== 'undefined') ? (Persistencia.cargar('dom_fiaos') || []) : [];
+    
+    if (datos.length > 0) {
+        // Si hay más de 9 deudas, mostramos +9 para no romper el diseño circular
+        badge.innerText = datos.length > 9 ? "+9" : datos.length;
+        badge.classList.add('active');
+    } else {
+        badge.classList.remove('active');
+    }
+},
 
-    // NUEVA FUNCIÓN: Para marcar como leído
-    marcarComoLeido(seccion) {
-        if (seccion === 'fiaos') this.vistoFiaos = true;
-        if (seccion === 'inventario') this.vistoStock = true;
-        this.revisarTodo(); // Actualiza las burbujas inmediatamente
-    },
+  /**
+ * Marca una sección como vista para limpiar las notificaciones visuales.
+ */
+marcarComoLeido(seccion) {
+    if (seccion === 'fiaos') this.vistoFiaos = true;
+    if (seccion === 'inventario') this.vistoStock = true;
+    
+    // Feedback inmediato: refresca todas las burbujas
+    this.revisarTodo(); 
+},
 
-    // IMPORTANTE: Resetear cuando se agregue algo nuevo
-    // (Llama a esto cuando registres un nuevo fiao o el stock baje más)
-    resetVisto(seccion) {
-        if (seccion === 'fiaos') this.vistoFiaos = false;
-        if (seccion === 'inventario') this.vistoStock = false;
-        this.revisarTodo();
-    },
+/**
+ * Resetea el estado de lectura. Útil cuando ocurre un evento nuevo 
+ * (ej: alguien fía o el stock baja de un nuevo límite).
+ */
+resetVisto(seccion) {
+    if (seccion === 'fiaos') this.vistoFiaos = false;
+    if (seccion === 'inventario') this.vistoStock = false;
+    
+    this.revisarTodo();
+},
 
-    checkCierre() {
-        const badge = document.getElementById('badge-inicio');
-        if (!badge) return;
+/**
+ * Centinela de tiempo: Avisa si es hora de cerrar caja y aún no se ha hecho.
+ */
+checkCierre() {
+    const badge = document.getElementById('badge-inicio');
+    if (!badge) return;
 
-        const ahora = new Date();
-        const yaCerro = (typeof Ventas !== 'undefined') ? Ventas.cierreRealizado : false;
+    const ahora = new Date();
+    // Verificamos si el módulo de Ventas ya registró el cierre de hoy
+    const yaCerro = (typeof Ventas !== 'undefined') ? Ventas.cierreRealizado : false;
 
-        if (ahora.getHours() >= 18 && !yaCerro) {
-            badge.classList.add('active'); 
-        } else {
-            badge.classList.remove('active');
-        }
-    },
+    // A partir de las 6:00 PM (18:00h) se activa la alerta si no hay cierre
+    if (ahora.getHours() >= 18 && !yaCerro) {
+        badge.classList.add('active'); 
+        // Podríamos poner un icono de exclamación o "!" en el texto
+        badge.innerText = "!";
+    } else {
+        badge.classList.remove('active');
+        badge.innerText = "";
+    }
+},
 
-    // --- NIVEL 2: CARD FLOTANTE (SABÍAS QUE - TEMPORAL) ---
-    lanzarTipFlotante() {
-        const tip = this.tips[Math.floor(Math.random() * this.tips.length)];
-        
-        // Crear el elemento dinámicamente
-        const card = document.createElement('div');
-        card.style = `
-            position: fixed; bottom: 80px; right: -400px; max-width: 300px;
-            padding: 15px; background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(10px);
-            border-left: 5px solid var(--primary); border-radius: 12px; color: white;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10000;
-            transition: right 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer;
-        `;
+    /**
+ * Lanza una tarjeta informativa aleatoria desde un lateral.
+ */
+lanzarTipFlotante() {
+    // Aseguramos que haya tips disponibles
+    if (!this.tips || this.tips.length === 0) return;
 
-        card.innerHTML = `
-            <div style="display:flex; gap:12px; align-items:center;">
-                <span style="font-size:1.8em;">💡</span>
-                <div>
-                    <strong style="color:var(--primary); font-size:0.75em; text-transform:uppercase; letter-spacing:1px;">¿Sabías que?</strong>
-                    <h4 style="margin:2px 0; font-size:0.95em;">${tip.titulo}</h4>
-                    <p style="margin:0; font-size:0.85em; opacity:0.8; line-height:1.3;">${tip.texto}</p>
-                </div>
+    const tip = this.tips[Math.floor(Math.random() * this.tips.length)];
+    
+    const card = document.createElement('div');
+    card.className = 'card-tip-flotante';
+
+    card.innerHTML = `
+        <div style="display:flex; gap:12px; align-items:center;">
+            <span style="font-size:1.8em;">💡</span>
+            <div>
+                <strong class="tip-label">¿Sabías que?</strong>
+                <h4 class="tip-titulo">${tip.titulo}</h4>
+                <p class="tip-texto">${tip.texto}</p>
             </div>
-        `;
+        </div>
+    `;
 
-        document.body.appendChild(card);
+    document.body.appendChild(card);
 
-        // Animación de entrada
-        setTimeout(() => card.style.right = '20px', 100);
+    // Animación de entrada con un pequeño delay para el DOM
+    setTimeout(() => card.classList.add('show'), 100);
 
-        // Función para remover
-        const remover = () => {
-            card.style.right = '-400px';
-            setTimeout(() => card.remove(), 600);
-        };
+    const remover = () => {
+        card.classList.remove('show');
+        setTimeout(() => card.remove(), 600);
+    };
 
-        // Auto-remover en 12 segundos (un poco más para que lea bien)
-        const autoRemover = setTimeout(remover, 12000);
+    // Auto-remover en 12 segundos
+    const autoRemover = setTimeout(remover, 12000);
 
-        card.onclick = () => {
-            clearTimeout(autoRemover);
-            remover();
-        };
-    },
+    // Permitir cerrar al hacer clic
+    card.onclick = () => {
+        clearTimeout(autoRemover);
+        remover();
+    };
+},
 
-    // --- NIVEL 3: SISTEMA NATIVO (FUERA DE LA APP) ---
-    solicitarPermisoNativo() {
-        if ("Notification" in window && Notification.permission !== "granted") {
-            Notification.requestPermission();
+/**
+ * Solicita permiso al sistema operativo para enviar notificaciones push.
+ */
+solicitarPermisoNativo() {
+    if ("Notification" in window) {
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    console.log("🚀 Permisos de notificación concedidos.");
+                }
+            });
         }
-    },
+    }
+},
 
-  enviarNotificacionNativa(titulo, mensaje) {
+/**
+ * Envía una notificación nativa al sistema (incluso si la app está en segundo plano).
+ */
+enviarNotificacionNativa(titulo, mensaje) {
     if ("Notification" in window && Notification.permission === "granted") {
-        // Intentamos usar el Service Worker para mostrarla (es más estable)
+        // Usamos el Service Worker para mayor estabilidad en móviles
         navigator.serviceWorker.ready.then(registration => {
             registration.showNotification(`DOMINUS: ${titulo}`, {
                 body: mensaje,
-                icon: 'IMG/icon-512.png',
-                badge: 'IMG/icon-192.png', // Icono pequeño para la barra de estado
-                vibrate: [200, 100, 200]    // ¡Haz que el tlf de tu papá vibre!
+                icon: 'IMG/icon-512.png',    // Asegúrate de tener estas rutas
+                badge: 'IMG/icon-192.png',   // Icono pequeño para la barra superior
+                vibrate: [200, 100, 200],    // Patrón de vibración [vibrar, pausa, vibrar]
+                tag: 'dominus-alerta',       // Evita duplicados si llegan varios avisos
+                renotify: true               // Vuelve a notificar aunque tenga el mismo tag
             });
         });
     }
@@ -165,52 +257,72 @@ async capturarDireccionPush(uuid) {
     return Promise.resolve(null); 
 },
 
-    programarEventosGlobales() {
-        // 1. Ciclo de Tips Flotantes (Cada 15 minutos)
-        setInterval(() => this.lanzarTipFlotante(), 15 * 60 * 1000);
+ /**
+ * Orquestador de eventos temporales.
+ * Maneja el cronograma de tips y alertas nativas.
+ */
+programarEventosGlobales() {
+    console.log("⏰ Cronos: Ciclo de eventos automáticos iniciado...");
 
-        // 2. Alerta de Cierre Nativa (Solo si no ha cerrado y son las 7 PM)
-        setInterval(() => {
-            const ahora = new Date();
-            const yaCerro = (typeof Ventas !== 'undefined') ? Ventas.cierreRealizado : false;
-            if (ahora.getHours() === 19 && ahora.getMinutes() === 0 && !yaCerro) {
-                this.enviarNotificacionNativa("Hora del Cierre", "No olvides registrar las ventas totales de hoy.");
-            }
-        }, 60000);
+    // 1. Ciclo de Tips Flotantes (Cada 15 minutos)
+    // Mantiene la aplicación dinámica y ofrece consejos útiles.
+    setInterval(() => {
+        if (typeof this.lanzarTipFlotante === 'function') {
+            this.lanzarTipFlotante();
+        }
+    }, 15 * 60 * 1000);
 
-        // 3. Tip Nativo a las 10 AM
-        setInterval(() => {
-            const ahora = new Date();
-            if (ahora.getHours() === 10 && ahora.getMinutes() === 0) {
+    // 2. Monitor de Alertas Horarias (Chequeo cada minuto)
+    setInterval(() => {
+        const ahora = new Date();
+        const hora = ahora.getHours();
+        const minuto = ahora.getMinutes();
+
+        // A. ALERTA DE CIERRE (7:00 PM - 19:00h)
+        const yaCerro = (typeof Ventas !== 'undefined') ? Ventas.cierreRealizado : false;
+        if (hora === 19 && minuto === 0 && !yaCerro) {
+            this.enviarNotificacionNativa(
+                "Hora del Cierre 📊", 
+                "Es momento de registrar las ventas totales del día."
+            );
+        }
+
+        // B. TIP NATIVO DE LA MAÑANA (10:00 AM)
+        // Ideal para motivar o recordar tareas de apertura.
+        if (hora === 10 && minuto === 0) {
+            if (this.tips && this.tips.length > 0) {
                 const tip = this.tips[Math.floor(Math.random() * this.tips.length)];
-                this.enviarNotificacionNativa("Tip de la mañana", tip.texto);
+                this.enviarNotificacionNativa("Dominus: Tip del día 💡", tip.texto);
             }
-        }, 60000);
-    },
+        }
+
+    }, 60000); // El chequeo se hace cada minuto para no perder la ventana de tiempo
+},
+
 
     
 
-    // --- NUEVO: Oído para el Mando Central ---
-// --- EL OÍDO DEL SISTEMA ---
+  /**
+ * Escucha las directivas en tiempo real desde Firebase (Mando Central).
+ * @param {string} uuid - El identificador único del usuario (tu papá).
+ */
 escucharMandoCentral(uuid) {
     if (!uuid) return;
 
-    console.log("📡 Radar de Notificaciones: Sincronizado con Mando Central.");
+    console.log("📡 Radar de Notificaciones: Sincronizado.");
 
-    // 1. Escuchar Mensajes Privados
+    // 1. ESCUCHAR MENSAJES PRIVADOS (Mando -> Usuario)
     DA_Cloud.db.ref(`usuarios/${uuid}/comunicacion/mensajeDirecto`).on('value', (snap) => {
         const data = snap.val();
-        // Solo lanzamos si hay mensaje y no ha sido marcado como leído
         if (data && !data.leido) {
             this.lanzarAnuncioVisual("✉️ MENSAJE PRIVADO", data.texto, "var(--accent)");
         }
     });
 
-    // 2. Escuchar Anuncios Globales (Broadcast)
+    // 2. ESCUCHAR ANUNCIOS GLOBALES (Broadcast)
     DA_Cloud.db.ref('config_global/anuncio').on('value', (snap) => {
         const anuncio = snap.val();
         if (anuncio && anuncio.mensaje) {
-            // Evitamos anuncios de hace más de 24 horas
             const esReciente = (Date.now() - anuncio.timestamp) < (24 * 60 * 60 * 1000);
             if (esReciente) {
                 this.lanzarAnuncioVisual("📢 ANUNCIO GLOBAL", anuncio.mensaje, "var(--primary)");
@@ -220,60 +332,60 @@ escucharMandoCentral(uuid) {
     });
 },
 
-// --- LA INTERFAZ TÁCTIL ---
+/**
+ * Lanza la interfaz visual táctil para los anuncios.
+ */
 lanzarAnuncioVisual(titulo, texto, colorBorde) {
-    // Evitar duplicados molestos
     if (document.getElementById('anuncio-activo')) return;
 
     const card = document.createElement('div');
     card.id = 'anuncio-activo';
-    card.style = `
-        position: fixed; bottom: 85px; right: -450px; max-width: 320px;
-        padding: 18px; background: rgba(15, 15, 15, 0.98); backdrop-filter: blur(15px);
-        border-left: 6px solid ${colorBorde}; border-radius: 12px; color: white;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.8); z-index: 10000;
-        transition: right 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.3s ease, opacity 0.3s ease;
-        cursor: pointer; border-top: 1px solid rgba(255,255,255,0.1);
-        user-select: none; touch-action: pan-y;
-    `;
+    card.className = 'card-anuncio-interactiva';
+    card.style.borderLeft = `6px solid ${colorBorde}`;
 
     card.innerHTML = `
         <div style="display:flex; gap:12px; align-items:flex-start;">
-            <div style="background:${colorBorde}; width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <div class="anuncio-icono-box" style="background:${colorBorde};">
                 <span style="font-size:1.3em;">⚡</span>
             </div>
             <div style="flex:1;">
-                <strong style="color:${colorBorde}; font-size:0.7em; text-transform:uppercase; letter-spacing:1.5px;">${titulo}</strong>
-                <p style="margin:4px 0 0 0; font-size:0.95em; font-weight:500; line-height:1.4;">${texto}</p>
+                <strong class="anuncio-texto-header" style="color:${colorBorde};">${titulo}</strong>
+                <p class="anuncio-texto-body">${texto}</p>
                 <small style="display:block; margin-top:8px; opacity:0.4; font-size:0.7em;">Desliza para cerrar</small>
             </div>
         </div>
     `;
 
     document.body.appendChild(card);
-    setTimeout(() => card.style.right = '20px', 100);
+    setTimeout(() => card.classList.add('show'), 100);
 
-    // Lógica de Swipe (Arrastre)
+    // --- LÓGICA DE SWIPE (TACTIL) ---
     let startX = 0;
     const cerrar = () => {
-        card.style.right = '-450px';
+        card.classList.remove('show');
         card.style.opacity = '0';
         setTimeout(() => card.remove(), 600);
     };
 
     card.onclick = cerrar;
-    card.addEventListener('touchstart', (e) => startX = e.touches[0].clientX, {passive: true});
+
+    card.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+    }, {passive: true});
+
     card.addEventListener('touchmove', (e) => {
         let diff = e.touches[0].clientX - startX;
-        if (diff > 0) {
+        if (diff > 0) { // Solo permite arrastrar hacia la derecha
             card.style.transform = `translateX(${diff}px)`;
             card.style.opacity = 1 - (diff / 300);
         }
     }, {passive: true});
+
     card.addEventListener('touchend', (e) => {
         let diff = e.changedTouches[0].clientX - startX;
-        if (diff > 100) cerrar();
-        else {
+        if (diff > 100) {
+            cerrar();
+        } else {
             card.style.transform = `translateX(0)`;
             card.style.opacity = '1';
         }

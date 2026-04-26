@@ -1,45 +1,50 @@
-let tallasTemporales = {}; // o el valor inicial correcto
-let miGrafica = null;
+let tallasTemporales = {}; // Variable global para almacenar tallas temporalmente durante la edición
+let miGrafica = null; // Variable global para la gráfica de ventas
 let modoGraficaActual = 0;
+
+
 const modalEleccion = {
     abrir: function(config) {
-        // 1. Limpieza inmediata sin animaciones para evitar conflictos de IDs
+        // 1. Limpieza inmediata para evitar duplicados
         const modalPrevio = document.getElementById('modal-dinamico');
         if (modalPrevio) modalPrevio.remove();
 
+        // 2. HTML Limpio (Las clases CSS hacen el trabajo ahora)
         const html = `
-            <div id="modal-dinamico" class="modal-eleccion active">
+            <div id="modal-dinamico" class="modal-eleccion">
                 <div class="eleccion-content glass">
-                    <h3 style="color:var(--primary); margin-bottom:10px;">${config.titulo}</h3>
-                    <p style="color:white; opacity:0.8; margin-bottom:20px;">${config.mensaje}</p>
+                    <h3>${config.titulo}</h3>
+                    <p>${config.mensaje}</p>
                     <div id="contenedor-inputs-modal"></div>
-                    <div id="btns-dinamicos" class="btns-eleccion" style="display: flex; flex-direction: column; gap: 10px;">
-                    </div>
-                    <button class="btn-no" onclick="modalEleccion.cerrar()" style="margin-top:15px; width:100%; opacity: 0.7;">Cancelar</button>
+                    <div id="btns-dinamicos" class="btns-eleccion"></div>
+                    <button class="btn-no" onclick="modalEleccion.cerrar()">Cancelar</button>
                 </div>
             </div>`;
         
         document.body.insertAdjacentHTML('beforeend', html);
         
-        // 2. Referencia al contenedor de botones
+        // Pequeño timeout para asegurar que la animación de entrada (opacity) se ejecute
+        setTimeout(() => {
+            document.getElementById('modal-dinamico').classList.add('active');
+        }, 10);
+        
         const contenedorBtns = document.getElementById('btns-dinamicos');
 
+        // 3. Generación de botones dinámica
         config.botones.forEach(btn => {
             const b = document.createElement('button');
             
-            // Si no pasas clase, usa 'btn-si', si no, usa la que pases (ej. 'btn-main')
-            b.className = btn.clase || 'btn-si';
+            // Clase por defecto 'btn-si' o la que pases en la config
+            b.className = btn.clase || 'btn-si'; 
             b.innerHTML = btn.texto;
             
-            // 🔥 CLAVE: Aplicar estilos directos (colores, márgenes, etc.)
+            // Solo aplicamos style dinámico si es estrictamente necesario (ej: un color de una categoría)
             if (btn.style) {
                 b.style.cssText = btn.style;
             }
 
             b.onclick = () => { 
-                // Ejecutamos la acción
                 btn.accion(); 
-                // Solo cerramos si no se pide explícitamente mantenerlo (para submenús)
                 if(!btn.mantener) modalEleccion.cerrar(); 
             };
             
@@ -51,8 +56,7 @@ const modalEleccion = {
         const m = document.getElementById('modal-dinamico');
         if(m) {
             m.classList.remove('active');
-            m.style.opacity = '0';
-            // Esperamos a que termine la transición de CSS antes de borrar del DOM
+            // Esperamos los 300ms de la transición definida en el CSS
             setTimeout(() => {
                 if(m) m.remove();
             }, 300);
@@ -450,7 +454,6 @@ limpiarInterfazVenta(prod, monto, cant, divT, selT) {
     if (selT) selT.innerHTML = '<option value="">Seleccione Talla...</option>';
 },
 
-// 👇 NUEVA: Dibuja la lista temporal en pantalla
 renderCarrito() {
     const contenedor = document.getElementById('lista-carrito-temporal');
     const totalBsDiv = document.getElementById('total-carrito-bs');
@@ -459,7 +462,7 @@ renderCarrito() {
     if (!contenedor || !Ventas.carrito) return;
 
     if (Ventas.carrito.length === 0) {
-        contenedor.innerHTML = '<p style="text-align:center; opacity:0.5; font-size:0.9em; padding:20px;">🛒 La cuenta está vacía</p>';
+        contenedor.innerHTML = '<p class="carrito-vacio-msg">🛒 La cuenta está vacía</p>';
         if (totalBsDiv) totalBsDiv.innerText = '0.00 Bs';
         if (totalUsdDiv) totalUsdDiv.innerText = '$0.00';
         return;
@@ -470,9 +473,8 @@ renderCarrito() {
     Ventas.carrito.forEach((item, index) => {
         const nombreMostrar = item.tallaEscogida ? `${item.p} (${item.tallaEscogida})` : item.p;
         
-        // 🛡️ LÓGICA DE ALERTAS DE STOCK EN TIEMPO REAL
         let avisoStock = '';
-        let bordeStock = ''; // Para reforzar visualmente el borde si hay problema
+        let claseBorde = ''; 
 
         if (item.validarInventario && typeof Inventario !== 'undefined') {
             const nombreLimpio = item.p.trim().toLowerCase();
@@ -483,45 +485,41 @@ renderCarrito() {
                 const min = parseFloat(inv.stockMinimo) || 3;
 
                 if (item.cant > stockDisponible) {
-                    avisoStock = `<span class="badge-stock-warning">🚨 ¡SUPERA EL STOCK! (Disp: ${stockDisponible})</span>`;
-                    bordeStock = '2px solid #ff4444';
+                    avisoStock = `<span class="badge-stock-warning">🚨 ¡SUPERA EL STOCK! (${stockDisponible})</span>`;
+                    claseBorde = 'alerta-critica';
                 } else if (item.cant >= stockDisponible) {
                     avisoStock = `<span class="badge-stock-warning">⚠️ ¡ÚLTIMA UNIDAD!</span>`;
-                    bordeStock = '2px solid #ff4444';
+                    claseBorde = 'alerta-critica';
                 } else if (stockDisponible - item.cant <= min) {
-                    avisoStock = `<span class="badge-stock-warning" style="color: #ffa500; animation: none;">⚠️ QUEDARÁ POCO STOCK</span>`;
+                    avisoStock = `<span class="badge-stock-warning naranja">⚠️ POCO STOCK</span>`;
                 }
             }
         }
 
         const esModoLibre = (item.validarInventario === false);
-        const iconoModo = esModoLibre ? '<span style="color:#ff9800; font-size:0.8em;"> [🔓 MODO LIBRE]</span>' : '';
-        // Prioridad de borde: Alerta Stock > Modo Libre > Normal
-        const bordeLateral = bordeStock ? bordeStock : (esModoLibre ? '3px solid #ff9800' : '3px solid var(--primary)');
+        const claseItem = `${claseBorde} ${esModoLibre ? 'modo-libre' : ''}`;
 
         htmlCarrito += `
-            <div style="display:flex; justify-content:space-between; background:rgba(0,0,0,0.2); padding:10px; margin-bottom:8px; border-radius:8px; border-left: ${bordeLateral}; align-items:center; animation: fadeIn 0.3s ease; position: relative;">
-                <div style="flex-grow:1;">
-                    <b style="font-size:0.95em; color: ${esModoLibre ? '#ff9800' : 'white'};">${item.cant}x ${nombreMostrar}${iconoModo}</b>
+            <div class="carrito-item ${claseItem}">
+                <div class="carrito-item-info">
+                    <b class="carrito-item-titulo ${esModoLibre ? 'libre' : ''}">
+                        ${item.cant}x ${nombreMostrar} ${esModoLibre ? '🔓' : ''}
+                    </b>
                     ${avisoStock}
-                    <br>
-                    <small style="opacity:0.8">${item.totalBs.toLocaleString('es-VE')} Bs / $${item.totalUSD.toFixed(2)}</small>
+                    <div class="carrito-item-precios">
+                        ${item.totalBs.toLocaleString('es-VE')} Bs / $${item.totalUSD.toFixed(2)}
+                    </div>
                 </div>
-                <button onclick="Controlador.eliminarDelCarrito(${index})" 
-                        style="background:rgba(255, 77, 77, 0.2); color:#ff4d4d; border:1px solid #ff4d4d; padding:8px 12px; border-radius:5px; cursor:pointer; font-weight:bold; transition: 0.2s;"
-                        onmouseover="this.style.background='#ff4d4d'; this.style.color='white';"
-                        onmouseout="this.style.background='rgba(255, 77, 77, 0.2)'; this.style.color='#ff4d4d';">
-                    X
-                </button>
+                <button class="btn-del-item" onclick="Controlador.eliminarDelCarrito(${index})">X</button>
             </div>
         `;
     });
 
     contenedor.innerHTML = htmlCarrito;
 
+    // ... lógica de totales (se mantiene igual)
     const totalBs = Ventas.obtenerTotalVentaActual();
     const totalUsd = totalBs / (Conversor.tasaActual || 1);
-
     if (totalBsDiv) totalBsDiv.innerText = `${totalBs.toLocaleString('es-VE')} Bs`;
     if (totalUsdDiv) totalUsdDiv.innerText = `$${totalUsd.toFixed(2)}`;
 },
@@ -616,36 +614,29 @@ ejecutarCobroFinal() {
     }
 },
 
-  liquidarServicioManual(idVenta) {
+ liquidarServicioManual(idVenta) {
     const venta = Ventas.historial.find(v => v.id === idVenta);
     if (!venta) return;
 
     const montoEstimado = venta.aEntregar;
 
     const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style = `
-        position:fixed; top:0; left:0; width:100%; height:100%; 
-        background:rgba(0,0,0,0.85); backdrop-filter:blur(8px); 
-        display:flex; align-items:center; justify-content:center; 
-        z-index:10000; padding:20px;
-    `;
+    overlay.className = 'modal-overlay active'; // Reutilizamos el overlay del sistema
 
     overlay.innerHTML = `
-        <div class="card glass" style="max-width:350px; width:100%; border:1px solid var(--primary); padding:25px; border-radius:15px; text-align:center; animation: scaleIn 0.3s ease;">
-            <h3 style="color:var(--primary); margin-bottom:10px;">⚖️ Liquidar Punto</h3>
-            <p style="color:white; font-size:0.9em; margin-bottom:15px;">
+        <div class="modal-liquidacion-card glass">
+            <h3>⚖️ Liquidar Punto</h3>
+            <p class="liq-info-box">
                 Liquidando: <b>${venta.producto}</b><br>
-                Monto sugerido: <span style="color:var(--primary)">${montoEstimado.toLocaleString('es-VE')} Bs</span>
+                Monto sugerido: <span class="liq-monto-sugerido">${montoEstimado.toLocaleString('es-VE')} Bs</span>
             </p>
             
-            <label style="color:rgba(255,255,255,0.6); font-size:0.8em; display:block; text-align:left; margin-bottom:5px;">Monto a entregar:</label>
-            <input type="number" id="liq-monto-final" value="${montoEstimado}" class="glass" 
-                   style="width:100%; padding:12px; background:rgba(255,255,255,0.05); color:white; border:1px solid #444; border-radius:8px; margin-bottom:20px; font-size:1.2em; text-align:center;">
+            <label class="liq-label">Monto real a entregar:</label>
+            <input type="number" id="liq-monto-final" value="${montoEstimado}" class="input-liq-monto">
 
-            <div style="display:flex; gap:10px;">
-                <button id="btn-cancelar-liq" class="btn-mini" style="flex:1; background:#333; color:white; padding:12px; border-radius:8px;">Cancelar</button>
-                <button id="btn-confirmar-liq" class="btn-mini" style="flex:1; background:var(--primary); color:black; font-weight:bold; padding:12px; border-radius:8px;">Confirmar</button>
+            <div class="btn-group-liq">
+                <button id="btn-cancelar-liq" class="btn-liq-cancelar">Cancelar</button>
+                <button id="btn-confirmar-liq" class="btn-liq-confirmar">Confirmar</button>
             </div>
         </div>
     `;
@@ -653,6 +644,7 @@ ejecutarCobroFinal() {
     document.body.appendChild(overlay);
     
     const inputMonto = document.getElementById('liq-monto-final');
+    inputMonto.focus();
     inputMonto.select();
 
     document.getElementById('btn-cancelar-liq').onclick = () => overlay.remove();
@@ -664,6 +656,7 @@ ejecutarCobroFinal() {
             return notificar("Ingrese un monto válido", "error");
         }
 
+        // Lógica de registro (Mantenida intacta)
         const nuevoGasto = {
             id: Date.now(),
             descripcion: `LIQ. PUNTO: ${venta.producto}`,
@@ -698,37 +691,35 @@ prepararEdicionInventario: function(identificador) {
         Scanner.detenerYSalir();
     }
 
-    // 🔍 BUSQUEDA POR ID O NOMBRE (Doble seguridad)
     const p = Inventario.productos.find(prod => 
         prod.id === identificador || 
         prod.nombre === identificador || 
         (prod.codigo && prod.codigo === identificador)
     );
 
+    const inputCodigo = document.getElementById('inv-codigo');
+    const btnGuardar = document.querySelector('.btn-inv-action'); // Asegúrate de ponerle esta clase en el HTML
+
     // --- CASO A: PRODUCTO NUEVO ---
     if (!p) {
         Inventario.idEdicion = null; 
-        // 🛡️ BLINDAJE CRÍTICO: Limpiar tallas temporales para el producto nuevo
         window.tallasTemporales = {}; 
 
         notificar("🆕 Producto nuevo detectado", "info");
         this.limpiarFormularioInventario(); 
         
-        const inputCodigo = document.getElementById('inv-codigo');
         if (inputCodigo) {
             inputCodigo.value = identificador; 
-            inputCodigo.style.border = "2px solid var(--primary)";
+            inputCodigo.classList.add('input-inv-nuevo'); // Aplicamos clase de resalte
         }
 
-        // Reset del botón a modo "Crear"
-        const btnGuardar = document.querySelector('button[onclick*="guardarEnInventario"]');
         if (btnGuardar) {
-            btnGuardar.innerText = "➕ Crear Producto";
-            btnGuardar.style.background = "var(--primary)";
+            btnGuardar.innerHTML = "➕ Crear Producto";
+            btnGuardar.classList.remove('modo-editar');
+            btnGuardar.classList.add('modo-crear');
         }
 
-        setTimeout(() => document.getElementById('inv-nombre')?.focus(), 300);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        this.finalizarPreparacion();
         return;
     }
 
@@ -740,21 +731,27 @@ prepararEdicionInventario: function(identificador) {
     document.getElementById('inv-cant').value = p.cantidad;
     document.getElementById('inv-precio').value = p.precio;
     
+    if(inputCodigo) inputCodigo.classList.remove('input-inv-nuevo');
+
     if(document.getElementById('inv-unidad')) {
         document.getElementById('inv-unidad').value = p.unidad || "Und";
     }
 
-    // 🛡️ Clonación segura (Si p.tallas es null/undefined, queda {} )
     window.tallasTemporales = p.tallas ? JSON.parse(JSON.stringify(p.tallas)) : {}; 
 
-    const btnGuardar = document.querySelector('button[onclick*="guardarEnInventario"]');
     if (btnGuardar) {
-        btnGuardar.innerText = "💾 Guardar Cambios";
-        btnGuardar.style.background = "#2196F3"; 
+        btnGuardar.innerHTML = "💾 Guardar Cambios";
+        btnGuardar.classList.remove('modo-crear');
+        btnGuardar.classList.add('modo-editar');
     }
 
-    setTimeout(() => document.getElementById('inv-nombre')?.focus(), 300);
     notificar(`Editando: ${p.nombre}`, "info");
+    this.finalizarPreparacion();
+},
+
+// Función auxiliar para no repetir código de scroll y focus
+finalizarPreparacion: function() {
+    setTimeout(() => document.getElementById('inv-nombre')?.focus(), 300);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 },
 
@@ -921,32 +918,34 @@ actualizarProducto: function(nombreOriginal) {
 
 limpiarFormularioInventario: function() {
     // 1. Limpieza de campos básicos
-    document.getElementById('inv-codigo').value = '';
-    document.getElementById('inv-nombre').value = '';
-    document.getElementById('inv-cant').value = '';
-    document.getElementById('inv-precio').value = '';
+    const campos = ['inv-codigo', 'inv-nombre', 'inv-cant', 'inv-precio'];
+    campos.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = '';
+            el.classList.remove('input-inv-nuevo'); // Limpieza visual de la detección
+        }
+    });
     
     const unidadElemento = document.getElementById('inv-unidad');
     if(unidadElemento) unidadElemento.value = 'Und';
     
-    // 🛡️ CRÍTICO: Limpiar memoria de edición y tallas
+    // 🛡️ CRÍTICO: Limpiar memoria
     tallasTemporales = {};
-    Inventario.idEdicion = null; // 👈 Sin esto, el sistema se queda "pegado" en el último producto editado
+    Inventario.idEdicion = null; 
 
-    // 2. Restaurar botón a su estado original
-    // Ahora buscamos cualquier botón que mencione "guardarEnInventario" para resetear su texto/color
-    const btnGuardar = document.querySelector('button[onclick*="guardarEnInventario"]');
+    // 2. Restaurar botón usando clases (Cero estilos en línea)
+    const btnGuardar = document.querySelector('.btn-inv-action'); 
     if (btnGuardar) {
-        btnGuardar.innerText = "💾 Guardar";
-        btnGuardar.style.background = ""; // Vuelve al color original de tu CSS (verde/primario)
+        btnGuardar.innerHTML = "💾 Guardar";
+        btnGuardar.classList.remove('modo-editar');
+        btnGuardar.classList.add('modo-crear'); // Por defecto vuelve a modo creación
     }
 
-    // 3. 🛡️ FOCUS INTELIGENTE (El toque DOMINUS)
+    // 3. 🛡️ FOCUS INTELIGENTE
     const esVistaVentas = !document.getElementById('view-ventas').classList.contains('hidden');
     
     if (!window.scannerActivo || !esVistaVentas) {
-        // Sugerencia: Si tu papá usa escáner, quizás el foco debería ir al Código primero. 
-        // Pero si prefieres el Nombre, mantenemos este:
         const inputNombre = document.getElementById('inv-nombre');
         if (inputNombre) inputNombre.focus();
     }
@@ -1105,7 +1104,6 @@ mostrarStockDisponible: function(talla) {
     const p = Inventario.productos.find(prod => prod.nombre.toLowerCase() === nombreProd.trim().toLowerCase());
     
     if (p) {
-        // 🛡️ MEJORA: Si el producto NO tiene tallas, usamos el stock global
         let stockDisponible;
         if (p.tallas && talla) {
             stockDisponible = parseFloat(p.tallas[talla]) || 0;
@@ -1117,34 +1115,42 @@ mostrarStockDisponible: function(talla) {
         const unidad = p.unidad || "Und";
         
         if(infoStock) {
+            // Limpiamos clases previas
+            infoStock.classList.remove('stock-disponible', 'stock-modo-libre', 'stock-alerta');
             infoStock.innerText = ` Stock: ${stockDisponible} ${unidad}`;
             
-            // LÓGICA CONSCIENTE (Blindada)
             const tieneSuficiente = (stockDisponible >= cantSolicitada);
             const puedeVender = !validacionActiva || (stockDisponible > 0 && tieneSuficiente);
 
             if (puedeVender) {
-                infoStock.style.color = validacionActiva ? "#4caf50" : "#ff9800"; 
-                if (!validacionActiva) infoStock.innerText += " (Modo Libre)";
+                // Asignamos clase según modo
+                infoStock.classList.add(validacionActiva ? 'stock-disponible' : 'stock-modo-libre');
                 
+                if (!validacionActiva) infoStock.innerText += " (Modo Libre)";
                 this.setEstadoBoton(btnAnadir, true);
             } else {
-                infoStock.style.color = "#ff5252"; 
+                // Caso: Error / Agotado
+                infoStock.classList.add('stock-alerta');
                 infoStock.innerText += (stockDisponible <= 0) ? " (AGOTADO)" : " (INSUFICIENTE)";
-
                 this.setEstadoBoton(btnAnadir, false);
             }
         }
     }
 },
 
-// Función auxiliar para no repetir código de botones
-setEstadoBoton: function(btn, activado) {
-    if(!btn) return;
-    btn.disabled = !activado;
-    btn.style.opacity = activado ? "1" : "0.5";
-    btn.style.cursor = activado ? "pointer" : "not-allowed";
+// Función auxiliar para centralizar la lógica del botón
+setEstadoBoton: function(btn, activo) {
+    if (!btn) return;
+    if (activo) {
+        btn.classList.remove('btn-disabled');
+        btn.disabled = false;
+    } else {
+        btn.classList.add('btn-disabled');
+        btn.disabled = true;
+    }
 },
+
+
 
 editarPrecioRapido(id, nuevoPrecio) {
     // 1. Buscamos por ID (Blindado: convertimos ambos a String para comparar)
@@ -1186,41 +1192,39 @@ editarPrecioRapido(id, nuevoPrecio) {
     
  // Aceptamos el nombre del cliente en lugar del ID
 abonar(nombreCliente) {
-    // 1. Buscamos deudas normalizando el nombre (Escudo de Identidad)
     const nombreBusqueda = nombreCliente.trim().toLowerCase();
     const deudasCliente = Ventas.deudas.filter(d => 
         (d.cliente || "").trim().toLowerCase() === nombreBusqueda
     );
     
-    if (deudasCliente.length === 0) return notificar("No se encontraron deudas para este cliente", "error");
+    if (deudasCliente.length === 0) return notificar("No se encontraron deudas", "error");
 
-    // 2. Calculamos totales para mostrar la verdad financiera
     const totalUSD = deudasCliente.reduce((sum, d) => sum + parseFloat(d.montoUSD || 0), 0);
     const totalBs = totalUSD * Conversor.tasaActual;
 
     const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
+    overlay.className = 'modal-overlay active';
 
     overlay.innerHTML = `
-        <div class="card glass" style="max-width:380px; width:100%; border:1px solid var(--primary); padding:25px; border-radius:20px; text-align:center; color:white; animation: fadeIn 0.3s ease;">
-            <span style="font-size:2.5em;">🤝</span>
-            <h3 style="color:var(--primary); margin:10px 0;">Registrar Abono</h3>
-            <p style="font-size:0.9em; opacity:0.8; margin-bottom:5px;">Cliente: <strong>${nombreCliente}</strong></p>
-            <p style="font-size:1.1em; color:var(--primary); margin-bottom:15px; font-weight:bold;">
-                Saldo Pendiente: $${totalUSD.toFixed(2)} (${totalBs.toLocaleString('es-VE')} Bs)
-            </p>
+        <div class="modal-abono-card glass">
+            <span class="abono-icon">🤝</span>
+            <h3>Registrar Abono</h3>
+            <p style="font-size:0.9em; opacity:0.7;">Cliente: <strong>${nombreCliente}</strong></p>
             
-            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
-                <input type="number" id="monto-abono" placeholder="¿Cuánto paga?" inputmode="decimal"
-                       style="width:100%; padding:14px; border-radius:10px; border:1px solid var(--primary); background:rgba(0,0,0,0.3); color:white; font-size:1.2em; text-align:center; outline:none;">
+            <div class="abono-saldo-box">
+                $${totalUSD.toFixed(2)} <br>
+                <small style="font-size:0.7em; opacity:0.8;">(${totalBs.toLocaleString('es-VE')} Bs)</small>
+            </div>
+            
+            <div class="abono-form-group">
+                <input type="number" id="monto-abono" placeholder="¿Cuánto paga?" inputmode="decimal" class="input-abono">
                 
-                <select id="moneda-abono" style="width:100%; padding:12px; border-radius:10px; background:#1a1a1a; color:white; border:1px solid #444; font-size:1em;">
+                <select id="moneda-abono" class="select-abono">
                     <option value="Bs">Bolívares (Bs)</option>
                     <option value="USD">Dólares ($)</option>
                 </select>
 
-                <select id="metodo-abono" style="width:100%; padding:12px; border-radius:10px; background:#1a1a1a; color:white; border:1px solid #444; font-size:1em;">
+                <select id="metodo-abono" class="select-abono">
                     <option value="Efectivo">Efectivo</option>
                     <option value="Pago Móvil">Pago Móvil</option>
                     <option value="Punto">Punto de Venta</option>
@@ -1229,8 +1233,8 @@ abonar(nombreCliente) {
             </div>
 
             <div style="display:flex; gap:10px;">
-                <button id="btn-cerrar-abono" class="btn-main" style="background:#555; flex:1; padding:12px;">Cerrar</button>
-                <button id="btn-guardar-abono" class="btn-main" style="flex:1; padding:12px; font-weight:bold;">Confirmar</button>
+                <button id="btn-cerrar-abono" class="btn-abono-cancelar">Cerrar</button>
+                <button id="btn-guardar-abono" class="btn-abono-confirmar">Confirmar</button>
             </div>
         </div>
     `;
@@ -1252,93 +1256,7 @@ abonar(nombreCliente) {
         const resultado = Ventas.abonarDeudaPorCliente(nombreCliente, monto, moneda, metodo);
 
         if (resultado) {
-            // --- 🛡️ INYECCIÓN CENTINELA ---
-            if (typeof Notificaciones !== 'undefined') {
-                Notificaciones.revisarTodo();
-            }
-            // ------------------------------
-
-            if (typeof Interfaz !== 'undefined') Interfaz.renderFiaos();
-            overlay.remove();
-            notificar(`¡Abono de ${monto}${moneda === 'USD' ? '$' : 'Bs'} registrado!`, "exito");
-        }
-    };
-},
-
-// --- 2. MODIFICADO PARA ELIMINAR TODO EL TOTAL DEL CLIENTE ---
-abonar(nombreCliente) {
-    // 1. Buscamos deudas normalizando el nombre (Escudo de Identidad)
-    const nombreBusqueda = nombreCliente.trim().toLowerCase();
-    const deudasCliente = Ventas.deudas.filter(d => 
-        (d.cliente || "").trim().toLowerCase() === nombreBusqueda
-    );
-    
-    if (deudasCliente.length === 0) return notificar("No se encontraron deudas para este cliente", "error");
-
-    // 2. Calculamos totales para mostrar la verdad financiera
-    const totalUSD = deudasCliente.reduce((sum, d) => sum + parseFloat(d.montoUSD || 0), 0);
-    const totalBs = totalUSD * Conversor.tasaActual;
-
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
-
-    overlay.innerHTML = `
-        <div class="card glass" style="max-width:380px; width:100%; border:1px solid var(--primary); padding:25px; border-radius:20px; text-align:center; color:white; animation: fadeIn 0.3s ease;">
-            <span style="font-size:2.5em;">🤝</span>
-            <h3 style="color:var(--primary); margin:10px 0;">Registrar Abono</h3>
-            <p style="font-size:0.9em; opacity:0.8; margin-bottom:5px;">Cliente: <strong>${nombreCliente}</strong></p>
-            <p style="font-size:1.1em; color:var(--primary); margin-bottom:15px; font-weight:bold;">
-                Saldo Pendiente: $${totalUSD.toFixed(2)} (${totalBs.toLocaleString('es-VE')} Bs)
-            </p>
-            
-            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
-                <input type="number" id="monto-abono" placeholder="¿Cuánto paga?" inputmode="decimal"
-                       style="width:100%; padding:14px; border-radius:10px; border:1px solid var(--primary); background:rgba(0,0,0,0.3); color:white; font-size:1.2em; text-align:center; outline:none;">
-                
-                <select id="moneda-abono" style="width:100%; padding:12px; border-radius:10px; background:#1a1a1a; color:white; border:1px solid #444; font-size:1em;">
-                    <option value="Bs">Bolívares (Bs)</option>
-                    <option value="USD">Dólares ($)</option>
-                </select>
-
-                <select id="metodo-abono" style="width:100%; padding:12px; border-radius:10px; background:#1a1a1a; color:white; border:1px solid #444; font-size:1em;">
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Pago Móvil">Pago Móvil</option>
-                    <option value="Punto">Punto de Venta</option>
-                    <option value="Biopago">Biopago</option>
-                </select>
-            </div>
-
-            <div style="display:flex; gap:10px;">
-                <button id="btn-cerrar-abono" class="btn-main" style="background:#555; flex:1; padding:12px;">Cerrar</button>
-                <button id="btn-guardar-abono" class="btn-main" style="flex:1; padding:12px; font-weight:bold;">Confirmar</button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(overlay);
-
-    const inputMonto = document.getElementById('monto-abono');
-    setTimeout(() => inputMonto.focus(), 100);
-
-    document.getElementById('btn-cerrar-abono').onclick = () => overlay.remove();
-
-    document.getElementById('btn-guardar-abono').onclick = () => {
-        const monto = parseFloat(inputMonto.value);
-        const moneda = document.getElementById('moneda-abono').value;
-        const metodo = document.getElementById('metodo-abono').value;
-
-        if (!monto || monto <= 0) return notificar("Ingrese un monto válido", "error");
-
-        const resultado = Ventas.abonarDeudaPorCliente(nombreCliente, monto, moneda, metodo);
-
-        if (resultado) {
-            // --- 🛡️ INYECCIÓN CENTINELA ---
-            if (typeof Notificaciones !== 'undefined') {
-                Notificaciones.revisarTodo();
-            }
-            // ------------------------------
-
+            if (typeof Notificaciones !== 'undefined') Notificaciones.revisarTodo();
             if (typeof Interfaz !== 'undefined') Interfaz.renderFiaos();
             overlay.remove();
             notificar(`¡Abono de ${monto}${moneda === 'USD' ? '$' : 'Bs'} registrado!`, "exito");
@@ -1433,19 +1351,17 @@ generarCierre: function() {
     const r = Ventas.finalizarJornada(); 
 
     // --- 🚀 INYECCIÓN CENTINELA DOMINUS ---
-    // Marcamos que se ha consultado el cierre y refrescamos las burbujas
     if (typeof Ventas !== 'undefined') Ventas.cierreRealizado = true; 
     
     if (typeof Notificaciones !== 'undefined') {
         Notificaciones.revisarTodo(); 
     }
-    // --------------------------------------
 
     const hoy = new Date().toLocaleDateString('es-VE');
-    
     const totalVentas = r.conteoVentas || 0;
     const ticketPromedioBs = totalVentas > 0 ? (r.balanceNeto / totalVentas).toFixed(2) : 0;
 
+    // Construcción del reporte (Mantenemos el formato para WA)
     let texto = `📊 *REPORTE DOMINUS - ${hoy}*\n`;
     texto += `━━━━━━━━━━━━━━━━━━\n\n`;
     texto += `🛍️ *ACTIVIDAD:* \n`;
@@ -1465,20 +1381,21 @@ generarCierre: function() {
     texto += `✅ *TOTAL NETO DEL DÍA:* \n`;
     texto += `💰 *${r.balanceNeto.toLocaleString('es-VE')} Bs*`;
 
+    // Abrimos el modal con los estilos mejorados
     modalEleccion.abrir({
         titulo: "📊 Finalizar Jornada",
         mensaje: "¿Cómo deseas exportar el reporte detallado?",
         botones: [
             { 
-                texto: "📱 WhatsApp Detallado", 
-                clase: "btn-whatsapp btn-cierre-wa", 
+                texto: "📱 WhatsApp", 
+                clase: "btn-whatsapp", 
                 accion: () => {
                     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
                     setTimeout(() => { this.preguntarLimpieza(); }, 2000);
                 }
             },
             { 
-                texto: "📄 Generar PDF", 
+                texto: "📄 PDF", 
                 clase: "btn-pdf",
                 accion: () => { 
                     this.generarPDF();
@@ -1492,174 +1409,177 @@ generarCierre: function() {
 preguntarLimpieza: function() {
     modalEleccion.abrir({
         titulo: "🗑️ ¿Borrar Datos?",
-        mensaje: "Se limpiarán ventas, gastos e historial de devoluciones. El inventario NO se borra.",
+        mensaje: "Se limpiarán ventas, gastos e historial de devoluciones. El inventario NO se verá afectado.",
+        // Añadimos una clase de animación al contenedor del modal si tu modalEleccion lo permite
+        claseModal: "modal-alert-shake", 
         botones: [
             { 
                 texto: "SÍ, REINICIAR TODO", 
-                clase: "btn-danger", // Usamos una clase más llamativa para peligro
+                clase: "btn-danger-destructivo", 
                 accion: () => { 
                     Ventas.limpiarJornada();
                     
-                    // 🚀 NUEVA LÓGICA: Limpiar el historial permanente
+                    // 🚀 Lógica de persistencia centralizada
                     Persistencia.guardar('dom_historial_ventas', []);
-                    console.log("✅ Historial permanente limpio.");
-                    // ------------------------------------------------
+                    console.log("✅ DOMINUS: Historial permanente liberado.");
 
                     location.reload(); 
                 } 
             },
             { 
                 texto: "MANTENER DATOS", 
-                clase: "btn-no", 
-                accion: () => { notificar("Datos guardados", "exito"); } 
+                clase: "btn-mantener-datos", 
+                accion: () => { 
+                    notificar("Datos protegidos", "exito"); 
+                } 
             }
         ]
     });
 },
 
-   generarPDF() {
-        const r = Ventas.finalizarJornada(); 
-        const ahora = new Date();
-        const hoy = ahora.toLocaleDateString('es-VE');
-        const horaId = `${ahora.getHours()}-${ahora.getMinutes()}`;
-        const nombreArchivo = `Dominus_Cierre_${hoy.replace(/\//g, '-')}_${horaId}.pdf`;
-        
-        const ventasHoy = Ventas.historial.filter(v => v.fecha === hoy);
-        const canvas = document.getElementById('graficaVentas');
-        const graficaImg = canvas ? canvas.toDataURL('image/png') : null;
+generarPDF() {
+    const r = Ventas.finalizarJornada(); 
+    const ahora = new Date();
+    const hoy = ahora.toLocaleDateString('es-VE');
+    const horaId = `${ahora.getHours()}-${ahora.getMinutes()}`;
+    const nombreArchivo = `Dominus_Cierre_${hoy.replace(/\//g, '-')}_${horaId}.pdf`;
+    
+    const ventasHoy = Ventas.historial.filter(v => v.fecha === hoy);
+    const canvas = document.getElementById('graficaVentas');
+    const graficaImg = canvas ? canvas.toDataURL('image/png') : null;
+    const totalConConvertido = r.efectivoBS + r.digital - r.gastos + (r.efectivoUSD * Conversor.tasaActual);
 
-        const totalConConvertido = r.efectivoBS + r.digital - r.gastos + (r.efectivoUSD * Conversor.tasaActual);
+    // --- CONFIGURACIÓN DE ESTILOS (Paleta Dominus) ---
+    const C_PRIMARIO = "#ffd700"; // Dorado
+    const C_FONDO_DARK = "#1a1a1a";
+    const C_TEXTO = "#333";
+    const C_BORDE = "#eee";
 
-      const serviciosPendientes = ventasHoy.filter(v => v.esServicio && !v.pagado);
+    // 1. LÓGICA DE SERVICIOS PENDIENTES (Dinero Ajeno)
+    const serviciosPendientes = ventasHoy.filter(v => v.esServicio && !v.pagado);
+    let tablaServiciosHTML = '';
 
-let tablaServiciosHTML = '';
+    if (serviciosPendientes.length > 0) {
+        const filasServicios = serviciosPendientes.map(s => `
+            <tr style="border-bottom: 1px dotted #ccc;">
+                <td style="padding: 10px; font-size: 11px;">${s.producto.replace('PUNTO: ', '')}</td>
+                <td style="padding: 10px; text-align: right; font-size: 11px;">${Number(s.montoBs).toLocaleString('es-VE')} Bs</td>
+                <td style="padding: 10px; text-align: right; color: #d32f2f; font-size: 11px;">-${Number(s.comision).toLocaleString('es-VE')} Bs</td>
+                <td style="padding: 10px; text-align: right; font-weight: bold; color: #2e7d32; font-size: 11px;">${Number(s.aEntregar).toLocaleString('es-VE')} Bs</td>
+            </tr>`).join('');
 
-if (serviciosPendientes.length > 0) {
-    const filasServicios = serviciosPendientes.map(s => `
-        <tr style="border-bottom: 1px dotted #ccc;">
-            <td style="padding: 10px; font-size: 11px;">${s.producto.replace('PUNTO: ', '')}</td>
-            <td style="padding: 10px; text-align: right; font-size: 11px;">${Number(s.montoBs).toLocaleString('es-VE')} Bs</td>
-            <td style="padding: 10px; text-align: right; color: #d32f2f; font-size: 11px;">-${Number(s.comision).toLocaleString('es-VE')} Bs</td>
-            <td style="padding: 10px; text-align: right; font-weight: bold; color: #2e7d32; font-size: 11px;">${Number(s.aEntregar).toLocaleString('es-VE')} Bs</td>
-        </tr>
-    `).join('');
+        tablaServiciosHTML = `
+            <div style="margin-top: 20px; border: 2px solid ${C_PRIMARIO}; padding: 15px; border-radius: 12px; background: #fffdf0;">
+                <h4 style="margin: 0 0 10px 0; color: #b8860b; font-size: 14px; text-align: center; letter-spacing: 1px;">📋 PENDIENTES POR ENTREGAR (DINERO AJENO)</h4>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid ${C_PRIMARIO}; color: #666; font-size: 10px;">
+                            <th style="text-align: left; padding: 5px;">A QUIÉN</th>
+                            <th style="text-align: right; padding: 5px;">TOTAL</th>
+                            <th style="text-align: right; padding: 5px;">COMISIÓN</th>
+                            <th style="text-align: right; padding: 5px;">A ENTREGAR</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filasServicios}</tbody>
+                </table>
+                <div style="text-align: right; margin-top: 10px; font-size: 13px; font-weight: bold; color: #d32f2f;">
+                    TOTAL POR PAGAR: ${serviciosPendientes.reduce((acc, s) => acc + s.aEntregar, 0).toLocaleString('es-VE')} Bs
+                </div>
+            </div>`;
+    }
 
-    tablaServiciosHTML = `
-        <div style="margin-top: 20px; border: 2px solid #ffd700; padding: 15px; border-radius: 8px; background: #fffdf0;">
-            <h4 style="margin: 0 0 10px 0; color: #b8860b; font-size: 14px; text-align: center;">📋 PENDIENTES POR ENTREGAR (DINERO AJENO)</h4>
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="border-bottom: 1px solid #ffd700; color: #666; font-size: 10px;">
-                        <th style="text-align: left; padding: 5px;">A QUIÉN</th>
-                        <th style="text-align: right; padding: 5px;">TOTAL</th>
-                        <th style="text-align: right; padding: 5px;">COMISIÓN</th>
-                        <th style="text-align: right; padding: 5px;">A ENTREGAR</th>
-                    </tr>
-                </thead>
-                <tbody>${filasServicios}</tbody>
-            </table>
-            <div style="text-align: right; margin-top: 10px; font-size: 12px; font-weight: bold; color: #d32f2f;">
-                TOTAL POR PAGAR: ${serviciosPendientes.reduce((acc, s) => acc + s.aEntregar, 0).toLocaleString('es-VE')} Bs
-            </div>
-        </div>
-    `;
-}
+    // 2. LÓGICA DE DETALLE DE VENTAS
+    const filasVentas = ventasHoy.map(v => {
+        const esDolar = v.metodo.includes('$') || v.moneda === 'USD';
+        const montoTexto = esDolar 
+            ? `$ ${Number(v.montoUSD || (v.montoBs / Conversor.tasaActual)).toFixed(2)}` 
+            : `${Number(v.montoBs).toLocaleString('es-VE')} Bs`;
 
-        const filasVentas = ventasHoy.map(v => {
-            const esDolar = v.metodo.includes('$') || v.moneda === 'USD';
-            const montoTexto = esDolar 
-                ? `$ ${Number(v.montoUSD || (v.montoBs / Conversor.tasaActual)).toFixed(2)}` 
-                : `${Number(v.montoBs).toLocaleString('es-VE')} Bs`;
+        return `
+            <tr style="border-bottom: 1px solid ${C_BORDE};">
+                <td style="padding: 12px; font-size: 12px;">
+                    <span style="color: #999; font-size: 10px;">${v.hora}</span><br>
+                    <b style="color: #000;">${v.producto.toUpperCase()}</b>
+                </td>
+                <td style="padding: 12px; font-size: 12px; text-align: center; color: #666;">${v.metodo}</td>
+                <td style="padding: 12px; font-size: 13px; text-align: right; font-weight: bold;">${montoTexto}</td>
+            </tr>`;
+    }).join('');
 
-            return `
-                <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding: 12px; font-size: 13px;">
-                        <span style="color: #888; font-size: 10px;">${v.hora}</span><br>
-                        <b>${v.producto.toUpperCase()}</b>
-                    </td>
-                    <td style="padding: 12px; font-size: 13px; text-align: center;">${v.metodo}</td>
-                    <td style="padding: 12px; font-size: 13px; text-align: right; font-weight: bold;">
-                        ${montoTexto}
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        const contenidoHTML = `
-            <div style="font-family: Arial, sans-serif; padding: 40px; color: #333; background: white;">
-                
-                <div style="height: 920px;"> 
-                    <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #ffd700; padding-bottom: 15px; margin-bottom: 25px;">
-                        <div>
-                            <h1 style="margin: 0; letter-spacing: 2px; font-size: 28px;">DOMINUS</h1>
-                            <p style="margin: 0; font-style: italic; color: #666; font-size: 12px;">Domina tu negocio, Domina tu vida</p>
-                        </div>
-                        <div style="text-align: right;">
-                            <h3 style="margin: 0;">Reporte de Cierre</h3>
-                            <p style="margin: 0; font-weight: bold;">${hoy}</p>
-                            <p style="margin: 0; font-size: 12px; color: #888;">Tasa: ${Conversor.tasaActual} Bs</p>
-                        </div>
+    // 3. CONSTRUCCIÓN DEL DOCUMENTO FINAL
+    const contenidoHTML = `
+        <div style="font-family: 'Helvetica', Arial, sans-serif; padding: 40px; color: ${C_TEXTO}; background: white;">
+            
+            <div style="height: 920px;"> 
+                <div style="display: flex; justify-content: space-between; border-bottom: 3px solid ${C_PRIMARIO}; padding-bottom: 15px; margin-bottom: 25px;">
+                    <div>
+                        <h1 style="margin: 0; letter-spacing: 4px; font-size: 32px; color: #000;">DOMINUS</h1>
+                        <p style="margin: 0; font-style: italic; color: #888; font-size: 12px;">Domina tu negocio, Domina tu vida</p>
                     </div>
-
-                    ${graficaImg ? `<div style="text-align: center; margin-bottom: 30px;"><img src="${graficaImg}" style="width: 100%; max-height: 250px;"></div>` : ''}
-
-                    <div style="background: #1a1a1a; color: white; padding: 30px; border-radius: 8px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                            <span>Efectivo Bolívares:</span>
-                            <span>${r.efectivoBS.toLocaleString('es-VE')} Bs</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                            <span>Efectivo Dólares:</span>
-                            <span style="color: #4caf50; font-weight: bold;">$ ${Number(r.efectivoUSD).toFixed(2)}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                            <span>Ventas Digitales:</span>
-                            <span>${r.digital.toLocaleString('es-VE')} Bs</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 25px; color: #ff5252;">
-                            <span>Gastos del Día:</span>
-                            <span>-${r.gastos.toLocaleString('es-VE')} Bs</span>
-                        </div>
-                        <div style="border-top: 1px solid #444; padding-top: 20px; text-align: right;">
-                            <p style="margin: 0; font-size: 11px; color: #ffd700; opacity: 0.8;">TOTAL NETO (Caja propia)</p>
-                            <h2 style="margin: 0; color: #ffd700; font-size: 36px;">${totalConConvertido.toLocaleString('es-VE')} Bs</h2>
-                        </div>
+                    <div style="text-align: right;">
+                        <h3 style="margin: 0; color: #555;">Reporte de Cierre</h3>
+                        <p style="margin: 0; font-weight: bold; font-size: 16px;">${hoy}</p>
+                        <p style="margin: 0; font-size: 12px; color: #aaa;">Tasa: ${Conversor.tasaActual} Bs</p>
                     </div>
-
-                    ${tablaServiciosHTML}
-
-                    <p style="text-align: center; margin-top: 40px; color: #bbb; font-size: 12px;">Deslice para ver detalle de operaciones ↓</p>
                 </div>
 
-                <div style="page-break-before: always; padding-top: 20px;">
-                    <h4 style="color: #666; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;">DETALLE DE OPERACIONES TOTALES</h4>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead style="background: #f8f8f8;">
-                            <tr style="color: #999; font-size: 11px;">
-                                <th style="padding: 10px; text-align: left;">PRODUCTO / HORA</th>
-                                <th style="padding: 10px; text-align: center;">MÉTODO</th>
-                                <th style="padding: 10px; text-align: right;">MONTO</th>
-                            </tr>
-                        </thead>
-                        <tbody>${filasVentas}</tbody>
-                    </table>
+                ${graficaImg ? `<div style="text-align: center; margin-bottom: 30px; border: 1px solid ${C_BORDE}; border-radius: 8px; padding: 10px;"><img src="${graficaImg}" style="width: 100%; max-height: 230px;"></div>` : ''}
+
+                <div style="background: ${C_FONDO_DARK}; color: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px; opacity: 0.9;">
+                        <span>Efectivo Bolívares:</span>
+                        <span>${r.efectivoBS.toLocaleString('es-VE')} Bs</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                        <span>Efectivo Dólares:</span>
+                        <span style="color: #4caf50; font-weight: bold;">$ ${Number(r.efectivoUSD).toFixed(2)}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px; opacity: 0.9;">
+                        <span>Ventas Digitales:</span>
+                        <span>${r.digital.toLocaleString('es-VE')} Bs</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 25px; color: #ff5252;">
+                        <span>Gastos del Día:</span>
+                        <span>-${r.gastos.toLocaleString('es-VE')} Bs</span>
+                    </div>
+                    <div style="border-top: 1px solid #444; padding-top: 20px; text-align: right;">
+                        <p style="margin: 0; font-size: 11px; color: ${C_PRIMARIO}; text-transform: uppercase; letter-spacing: 1px;">Balance Neto Total</p>
+                        <h2 style="margin: 0; color: ${C_PRIMARIO}; font-size: 40px;">${totalConConvertido.toLocaleString('es-VE')} Bs</h2>
+                    </div>
                 </div>
+
+                ${tablaServiciosHTML}
+
+                <p style="text-align: center; margin-top: 50px; color: #bbb; font-size: 11px; letter-spacing: 1px;">SISTEMA DE GESTIÓN DOMINUS © 2026</p>
             </div>
-        `;
 
-        const opciones = {
-            margin: 0,
-            filename: nombreArchivo,
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-        };
+            <div style="page-break-before: always; padding-top: 20px;">
+                <h4 style="color: #555; margin-bottom: 15px; border-bottom: 2px solid ${C_BORDE}; padding-bottom: 10px; letter-spacing: 1px;">AUDITORÍA DE OPERACIONES</h4>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="background: #fcfcfc;">
+                        <tr style="color: #999; font-size: 10px; text-transform: uppercase;">
+                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${C_BORDE};">Producto / Hora</th>
+                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid ${C_BORDE};">Método</th>
+                            <th style="padding: 12px; text-align: right; border-bottom: 2px solid ${C_BORDE};">Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filasVentas}</tbody>
+                </table>
+            </div>
+        </div>`;
 
-        html2pdf().set(opciones).from(contenidoHTML).save().then(() => {
-            setTimeout(() => {
-                this.preguntarLimpieza(); 
-            }, 1500);
-        });
-    }, 
+    const opciones = {
+        margin: 0,
+        filename: nombreArchivo,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opciones).from(contenidoHTML).save().then(() => {
+        setTimeout(() => { this.preguntarLimpieza(); }, 1500);
+    });
+},
 
    rotarGrafica() {
     // Ciclo infinito: 0 -> 1 -> 2 -> 0...
@@ -1678,24 +1598,19 @@ renderizarGrafica() {
     const hoy = new Date().toLocaleDateString('es-VE');
     const t = Conversor.tasaActual || 1;
 
-    // --- CONFIGURACIÓN SEGÚN EL MODO DEL CICLO ---
-    let fuente = [];
-    let color = '#ffd700'; // Dorado (Ventas)
-    let titulo = 'Ventas Hoy (Bs)';
+    // --- CONFIGURACIÓN DINÁMICA ---
+    const MODOS = {
+        0: { key: 'dom_ventas', color: '#ffd700', titulo: 'Ventas Hoy (Bs)' }, // Dorado
+        1: { key: 'dom_gastos', color: '#ff4444', titulo: 'Gastos Hoy (Bs)' }, // Rojo
+        2: { key: 'dom_fiaos',  color: '#ffa500', titulo: 'Fiaos Hoy (Bs)' }   // Naranja
+    };
 
-    if (modoGraficaActual === 1) {
-        fuente = Persistencia.cargar('dom_gastos') || [];
-        color = '#ff4444'; // Rojo (Gastos)
-        titulo = 'Gastos Hoy (Bs)';
-    } else if (modoGraficaActual === 2) {
-        fuente = Persistencia.cargar('dom_fiaos') || [];
-        color = '#ffa500'; // Naranja (Fiaos)
-        titulo = 'Fiaos Hoy (Bs)';
-    } else {
-        fuente = Persistencia.cargar('dom_ventas') || [];
-    }
+    const configActual = MODOS[modoGraficaActual] || MODOS[0];
+    const fuente = Persistencia.cargar(configActual.key) || [];
+    const color = configActual.color;
+    const titulo = configActual.titulo;
 
-    // --- PROCESAMIENTO DE DATOS ---
+    // --- PROCESAMIENTO DE DATOS (Optimizado) ---
     const datosHoy = fuente.filter(i => i.fecha === hoy);
     const datosPorHora = new Array(24).fill(0);
 
@@ -1711,22 +1626,26 @@ renderizarGrafica() {
 
     if (miGrafica) miGrafica.destroy();
 
+    // Gradiente moderno (Dinamizado por el color del modo)
     const gradient = ctx.createLinearGradient(0, 0, 0, 250);
-    gradient.addColorStop(0, color + '55');
-    gradient.addColorStop(1, color + '00');
+    gradient.addColorStop(0, color + '66'); // 40% de opacidad arriba
+    gradient.addColorStop(1, color + '00'); // Transparente abajo
 
     miGrafica = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+            labels: Array.from({length: 24}, (_, i) => `${i}h`),
             datasets: [{
-                label: titulo, // El título cambia en el tooltip
+                label: titulo,
                 data: datosPorHora,
                 borderColor: color,
                 backgroundColor: gradient,
                 fill: true,
-                tension: 0.4,
-                pointRadius: 0 // Más limpio, solo se ve al tocar
+                tension: 0.45, // Curvas más suaves
+                pointRadius: 0,
+                pointHoverRadius: 6,
+                pointHoverBackgroundColor: color,
+                borderWidth: 3
             }]
         },
         options: {
@@ -1734,21 +1653,42 @@ renderizarGrafica() {
             maintainAspectRatio: false,
             plugins: { 
                 legend: { display: false },
-                // Añadimos un título pequeño flotante opcional
                 title: {
                     display: true,
-                    text: titulo,
+                    text: titulo.toUpperCase(),
                     color: color,
-                    font: { size: 14, weight: 'bold' },
-                    padding: { bottom: 10 }
+                    font: { size: 12, weight: '900', family: 'Arial' },
+                    padding: { bottom: 20 }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleColor: color,
+                    bodyFont: { size: 14, weight: 'bold' },
+                    displayColors: false,
+                    callbacks: {
+                        label: (context) => ` Total: ${context.parsed.y.toLocaleString('es-VE')} Bs`
+                    }
                 }
             },
             scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } },
-                x: { grid: { display: false }, ticks: { maxRotation: 0 } }
+                y: { 
+                    beginAtZero: true, 
+                    grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                    ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 } }
+                },
+                x: { 
+                    grid: { display: false }, 
+                    ticks: { 
+                        color: 'rgba(255,255,255,0.3)', 
+                        font: { size: 10 },
+                        maxRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 8 // Solo muestra algunas horas para no saturar
+                    } 
+                }
             }
         }
     });
- }
+}
 
 };

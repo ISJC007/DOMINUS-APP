@@ -20,41 +20,35 @@
     <link rel="icon" type="image/png" sizes="192x192" href="IMG/icon-192.png">
     <link rel="apple-touch-icon" href="IMG/icon-192.png">
 
-    <style>
-        /* Estilos críticos mínimos para evitar el flash blanco */
-        .splash {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-color: #0a0a0a; /* Fondo más profundo para que pegue con el diseño moderno */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-        }
-        .logo-anim {
-            font-family: 'Inter', sans-serif;
-            font-weight: 800;
-            color: #ffd700;
-            letter-spacing: 4px;
-            text-transform: uppercase;
-        }
-    </style>
+   <style>
+    /* Evita el flash blanco inicial antes de cargar el CSS externo */
+    body { background-color: #050505; margin: 0; padding: 0; }
+    .splash {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: #050505;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+    }
+</style>
     
     </head>
 
 <body>
 
-   <div id="splash-screen" class="splash">
- <div class="splash-content">
+  <div id="splash-screen" class="splash">
+    <div class="splash-content">
         <h1 class="logo-anim">DOMINUS</h1>
         <p class="slogan-anim">Domina tu negocio, Domina tu vida</p>
         
         <div class="loader"></div>
 
-        <div id="contenedor-sabiduria" class="wisdom-container">
+        <div id="contenedor-sabiduria" class="wisdom-container" style="opacity: 0;">
             <p id="frase-splash" class="wisdom-text"></p>
-            <p id="autor-splash" class="wisdom-author">— DOMINUS AI</p>
+            <p id="autor-splash" class="wisdom-author"></p>
         </div>
     </div>
 </div>
@@ -172,7 +166,7 @@
 
                     <hr class="ajuste-divider">
                     
-                    <button type="button" class="btn-danger-full" onclick="DOMINUS.resetTotal()">
+                    <button type="button" class="btn-danger-full" onclick="Main.resetTotal()">
                         🗑️ Limpiar Toda la App
                     </button>
                 </div> </div> </div> </div> </div> 

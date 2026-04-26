@@ -2399,7 +2399,7 @@ label {
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(121, 108, 108, 0.4);
     margin-left: 8px;
 }
 
@@ -2628,19 +2628,1907 @@ label {
     z-index: 12001;
 }
 
+/* ============================================================
+   SECCIÓN: ESTILOS EXTRAÍDOS DE MÓDULOS JS
+   ============================================================ */
 
+/* ============================================================
+    ORIGEN: JS/Controlador.js (Sistema de Decisiones)
+   ============================================================ */
 
+/* Contenedor principal del modal dinámico */
+.modal-eleccion {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 12000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
 
+.modal-eleccion.active {
+    opacity: 1;
+    pointer-events: auto;
+}
 
+/* Caja de contenido (Elección) */
+.eleccion-content {
+    width: 90%;
+    max-width: 380px;
+    padding: 30px;
+    border-radius: 25px;
+    background: linear-gradient(145deg, #1a1a1a 0%, #0a0a0a 100%);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    text-align: center;
+    transform: scale(0.9);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
 
+.modal-eleccion.active .eleccion-content {
+    transform: scale(1);
+}
 
+.eleccion-content h3 {
+    color: var(--primary);
+    margin-bottom: 12px;
+    font-size: 1.1rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
 
+.eleccion-content p {
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 25px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
 
+/* Contenedor de botones dinámicos */
+.btns-eleccion {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
 
+/* Botón de Cancelar (btn-no) corregido y estilizado */
+.btn-no {
+    margin-top: 15px;
+    width: 100%;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
 
+.btn-no:hover {
+    background: rgba(255, 77, 77, 0.1);
+    color: #ff4d4d;
+    border-color: rgba(255, 77, 77, 0.3);
+}
 
+/* ============================================================
+    ORIGEN: JS/Controlador.js (Renderizado de Carrito)
+   ============================================================ */
 
+/* Mensaje de carrito vacío */
+.carrito-vacio-msg {
+    text-align: center;
+    opacity: 0.5;
+    font-size: 0.9rem;
+    padding: 30px;
+    font-weight: 600;
+}
 
+/* Item individual del carrito */
+.carrito-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    border-radius: 12px;
+    border-left: 4px solid var(--primary);
+    animation: fadeIn 0.3s ease;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+/* Variaciones de borde según estado */
+.carrito-item.alerta-critica { border-left-color: #ff4d4d; background: rgba(255, 77, 77, 0.05); }
+.carrito-item.modo-libre { border-left-color: #ff9800; }
+
+.carrito-item-info { flex-grow: 1; }
+
+.carrito-item-titulo {
+    font-size: 0.95rem;
+    font-weight: 800;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.carrito-item-titulo.libre { color: #ff9800; }
+
+.carrito-item-precios {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    font-weight: 600;
+}
+
+/* Badge de aviso de stock mejorado */
+.badge-stock-warning {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 900;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 4px;
+    text-transform: uppercase;
+}
+
+.badge-stock-warning.naranja { color: #ffa500; background: rgba(255, 165, 0, 0.1); }
+/* El rojo ya lo tenemos en el bloque anterior de alertas */
+
+/* Botón eliminar del carrito (X) */
+.btn-del-item {
+    background: rgba(255, 77, 77, 0.15);
+    color: #ff4d4d;
+    border: 1px solid rgba(255, 77, 77, 0.3);
+    width: 35px;
+    height: 35px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 900;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.btn-del-item:hover {
+    background: #ff4d4d;
+    color: white;
+    transform: scale(1.1) rotate(90deg);
+}
+
+/* ============================================================
+    ORIGEN: JS/Controlador.js (Módulo de Liquidación)
+   ============================================================ */
+
+.modal-liquidacion-card {
+    max-width: 360px;
+    width: 100%;
+    border: 1px solid var(--primary);
+    padding: 25px;
+    border-radius: 20px;
+    text-align: center;
+    background: linear-gradient(145deg, #1a1a1a, #050505);
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.15);
+    animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.liq-info-box {
+    color: rgba(255,255,255,0.8);
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+.liq-monto-sugerido {
+    display: block;
+    color: var(--primary);
+    font-weight: 900;
+    font-size: 1.1rem;
+    margin-top: 5px;
+}
+
+.liq-label {
+    color: rgba(255,255,255,0.5);
+    font-size: 0.75rem;
+    display: block;
+    text-align: left;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.input-liq-monto {
+    width: 100%;
+    padding: 15px;
+    background: rgba(255,255,255,0.03);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    margin-bottom: 25px;
+    font-size: 1.4rem;
+    font-weight: 900;
+    text-align: center;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.input-liq-monto:focus {
+    border-color: var(--primary);
+    background: rgba(212, 175, 55, 0.05);
+}
+
+.btn-group-liq {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-liq-confirmar {
+    flex: 1;
+    background: var(--primary);
+    color: black;
+    font-weight: 900;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+.btn-liq-cancelar {
+    flex: 1;
+    background: rgba(255,255,255,0.05);
+    color: white;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+}
+
+/* ============================================================
+    ORIGEN: JS/Controlador.js (Preparación de Edición)
+   ============================================================ */
+
+/* Estado del Input de Código al detectar nuevo */
+.input-inv-nuevo {
+    border: 2px solid var(--primary) !important;
+    box-shadow: 0 0 10px var(--primary-glow);
+    animation: pulseBorder 1.5s infinite;
+}
+
+/* Botón de acción principal del formulario (Modos) */
+.btn-inv-action {
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Modo: Crear Producto */
+.btn-inv-action.modo-crear {
+    background: var(--primary);
+    color: black;
+    box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
+}
+
+/* Modo: Guardar Cambios (Edición) */
+.btn-inv-action.modo-editar {
+    background: #2196F3; /* Azul edición */
+    color: white;
+    box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+}
+
+.btn-inv-action:active {
+    transform: scale(0.95);
+}
+
+/* Animación para resaltar el código detectado */
+@keyframes pulseBorder {
+    0% { border-color: var(--primary); }
+    50% { border-color: rgba(212, 175, 55, 0.3); }
+    100% { border-color: var(--primary); }
+}
+
+/* ============================================================
+    ORIGEN: JS/Controlador.js (Limpieza de Formulario)
+   ============================================================ */
+
+/* Aseguramos que al limpiar, el input pierda cualquier resalte de error o detección */
+.input-reset {
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: none !important;
+    animation: none !important;
+}
+
+/* ============================================================
+    ORIGEN: JS/Controlador.js (Visualizador de Stock en Ventas)
+   ============================================================ */
+
+/* Texto de información de stock */
+.info-stock-badge {
+    font-weight: 800;
+    font-size: 0.85rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+/* Estados del Stock */
+.stock-disponible { color: #4caf50; } /* Verde Dominus */
+.stock-modo-libre { color: #ff9800; } /* Naranja Advertencia */
+.stock-alerta { 
+    color: #ff5252; 
+    animation: shakeError 0.4s ease-in-out;
+}
+
+/* Estado del Botón Añadir (Deshabilitado visualmente) */
+.btn-disabled {
+    opacity: 0.4 !important;
+    filter: grayscale(1);
+    pointer-events: none;
+    cursor: not-allowed;
+    transform: scale(0.98);
+}
+
+/* Animación de error sutil */
+@keyframes shakeError {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+/* ============================================================
+    ORIGEN: JS/Controlador.js (Módulo de Abonos/Fiaos)
+   ============================================================ */
+
+.modal-abono-card {
+    max-width: 380px;
+    width: 100%;
+    border: 1px solid var(--primary);
+    padding: 25px;
+    border-radius: 20px;
+    text-align: center;
+    color: white;
+    background: linear-gradient(145deg, #121212, #000);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(212, 175, 55, 0.1);
+    animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.abono-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 0 10px var(--primary));
+}
+
+.abono-saldo-box {
+    font-size: 1.15rem;
+    color: var(--primary);
+    margin: 15px 0;
+    font-weight: 900;
+    background: rgba(212, 175, 55, 0.05);
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px dashed rgba(212, 175, 55, 0.3);
+}
+
+.abono-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+/* Inputs y Selects del Abono */
+.input-abono, .select-abono {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.03);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.1);
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.3s;
+    box-sizing: border-box;
+}
+
+.input-abono {
+    font-size: 1.4rem;
+    font-weight: 900;
+    text-align: center;
+    border-color: var(--primary);
+}
+
+.input-abono:focus, .select-abono:focus {
+    background: rgba(212, 175, 55, 0.05);
+    border-color: var(--primary);
+}
+
+.btn-abono-confirmar {
+    background: var(--primary);
+    color: black;
+    font-weight: 900;
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+.btn-abono-cancelar {
+    background: #333;
+    color: white;
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+}
+
+/* ============================================================
+    ORIGEN: JS/Controlador.js (Generador de Cierre)
+   ============================================================ */
+
+/* Botones específicos de exportación */
+.btn-whatsapp {
+    background: #25D366 !important;
+    color: white !important;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: none;
+    box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
+}
+
+.btn-whatsapp:hover {
+    background: #128C7E !important;
+    transform: translateY(-2px);
+}
+
+.btn-pdf {
+    background: #FF5252 !important;
+    color: white !important;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: none;
+    box-shadow: 0 4px 15px rgba(255, 82, 82, 0.3);
+}
+
+.btn-pdf:hover {
+    background: #D32F2F !important;
+    transform: translateY(-2px);
+}
+
+/* Contenedor del Reporte en Pantalla (Si decides mostrarlo) */
+.reporte-preview {
+    font-family: 'Courier New', Courier, monospace;
+    background: #000;
+    color: #0f0;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    border: 1px solid #333;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+/* ============================================================
+    ORIGEN: JS/Controlador.js (Preguntar Limpieza)
+   ============================================================ */
+
+/* Botón de Peligro Extremo (Borrado) */
+.btn-danger-destructivo {
+    background: linear-gradient(145deg, #ff5252, #b71c1c) !important;
+    color: white !important;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: none;
+    box-shadow: 0 4px 15px rgba(255, 82, 82, 0.4);
+    transition: all 0.3s ease;
+}
+
+.btn-danger-destructivo:hover {
+    filter: brightness(1.2);
+    box-shadow: 0 0 20px rgba(255, 82, 82, 0.6);
+    transform: scale(1.02);
+}
+
+/* Botón de Cancelar / Mantener */
+.btn-mantener-datos {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.btn-mantener-datos:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Animación de aviso para el modal de borrado */
+.modal-alert-shake {
+    animation: alertShake 0.5s ease-in-out;
+}
+
+@keyframes alertShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-10px); }
+    40% { transform: translateX(10px); }
+    60% { transform: translateX(-10px); }
+    80% { transform: translateX(10px); }
+}
+
+/* ============================================================
+    ORIGEN: JS/Controlador.js (Visualizador de Gráficas)
+   ============================================================ */
+
+.contenedor-grafica {
+    width: 100%;
+    height: 250px; /* Altura controlada para no desplazar el resto */
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 15px;
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+    position: relative;
+    margin: 20px 0;
+}
+
+/* Efecto para que el canvas se adapte bien */
+#graficaVentas {
+    filter: drop-shadow(0 5px 15px rgba(0,0,0,0.3));
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Selector de Tallas)
+   ============================================================ */
+
+.tallas-grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding: 10px;
+    /* Scrollbar estilizada para DOMINUS */
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary) rgba(255,255,255,0.1);
+}
+
+.btn-talla-opcion {
+    background: rgba(76, 175, 80, 0.1);
+    color: white;
+    border: 1px solid #4caf50;
+    padding: 15px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-talla-opcion:active {
+    background: #4caf50;
+    transform: scale(0.95);
+}
+
+.btn-talla-cancelar {
+    background: #cc3300;
+    color: white;
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Confirmador Universal)
+   ============================================================ */
+
+/* Contenedor de botones en modales de confirmación */
+.modal-confirm-btns {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+}
+
+.modal-confirm-btns button {
+    flex: 1;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.2s active;
+}
+
+/* Botón de cancelar (neutral) */
+.btn-confirm-cancel {
+    background: #333 !important;
+    color: #bbb !important;
+}
+
+/* Botones de acción dinámica */
+.btn-confirm-proceder {
+    color: white !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* Variación de color por variables CSS (inyectadas por JS) */
+.modal-confirm-proceder.peligro { background: #ff4444 !important; }
+.modal-confirm-proceder.seguro { background: #4caf50 !important; }
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Historial de Ventas)
+   ============================================================ */
+
+.bloque-hora-container {
+    border-left: 3px solid var(--primary); /* El dorado de DOMINUS */
+    margin: 15px 0;
+    padding-left: 12px;
+    background: linear-gradient(to right, rgba(255, 215, 0, 0.03), transparent);
+}
+
+.bloque-hora-titulo {
+    font-size: 0.75rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--primary);
+    margin-bottom: 8px;
+    opacity: 0.8;
+}
+
+.detalles-historial {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.02);
+    margin-top: 15px;
+    transition: all 0.3s ease;
+}
+
+.summary-historial {
+    list-style: none; /* Quita la flecha por defecto en algunos navegadores */
+    padding: 15px;
+    text-align: center;
+    font-weight: bold;
+    color: #fff;
+    background: rgba(255, 215, 0, 0.1);
+    transition: background 0.3s;
+}
+
+.summary-historial:hover {
+    background: rgba(255, 215, 0, 0.2);
+}
+
+.detalles-content {
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Para esconder la flecha de summary en Chrome/Safari */
+.summary-historial::-webkit-details-marker {
+    display: none;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Fila de Venta Individual)
+   ============================================================ */
+
+.item-venta {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    border-left: 4px solid var(--primary);
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+}
+
+.fila-producto-detalle {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    font-size: 0.88em; 
+    padding: 8px 0; 
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.producto-tachado {
+    text-decoration: line-through; 
+    opacity: 0.4; 
+    font-style: italic;
+    filter: grayscale(1);
+}
+
+.btn-borrar-item {
+    background: rgba(255, 71, 87, 0.1);
+    border: none;
+    color: #ff4757;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+.btn-borrar-item:hover {
+    background: #ff4757;
+    color: white;
+}
+
+.ticket-id-tag {
+    font-size: 0.6em; 
+    opacity: 0.3; 
+    letter-spacing: 1px; 
+    text-transform: uppercase;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Alternador de Modo Servicio)
+   ============================================================ */
+
+#btn-modo-punto {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid var(--primary);
+    font-weight: bold;
+    cursor: pointer;
+    background: transparent;
+    color: var(--primary);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+/* Estado cuando el modo está activo */
+#btn-modo-punto.activo-punto {
+    background: var(--primary) !important;
+    color: #1a1a1a !important;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+    transform: scale(1.02);
+}
+
+/* Animación sutil de entrada para el campo de comisión */
+#wrapper-comision {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#wrapper-comision.hidden {
+    display: none;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+#wrapper-comision:not(.hidden) {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Historial de Gastos)
+   ============================================================ */
+
+.bloque-gasto-container {
+    border-left: 3px solid #ff5252; /* Rojo intenso para gastos */
+    margin: 15px 0;
+    padding-left: 12px;
+    background: linear-gradient(to right, rgba(255, 82, 82, 0.05), transparent);
+}
+
+.bloque-gasto-titulo {
+    font-size: 0.75rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #ff5252;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+}
+
+.detalles-gastos {
+    border: 1px solid rgba(255, 82, 82, 0.2);
+    background: rgba(20, 20, 20, 0.4);
+    margin-top: 15px;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.summary-gastos {
+    list-style: none;
+    padding: 12px;
+    cursor: pointer;
+    text-align: center;
+    background: rgba(255, 82, 82, 0.05);
+    transition: background 0.3s ease;
+}
+
+.summary-gastos:hover {
+    background: rgba(255, 82, 82, 0.15);
+}
+
+.acumulado-text {
+    font-size: 0.8em;
+    opacity: 0.7;
+    color: #fff;
+    margin-top: 2px;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Fila de Gasto Individual)
+   ============================================================ */
+
+.item-gasto {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    border-left: 4px solid #ff5252; /* Rojo Gastos */
+    margin-bottom: 10px;
+    padding: 12px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s ease;
+}
+
+.item-gasto:hover {
+    background: rgba(255, 82, 82, 0.05);
+}
+
+.gasto-descripcion {
+    font-size: 0.95em;
+    font-weight: 600;
+    color: #fff;
+}
+
+.gasto-meta {
+    font-size: 0.75em;
+    opacity: 0.5;
+    margin-top: 2px;
+}
+
+.gasto-monto {
+    text-align: right;
+    font-weight: 800;
+    color: #ff5252;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Gestor de Fiaos/Créditos)
+   ============================================================ */
+
+.lista-fiaos-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 0;
+}
+
+.item-fiao-agrupado {
+    background: rgba(255, 165, 0, 0.03); /* Naranja muy sutil */
+    border-left: 4px solid #ffa500;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.fiao-cabecera {
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.fiao-cliente-nombre {
+    font-size: 1.1em;
+    font-weight: 800;
+    color: #fff;
+    text-transform: capitalize;
+}
+
+.fiao-monto-total {
+    text-align: right;
+    color: #ffa500;
+    font-weight: 900;
+    font-size: 1.2em;
+}
+
+.sin-creditos {
+    text-align: center;
+    padding: 40px 20px;
+    opacity: 0.6;
+    font-style: italic;
+    font-size: 0.9em;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Componente Fiao Agrupado)
+   ============================================================ */
+
+.card-fiao {
+    border-radius: 16px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255,255,255,0.1);
+    overflow: hidden;
+    transition: transform 0.2s ease;
+}
+
+/* Semáforo de Estados */
+.fiao-verde { border-left: 6px solid #2ecc71; background: rgba(46, 204, 113, 0.05); }
+.fiao-amarillo { border-left: 6px solid #f1c40f; background: rgba(241, 196, 15, 0.05); }
+.fiao-rojo { border-left: 6px solid #e74c3c; background: rgba(231, 76, 60, 0.05); }
+
+.fiao-header {
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mora-tag {
+    font-size: 0.7em;
+    font-weight: 800;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.1);
+    display: inline-block;
+    margin-top: 4px;
+}
+
+/* Botonera de Acción */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.btn-whatsapp {
+    background: #25d366;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 10px rgba(37, 211, 102, 0.3);
+}
+
+.btn-abonar {
+    background: var(--primary);
+    color: #000;
+    border: none;
+    padding: 0 15px;
+    border-radius: 8px;
+    font-weight: 900;
+    font-size: 0.8em;
+    cursor: pointer;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Buscador de Deudores)
+   ============================================================ */
+
+/* Animación para que los resultados no aparezcan de golpe */
+@keyframes fadeInVeredicto {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.card-fiao-visible {
+    display: block !important;
+    animation: fadeInVeredicto 0.3s ease forwards;
+}
+
+.card-fiao-hidden {
+    display: none !important;
+}
+
+/* Estilo para el mensaje de "Sin resultados" */
+.search-empty-state {
+    text-align: center;
+    padding: 30px;
+    color: #888;
+    font-style: italic;
+    background: rgba(255,255,255,0.02);
+    border-radius: 15px;
+    margin-top: 20px;
+    border: 1px dashed rgba(255,255,255,0.1);
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Gestor de Inventario)
+   ============================================================ */
+
+.item-lista-inv {
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    padding: 14px;
+    border-radius: 15px;
+    gap: 10px;
+    transition: all 0.2s ease;
+}
+
+/* Estados de Alerta */
+.inv-vacio { border: 1px solid #ff4444; background: rgba(255, 68, 68, 0.1); }
+.inv-bajo { border: 1px solid #ff9800; background: rgba(255, 152, 0, 0.1); }
+.inv-normal { border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); }
+
+.badge-alerta {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: bold;
+    margin-left: 8px;
+    color: white;
+}
+
+.talla-tag {
+    font-size: 10px;
+    background: rgba(255,255,255,0.08);
+    color: #ddd;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.1);
+    font-family: monospace;
+}
+
+.input-precio-rapido {
+    width: 70px;
+    background: rgba(0,0,0,0.4);
+    color: #4caf50;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    border-radius: 8px;
+    text-align: right;
+    font-weight: bold;
+    padding: 6px 8px 6px 16px;
+    outline: none;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Filtro de Bloques de Tallas)
+   ============================================================ */
+
+.fila-talla {
+    display: flex;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.talla-oculta {
+    display: none !important;
+}
+
+.talla-visible {
+    display: flex !important;
+    animation: slideInTalla 0.2s ease-out;
+}
+
+@keyframes slideInTalla {
+    from { opacity: 0; transform: translateX(-5px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Estilo para los botones de rango (opcional si usas botones) */
+.btn-rango-activo {
+    background: var(--primary) !important;
+    color: black !important;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Selector Dinámico de Tallas/Peso)
+   ============================================================ */
+
+#contenedor-talla {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: 10px;
+}
+
+#contenedor-talla.hidden {
+    display: none;
+    opacity: 0;
+    transform: translateY(-5px);
+}
+
+#v-talla {
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px solid var(--primary);
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    width: 100%;
+    font-weight: bold;
+    outline: none;
+}
+
+#v-talla option {
+    background: #1a1a1a;
+    color: white;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Notificaciones de Próximamente)
+   ============================================================ */
+
+.notificacion-futuro {
+    background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%) !important;
+    border-left: 5px solid #fff !important;
+    box-shadow: 0 10px 20px rgba(106, 17, 203, 0.3) !important;
+    font-weight: 600 !important;
+    animation: pulseFeature 2s infinite;
+}
+
+@keyframes pulseFeature {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+/* Estilo para el log de curiosidad en consola */
+.console-feature-log {
+    color: #bb86fc;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Zona de Peligro - Reset Total)
+   ============================================================ */
+
+.modal-peligro {
+    border: 2px solid #ff4444 !important;
+    background: rgba(20, 0, 0, 0.95) !important;
+    box-shadow: 0 0 30px rgba(255, 68, 68, 0.4) !important;
+    animation: shakeConfirm 0.4s ease-in-out;
+}
+
+.btn-peligro-confirmar {
+    background: #ff4444 !important;
+    color: white !important;
+    font-weight: 900 !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+@keyframes shakeConfirm {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* Overlay para oscurecer el fondo durante el reset */
+.overlay-reset {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: black;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: 'Orbitron', sans-serif;
+}
+
+/* ============================================================
+    ORIGEN: Global (Gestor de Tallas)
+   ============================================================ */
+
+.contenedor-categorias-tallas {
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 8px; 
+    margin-bottom: 15px;
+}
+
+.btn-categoria-talla {
+    background: rgba(255,255,255,0.1); 
+    color: white; 
+    padding: 10px; 
+    border-radius: 5px; 
+    border: 1px solid #444;
+    cursor: pointer;
+}
+
+.select-rango-estilizado {
+    width: 100%; 
+    padding: 10px; 
+    border: 1px solid var(--primary); 
+    background: #111; 
+    color: white; 
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.lista-tallas-dinamica-scroll {
+    max-height: 350px; 
+    overflow-y: auto; 
+    padding: 5px; 
+    border-radius: 10px; 
+    background: rgba(0,0,0,0.2);
+}
+
+/* ============================================================
+    ORIGEN: Global (Generador Dinámico de Inputs)
+   ============================================================ */
+
+.fila-talla {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    transition: background 0.2s;
+}
+
+.fila-talla:hover {
+    background: rgba(255,215,0,0.05);
+}
+
+.input-talla-dinamico {
+    width: 75px; 
+    background: #222; 
+    color: var(--primary); 
+    border: 1px solid #444; 
+    text-align: center; 
+    border-radius: 5px; 
+    padding: 5px;
+    font-weight: bold;
+}
+
+/* Bloque para entrada manual/personalizada */
+.contenedor-manual-dinamico {
+    width: 100%; 
+    background: rgba(255,215,0,0.05); 
+    padding: 12px; 
+    border-radius: 10px; 
+    border: 1px dashed var(--primary); 
+    margin-top: 10px;
+}
+
+.input-manual-nombre {
+    flex: 1; 
+    background: #111; 
+    color: white; 
+    border: 1px solid #444; 
+    padding: 8px; 
+    border-radius: 5px;
+}
+
+/* ============================================================
+    ORIGEN: Global (Sincronización de Stock y Cierre)
+   ============================================================ */
+
+#info-stock-talla {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.85em;
+    font-weight: bold;
+    color: var(--primary);
+    background: rgba(255, 215, 0, 0.1);
+    padding: 5px 10px;
+    border-radius: 4px;
+    border-left: 3px solid var(--primary);
+    transition: all 0.3s ease;
+}
+
+.stock-critico {
+    color: #ff4444 !important;
+    background: rgba(255, 0, 0, 0.1) !important;
+    border-left-color: #ff4444 !important;
+    animation: shake 0.5s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* ============================================================
+    ORIGEN: Global (Mando Central - Comandos Globales)
+   ============================================================ */
+
+.pantalla-mantenimiento {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, #111 0%, #050505 100%);
+    color: white;
+    text-align: center;
+    flex-direction: column;
+    font-family: 'Orbitron', sans-serif; /* O sans-serif si no la tienes */
+    padding: 20px;
+    z-index: 99999;
+}
+
+.mantenimiento-titulo {
+    color: #ff3333;
+    letter-spacing: 5px;
+    margin: 0;
+    font-size: 2.5rem;
+    text-shadow: 0 0 15px rgba(255, 51, 51, 0.4);
+}
+
+.mantenimiento-icon {
+    font-size: 5rem;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+}
+
+.pulsor-mantenimiento {
+    margin-top: 30px;
+    width: 60px;
+    height: 3px;
+    background: #ff3333;
+    border-radius: 2px;
+    animation: pulseGlow 1.5s infinite;
+}
+
+@keyframes pulseGlow {
+    0% { opacity: 0.2; transform: scaleX(0.8); box-shadow: 0 0 0px #ff3333; }
+    50% { opacity: 1; transform: scaleX(1.2); box-shadow: 0 0 15px #ff3333; }
+    100% { opacity: 0.2; transform: scaleX(0.8); box-shadow: 0 0 0px #ff3333; }
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Sistema de Badges / Notificaciones)
+   ============================================================ */
+
+.badge-notificacion {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #ff4444;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    padding: 2px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #000; /* Para que resalte sobre el fondo */
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: none;
+}
+
+/* Estado activo: Animación de entrada con rebote */
+.badge-notificacion.active {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Badge específico de Stock (Amarillo si es preventivo) */
+#badge-stock.active {
+    background: #ffd700;
+    color: black;
+}
+
+/* Badge específico de Fiaos (Rojo alerta) */
+#badge-fiaos.active {
+    background: #ff4444;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Gestión de Lectura y Cierre)
+   ============================================================ */
+
+/* Badge de Inicio/Cierre con animación de atención */
+#badge-inicio.active {
+    background: var(--primary);
+    color: black;
+    box-shadow: 0 0 10px var(--primary);
+    animation: blinkCierre 2s infinite;
+}
+
+@keyframes blinkCierre {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.1); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* Clase para suavizar la transición cuando se marca como leído */
+.badge-fade-out {
+    opacity: 0 !important;
+    transform: scale(0.5) !important;
+    transition: all 0.4s ease-out;
+}
+
+/* ============================================================
+    ORIGEN: JS/Interfaz.js (Tips Flotantes y Natividad)
+   ============================================================ */
+
+.card-tip-flotante {
+    position: fixed;
+    bottom: 80px;
+    right: -400px; /* Posición inicial fuera de pantalla */
+    max-width: 300px;
+    padding: 15px;
+    background: rgba(20, 20, 20, 0.95);
+    backdrop-filter: blur(10px);
+    border-left: 5px solid var(--primary);
+    border-radius: 12px;
+    color: white;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 10000;
+    transition: right 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
+    user-select: none;
+}
+
+.card-tip-flotante.show {
+    right: 20px;
+}
+
+.tip-label {
+    color: var(--primary);
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 900;
+}
+
+.tip-titulo {
+    margin: 2px 0;
+    font-size: 0.95em;
+    font-weight: 700;
+}
+
+.tip-texto {
+    margin: 0;
+    font-size: 0.85em;
+    opacity: 0.8;
+    line-height: 1.3;
+}
+
+/* ============================================================
+    ORIGEN: JS/Notificaciones.js (Programación de Eventos)
+   ============================================================ */
+
+/* Suavizado para la aparición de elementos automáticos */
+.notificacion-automatica-enter {
+    animation: slideInUp 0.8s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+@keyframes slideInUp {
+    from { opacity: 0; transform: translateY(100px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+    ORIGEN: JS/Notificaciones.js (Mando Central y Swipe UI)
+   ============================================================ */
+
+.card-anuncio-interactiva {
+    position: fixed;
+    bottom: 85px;
+    right: -450px;
+    max-width: 320px;
+    padding: 18px;
+    background: rgba(15, 15, 15, 0.98);
+    backdrop-filter: blur(15px);
+    border-radius: 12px;
+    color: white;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+    z-index: 10000;
+    transition: right 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), 
+                transform 0.3s ease, 
+                opacity 0.3s ease;
+    cursor: pointer;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    user-select: none;
+    touch-action: pan-y;
+}
+
+.card-anuncio-interactiva.show {
+    right: 20px;
+}
+
+.anuncio-icono-box {
+    width: 42px; 
+    height: 42px; 
+    border-radius: 10px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    flex-shrink: 0;
+}
+
+.anuncio-texto-header {
+    font-size: 0.7em; 
+    text-transform: uppercase; 
+    letter-spacing: 1.5px;
+    font-weight: 800;
+}
+
+.anuncio-texto-body {
+    margin: 4px 0 0 0; 
+    font-size: 0.95em; 
+    font-weight: 500; 
+    line-height: 1.4;
+}
+
+/* ============================================================
+    ORIGEN: Escáner QR/Barras (Controles Flotantes)
+   ============================================================ */
+
+.btn-flotante-scanner {
+    position: absolute;
+    z-index: 10001;
+    color: white;
+    border: none;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    transition: transform 0.2s, background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-flotante-scanner:active {
+    transform: scale(0.9); /* Efecto de pulsación */
+}
+
+#btn-cerrar-scanner {
+    top: 20px;
+    right: 20px;
+    background: #ff4d4d;
+}
+
+#btn-cerrar-scanner:hover { background: #ff3333; }
+
+#btn-deshacer-scanner {
+    top: 20px;
+    left: 20px;
+    background: #f39c12;
+    display: none; /* Se activa dinámicamente desde JS */
+}
+
+#btn-deshacer-scanner:hover { background: #e67e22; }
+
+/* ============================================================
+    ORIGEN: JS/Seguridad.js (Interfaz de Bloqueo PIN)
+   ============================================================ */
+
+#overlay-seguridad-pin {
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+}
+
+/* Animación de error (vibración horizontal) */
+.shake-anim {
+    animation: shakePIN 0.4s cubic-bezier(.36,.07,.19,.97) both;
+    border-bottom-color: #ff4444 !important;
+}
+
+@keyframes shakePIN {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* Para ocultar los círculos del password y que se vea el espaciado */
+#pin-invisible {
+    -webkit-text-security: disc; /* Reemplaza caracteres por discos si es necesario */
+}
+
+/* ============================================================
+    ORIGEN: JS/Seguridad.js (PIN Personalizado Reutilizable)
+   ============================================================ */
+
+.btn-secundario-dominus {
+    margin-top: 25px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #bbb;
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.btn-secundario-dominus:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-secundario-dominus:active {
+    transform: scale(0.98);
+}
+
+/* ============================================================
+    ORIGEN: JS/Usuario.js (Pantalla de Login)
+   ============================================================ */
+
+.input-moderno {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: white;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.input-moderno:focus {
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+}
+
+#link-recuperar:hover {
+    color: white;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+#link-registro:hover {
+    text-decoration: none !important;
+    filter: brightness(1.2);
+}
+
+/* Contenedor específico para el overlay de login */
+#overlay-login {
+    background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(20,20,20,0.95) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 30000;
+}
+
+/* ============================================================
+    ORIGEN: JS/Usuario.js (Pantalla de Registro)
+   ============================================================ */
+
+.msg-validacion {
+    font-size: 0.75rem; 
+    color: #888; 
+    text-align: left; 
+    margin-bottom: 10px; 
+    padding-left: 5px;
+    transition: color 0.3s ease;
+}
+
+.p-container-avatar {
+    width: 100%; 
+    height: 100%; 
+    border-radius: 50%; 
+    border: 3px solid rgba(255,255,255,0.1); 
+    overflow: hidden; 
+    background: #1a1a1a; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer; 
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.p-container-avatar:hover {
+    border-color: var(--primary);
+    transform: scale(1.05);
+}
+
+/* Scrollbar personalizada para el registro largo */
+.glass::-webkit-scrollbar {
+    width: 6px;
+}
+.glass::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.3);
+    border-radius: 10px;
+}
+
+/* ============================================================
+    ORIGEN: JS/Usuario.js (Pantalla de Verificación OTP)
+   ============================================================ */
+
+#codigo-input::placeholder {
+    color: rgba(255, 215, 0, 0.2);
+    letter-spacing: 12px;
+}
+
+#resend-code:hover span {
+    text-decoration: underline;
+    filter: brightness(1.2);
+}
+
+/* Efecto de pulso suave para el botón de confirmar código */
+#btn-verificar {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#btn-verificar:active {
+    transform: scale(0.96);
+}
+
+/* ============================================================
+    ORIGEN: JS/Seguridad.js o Admin.js (Capa Mantenimiento)
+   ============================================================ */
+
+#capa-mantenimiento {
+    backdrop-filter: blur(10px); /* Desenfoque del fondo para mayor elegancia */
+    transition: opacity 0.5s ease;
+}
+
+.mantenimiento-icon {
+    font-size: 4rem;
+    display: inline-block;
+    animation: bounce 2s infinite ease-in-out;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+}
+
+.quote-mantenimiento {
+    margin-top: 20px;
+    font-size: 0.9em;
+    color: var(--primary);
+    font-style: italic;
+    opacity: 0.8;
+    letter-spacing: 1px;
+}
+
+/* ============================================================
+    ORIGEN: JS/Seguridad.js (Captura y Confirmación de PIN)
+   ============================================================ */
+
+#pin-input {
+    font-family: 'Courier New', Courier, monospace; /* Para que los asteriscos y números no varíen de ancho */
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+#pin-input::placeholder {
+    letter-spacing: 12px;
+    opacity: 0.2;
+}
+
+#ojo-pin:hover {
+    filter: grayscale(0);
+    transform: scale(1.2);
+}
+
+.input-pin-error {
+    border-bottom-color: #ff4444 !important;
+    animation: shake-anim 0.4s ease;
+}
+
+/* ============================================================
+    ORIGEN: JS/Seguridad.js (Captura y Confirmación de PIN)
+   ============================================================ */
+
+#pin-input {
+    font-family: 'Courier New', Courier, monospace; /* Para que los asteriscos y números no varíen de ancho */
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+#pin-input::placeholder {
+    letter-spacing: 12px;
+    opacity: 0.2;
+}
+
+#ojo-pin:hover {
+    filter: grayscale(0);
+    transform: scale(1.2);
+}
+
+.input-pin-error {
+    border-bottom-color: #ff4444 !important;
+    animation: shake-anim 0.4s ease;
+}
+
+/* ============================================================
+    ORIGEN: JS/Configuracion.js (Gestión de Mensajes)
+   ============================================================ */
+
+.btn-franja {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-franja:active {
+    transform: scale(0.95);
+}
+
+#cfg-msj-maestro {
+    background: rgba(0, 0, 0, 0.2);
+    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 15px;
+    font-family: 'Segoe UI', sans-serif;
+    resize: none;
+    line-height: 1.5;
+}
+
+#cfg-msj-maestro:focus {
+    border-color: var(--primary);
+    outline: none;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================
+    ORIGEN: JS/Ventas.js (Módulo de Abonos/Fiaos)
+   ============================================================ */
+
+.deuda-total-highlight {
+    background: rgba(255, 215, 0, 0.1);
+    border: 1px dashed var(--primary);
+    padding: 10px;
+    border-radius: 12px;
+    margin: 15px 0;
+    animation: glow-soft 2s infinite alternate;
+}
+
+@keyframes glow-soft {
+    from { box-shadow: 0 0 5px rgba(255, 215, 0, 0.1); }
+    to { box-shadow: 0 0 15px rgba(255, 215, 0, 0.3); }
+}
+
+#monto-abono::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 0.9em;
+}
 
 
 

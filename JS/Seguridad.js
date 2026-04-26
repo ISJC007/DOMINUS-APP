@@ -105,11 +105,16 @@ getClave() {
     },
 
     // --- MEJORA: SOLICITAR PIN SIN PROMPT ---
+/**
+ * Lanza el modal de seguridad para validar el acceso mediante PIN.
+ * @returns {Promise<boolean>}
+ */
 solicitarPIN() {
     return new Promise((resolve) => {
         const bloqueoGuardado = Persistencia.cargar('dom_seguridad_bloqueo');
         const ahora = Date.now();
 
+        // 1. Verificación de Bloqueo Activo
         if (bloqueoGuardado && ahora < bloqueoGuardado) {
             const restante = Math.ceil((bloqueoGuardado - ahora) / 1000);
             notificar(`⚠️ Sistema bloqueado. Espera ${restante}s`, 'error');
@@ -120,14 +125,14 @@ solicitarPIN() {
 
         overlay.innerHTML = `
             <div class="glass" style="width: 85%; max-width: 350px; padding: 35px 25px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-                <h2 style="color: #ffd700; margin-bottom: 10px; font-size: 1.5rem; letter-spacing: 2px;">DOMINUS</h2>
+                <h2 style="color: var(--primary); margin-bottom: 10px; font-size: 1.5rem; letter-spacing: 2px;">DOMINUS</h2>
                 <p style="color: white; opacity: 0.8; margin-bottom: 25px; font-size: 0.9em;">Seguridad Requerida</p>
                 
                 <div style="position: relative; width: 100%; max-width: 180px; margin: 0 auto;">
                     <input type="password" id="pin-invisible" 
-                           inputmode="numeric" pattern="[0-9]*" maxlength="4"
+                           inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code"
                            style="width: 100%; background: transparent; border: none; 
-                                 border-bottom: 2px solid #ffd700; color: white; 
+                                 border-bottom: 2px solid var(--primary); color: white; 
                                  font-size: 3rem; text-align: center; outline: none; 
                                  letter-spacing: 15px; box-sizing: border-box; font-family: monospace;">
                     
@@ -138,7 +143,7 @@ solicitarPIN() {
                     </span>
                 </div>
 
-                <div id="pin-error" style="color: #ff4444; margin-top: 20px; height: 20px; font-size: 0.8em; font-weight: bold;"></div>
+                <div id="pin-error" style="color: #ff4444; margin-top: 20px; height: 20px; font-size: 0.8em; font-weight: bold; min-height: 1.2em;"></div>
                 
                 <p id="btn-olvido-pin" style="color: #666; font-size: 0.7em; margin-top: 25px; cursor: pointer; text-decoration: underline;">
                     ¿Olvidaste tu PIN?
@@ -149,48 +154,60 @@ solicitarPIN() {
         document.body.appendChild(overlay);
         const input = document.getElementById('pin-invisible');
         const errorDiv = document.getElementById('pin-error');
-        input.focus();
+        
+        // Auto-focus inmediato
+        setTimeout(() => input.focus(), 100);
 
-        // Escotilla de emergencia: Si olvida el PIN, deslogueamos para que entre con su correo
+        // --- MANEJO DE OLVIDO ---
         document.getElementById('btn-olvido-pin').onclick = () => {
-            if(confirm("Si olvidaste tu PIN, deberás iniciar sesión nuevamente con tu correo y contraseña. ¿Continuar?")) {
-                Persistencia.eliminar('dom_sesion_activa'); // Borra la sesión para forzar login
+            if(confirm("Si olvidaste tu PIN, deberás iniciar sesión nuevamente con tu correo para restablecerlo. ¿Continuar?")) {
+                Persistencia.eliminar('dom_sesion_activa'); 
                 location.reload();
             }
         };
 
+        // --- VALIDACIÓN EN TIEMPO REAL ---
         input.oninput = () => {
+            // Solo números
             input.value = input.value.replace(/[^0-9]/g, '');
 
             if (input.value.length === 4) {
-                // Aquí usamos el getClave() que ya tiene el UUID integrado
-                if (input.value === this.getClave()) {
+                const claveCorrecta = this.getClave(); // El método que une UUID + PIN
+
+                if (input.value === claveCorrecta) {
+                    // ÉXITO
                     this.intentosFallidos = 0; 
                     Persistencia.guardar('dom_seguridad_bloqueo', null); 
-                    
-                    // ✅ CRÍTICO: Avisamos al sistema que la sesión es válida ahora
                     Usuario.sesionValidadaPorPin = true; 
                     
-                    overlay.remove();
-                    resolve(true);
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        overlay.remove();
+                        resolve(true);
+                    }, 300);
                 } else {
+                    // ERROR
                     this.intentosFallidos++;
-                    this.vibrar([100, 50, 100]);
+                    if (typeof this.vibrar === 'function') this.vibrar([100, 50, 100]);
+                    
                     input.value = "";
+                    input.classList.add('shake-anim');
                     
                     if (this.intentosFallidos >= 3) {
-                        const tiempoBloqueo = Date.now() + 60000; // 1 minuto de bloqueo real
+                        const tiempoBloqueo = Date.now() + 60000;
                         Persistencia.guardar('dom_seguridad_bloqueo', tiempoBloqueo);
                         this.intentosFallidos = 0;
                         
                         errorDiv.innerText = "SISTEMA BLOQUEADO";
-                        notificar("Demasiados intentos. Bloqueo: 60s", 'error');
-                        setTimeout(() => { overlay.remove(); resolve(false); }, 1500);
+                        notificar("Demasiados intentos. Espera 60s", 'error');
+                        
+                        setTimeout(() => { 
+                            overlay.remove(); 
+                            resolve(false); 
+                        }, 1500);
                     } else {
                         errorDiv.innerText = `PIN INCORRECTO (${this.intentosFallidos}/3)`;
-                        // Efecto de vibración visual en el input
-                        input.classList.add('shake-anim'); 
-                        setTimeout(() => input.classList.remove('shake-anim'), 300);
+                        setTimeout(() => input.classList.remove('shake-anim'), 400);
                     }
                 }
             }
@@ -246,23 +263,29 @@ async prepararCambioPIN() {
 },
 
 // Una versión genérica de tu solicitarPIN para reusar en cambios de clave
+/**
+ * Lanza un modal de PIN genérico para capturar o validar datos.
+ * @param {string} titulo - Instrucción para el usuario.
+ * @param {number} largo - Cantidad de dígitos (def: 4).
+ * @param {boolean} devolverValor - Si es true, retorna el PIN; si es false, lo valida contra el actual.
+ */
 solicitarPINPersonalizado(titulo, largo = 4, devolverValor = false) {
     return new Promise((resolve) => {
-        // ✅ CORRECCIÓN: Usamos Usuario.crearOverlay porque Seguridad no tiene ese método
+        // ✅ Usamos la centralización de Usuario para overlays
         const overlay = Usuario.crearOverlay('overlay-pin-personalizado');
 
         overlay.innerHTML = `
             <div class="glass" style="width: 85%; max-width: 350px; padding: 30px; border-radius: 20px; text-align: center;">
-                <h2 style="color: #ffd700; margin-bottom: 5px; letter-spacing: 2px;">DOMINUS</h2>
+                <h2 style="color: var(--primary); margin-bottom: 5px; letter-spacing: 2px;">DOMINUS</h2>
                 <p style="color: white; opacity: 0.8; margin-bottom: 25px; font-size: 0.95em;">${titulo}</p>
                 
                 <div style="position: relative; width: 170px; margin: 0 auto;">
                     <input type="password" id="pin-dinamico" 
                            inputmode="numeric" pattern="[0-9]*" maxlength="${largo}"
                            style="width: 100%; background: transparent; border: none; 
-                                  border-bottom: 2px solid #ffd700; color: white; 
-                                  font-size: 3rem; text-align: center; outline: none;
-                                  letter-spacing: 12px; padding-right: 35px; box-sizing: border-box;">
+                                 border-bottom: 2px solid var(--primary); color: white; 
+                                 font-size: 3rem; text-align: center; outline: none;
+                                 letter-spacing: 12px; padding-right: 35px; box-sizing: border-box;">
                     
                     <span id="ojo-pin-personalizado" 
                           style="position: absolute; right: -5px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.2rem; filter: grayscale(1); user-select: none;"
@@ -273,8 +296,7 @@ solicitarPINPersonalizado(titulo, largo = 4, devolverValor = false) {
 
                 <div id="pin-error-dinamico" style="color: #ff4444; margin-top: 15px; height: 20px; font-size: 0.8em; font-weight: bold;"></div>
                 
-                <button id="btn-cancelar-pin" 
-                        style="margin-top: 25px; background: rgba(255,255,255,0.05); border: 1px solid #444; color: #bbb; width: 100%; padding: 12px; border-radius: 10px; cursor: pointer; font-size: 0.9em; transition: all 0.3s ease;">
+                <button id="btn-cancelar-pin" class="btn-secundario-dominus">
                     CANCELAR
                 </button>
             </div>
@@ -285,42 +307,41 @@ solicitarPINPersonalizado(titulo, largo = 4, devolverValor = false) {
         const errorDiv = document.getElementById('pin-error-dinamico');
         const btnCancel = document.getElementById('btn-cancelar-pin');
         
-        input.focus();
+        // Foco inmediato
+        setTimeout(() => input.focus(), 150);
 
-        // 🛡️ Manejo de cierre seguro
+        // --- MANEJO DE CIERRE ---
         btnCancel.onclick = () => {
             overlay.remove();
             resolve(null);
         };
 
-        // UX: Efectos visuales del botón
-        btnCancel.onmouseover = () => { 
-            btnCancel.style.background = "rgba(255,255,255,0.1)"; 
-            btnCancel.style.color = "#fff"; 
-        };
-        btnCancel.onmouseout = () => { 
-            btnCancel.style.background = "rgba(255,255,255,0.05)"; 
-            btnCancel.style.color = "#bbb"; 
-        };
-
-        // 🚀 Lógica de validación en tiempo real
+        // --- LÓGICA DE VALIDACIÓN / CAPTURA ---
         input.oninput = () => {
-            if (input.value.length === largo) {
+            // Limpieza de caracteres no numéricos
+            input.value = input.value.replace(/[^0-9]/g, '');
+
+            if (input.value.length === parseInt(largo)) {
                 const valorCapturado = input.value;
                 
                 if (!devolverValor) {
-                    // Modo validación: Compara con el PIN guardado
+                    // MODO VALIDACIÓN: Compara contra el PIN maestro
                     if (valorCapturado === this.getClave()) {
                         overlay.remove();
                         resolve(true);
                     } else {
-                        this.vibrar([100, 50, 100, 50, 100]);
+                        if (typeof this.vibrar === 'function') this.vibrar([100, 50, 100, 50, 100]);
                         input.value = "";
+                        input.classList.add('shake-anim');
                         errorDiv.innerText = "PIN INCORRECTO";
-                        setTimeout(() => { if(errorDiv) errorDiv.innerText = ""; }, 1500);
+                        
+                        setTimeout(() => { 
+                            input.classList.remove('shake-anim');
+                            if(errorDiv) errorDiv.innerText = ""; 
+                        }, 1500);
                     }
                 } else {
-                    // Modo captura: Devuelve lo que el usuario escribió (para PIN nuevo)
+                    // MODO CAPTURA: Retorna el valor (usado para "Cambiar PIN")
                     overlay.remove();
                     resolve(valorCapturado);
                 }

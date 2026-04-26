@@ -38,25 +38,42 @@ const DOMINUS = { //herramienta de diagnostico-revisa si los archivos cargaron b
     },
     
 resetTotal() {
-    // Usamos tu nueva función de confirmación estilizada
+    // 🛡️ Llamada al componente de confirmación estilizado
     Interfaz.confirmarAccion(
-        "⚠️ ¡ZONA DE PELIGRO!", // Título
-        "¿Estás absolutamente seguro de borrar TODO? Se eliminarán ventas, gastos, fiaos e inventario de forma permanente.", // Mensaje
+        "⚠️ ZONA DE PELIGRO CRÍTICO", 
+        "¿Estás seguro de borrar TODO? Se perderán ventas, gastos, fiaos e inventario permanentemente. Esta acción no se puede deshacer.", 
         () => { 
-            // Acción si confirma
+            // 🚀 INICIO DEL PROCESO DE PURGA
+            
+            // 1. Efecto visual de limpieza inmediata
+            document.body.innerHTML = `
+                <div class="overlay-reset">
+                    <div style="text-align:center;">
+                        <h2 style="color:#ff4444;">PURGANDO DOMINUS...</h2>
+                        <p style="opacity:0.6;">Reiniciando base de datos local</p>
+                    </div>
+                </div>
+            `;
+
+            // 2. Limpieza de datos
             localStorage.clear();
-            notificar("Aplicación reiniciada por completo", "error");
-            setTimeout(() => location.reload(), 1500); 
+            
+            // 3. Feedback auditivo si está disponible
+            if (typeof AudioDOMINUS !== 'undefined') AudioDOMINUS.reproducir('sonido-error');
+
+            // 4. Recarga limpia tras un breve delay para asegurar la persistencia
+            setTimeout(() => {
+                location.reload();
+            }, 1800); 
         },
         () => {
-            // Acción si cancela (opcional)
-            console.log("Reinicio abortado por el usuario.");
+            console.log("%c🛡️ Reinicio abortado: Los datos están a salvo.", "color: #4caf50; font-weight: bold;");
         },
-        "BORRAR TODO", // Texto botón confirmar
-        "CANCELAR",    // Texto botón cancelar
-        true           // esPeligroso = true (Esto pone el modal en modo rojo/alerta)
+        "SÍ, BORRAR TODO", 
+        "NO, CANCELAR",
+        true // Activa el modo modal-peligro en la Interfaz
     );
-    }
+}
 };
 
 
@@ -117,27 +134,31 @@ const notificar = (msj, tipo = 'exito') => {
 };
 
 
+/**
+ * Abre el gestor de tallas de forma global.
+ * Definida como function para asegurar visibilidad en el scope global.
+ */
 function AbrirGestorTallas() {
     const contenedor = document.getElementById('contenedor-filas-tallas');
     const unidadPrincipal = document.getElementById('inv-unidad')?.value || 'Und';
     if(!contenedor) return;
 
-    // 🛡️ BLINDAJE: Si vamos a desglosar, aseguramos que tallasTemporales 
-    // refleje lo que ya tiene el input de cantidad o lo que ya estaba guardado.
-    // Si quieres empezar de cero, usa: window.tallasTemporales = {};
-    if (typeof tallasTemporales === 'undefined') window.tallasTemporales = {};
+    // 🛡️ BLINDAJE: Persistencia de datos temporales en el objeto global window
+    if (typeof window.tallasTemporales === 'undefined') {
+        window.tallasTemporales = {};
+    }
     
+    // Inyección de estructura HTML usando las clases de CSS
     contenedor.innerHTML = `
-        <div id="selector-categoria-tallas" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:15px;">
-            <button onclick="GenerarInputsDinamicos('calzado')" class="btn-mini" style="background:rgba(255,255,255,0.1); color:white; padding:10px; border-radius:5px; border:1px solid #444;">👟 Calzado</button>
-            <button onclick="GenerarInputsDinamicos('ropa')" class="btn-mini" style="background:rgba(255,255,255,0.1); color:white; padding:10px; border-radius:5px; border:1px solid #444;">👕 Ropa</button>
-            <button onclick="GenerarInputsDinamicos('peso')" class="btn-mini" style="background:rgba(255,255,255,0.1); color:white; padding:10px; border-radius:5px; border:1px solid #444;">⚖️ Peso</button>
-            <button onclick="GenerarInputsDinamicos('pacas')" class="btn-mini" style="background:rgba(255,255,255,0.1); color:white; padding:10px; border-radius:5px; border:1px solid #444;">📦 Pacas</button>
+        <div id="selector-categoria-tallas" class="contenedor-categorias-tallas">
+            <button onclick="GenerarInputsDinamicos('calzado')" class="btn-categoria-talla"><span>👟</span> Calzado</button>
+            <button onclick="GenerarInputsDinamicos('ropa')" class="btn-categoria-talla"><span>👕</span> Ropa</button>
+            <button onclick="GenerarInputsDinamicos('peso')" class="btn-categoria-talla"><span>⚖️</span> Peso</button>
+            <button onclick="GenerarInputsDinamicos('pacas')" class="btn-categoria-talla"><span>📦</span> Pacas</button>
         </div>
 
-        <div id="bloque-filtro-contenedor" style="margin-bottom: 15px; display:none;">
-            <select id="inv-bloque-rango" class="glass" 
-                    style="width:100%; padding:10px; border:1px solid var(--primary); background:#111; color:white; border-radius:8px;"
+        <div id="bloque-filtro-contenedor" style="display:none;">
+            <select id="inv-bloque-rango" class="glass select-rango-estilizado" 
                     onchange="Interfaz.filtrarTallasPorBloque(this.value)">
                 <option value="todos">-- Todas las Tallas --</option>
                 <option value="ninos-peq">Niños (18-25)</option>
@@ -146,26 +167,48 @@ function AbrirGestorTallas() {
                 <option value="caballero">Caballero (40-45)</option>
             </select>
         </div>
-        <div id="lista-tallas-dinamica" style="max-height: 350px; overflow-y: auto; padding: 5px; border-radius:10px; background:rgba(0,0,0,0.2);"></div>
+
+        <div id="lista-tallas-dinamica" class="lista-tallas-dinamica-scroll"></div>
     `;
     
-    // Auto-detección por unidad
-    const mapaUnidades = { 'Kg': 'peso', 'Lts': 'liquido', 'Talla': 'calzado', 'Paca': 'pacas' };
-    GenerarInputsDinamicos(mapaUnidades[unidadPrincipal] || 'calzado');
+    // --- AUTO-DETECCIÓN POR UNIDAD ---
+    const mapaUnidades = { 
+        'Kg': 'peso', 
+        'Lts': 'liquido', 
+        'Talla': 'calzado', 
+        'Paca': 'pacas' 
+    };
 
-    document.getElementById('modal-gestor-tallas').style.display = 'flex';
+    const categoriaSugerida = mapaUnidades[unidadPrincipal] || 'calzado';
+    
+    // Generación inicial basada en la unidad detectada
+    GenerarInputsDinamicos(categoriaSugerida);
+
+    // Activación del Modal
+    const modal = document.getElementById('modal-gestor-tallas');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
 }
 
+/**
+ * Genera los inputs según la categoría seleccionada (Calzado, Ropa, etc.)
+ * Mantenida como función global para acceso desde el HTML.
+ */
 function GenerarInputsDinamicos(tipo) {
     const lista = document.getElementById('lista-tallas-dinamica');
     const filtroContenedor = document.getElementById('bloque-filtro-contenedor');
     if(!lista) return;
+    
+    // Limpiamos la lista actual
     lista.innerHTML = '';
 
+    // Gestión del filtro de rangos (solo para calzado)
     if(filtroContenedor) {
         filtroContenedor.style.display = (tipo === 'calzado') ? 'block' : 'none';
     }
 
+    // --- CONFIGURACIÓN DE ESCALAS ---
     let configuracion = [];
     if(tipo === 'calzado') {
         for(let i=18; i<=45; i++) configuracion.push(i);
@@ -179,61 +222,81 @@ function GenerarInputsDinamicos(tipo) {
         configuracion = ['Paca Small', 'Paca Grande', 'Manual'];
     }
 
+    // --- RENDERIZADO DINÁMICO ---
     configuracion.forEach(talla => {
         const div = document.createElement('div');
         div.className = 'fila-talla'; 
         div.setAttribute('data-talla', talla); 
         
+        // Creamos un ID seguro para el DOM
         const inputId = `input-dinamico-${talla.toString().replace(/\s+/g, '-')}`;
 
         if (talla === 'Manual') {
-            const unidadPrincipal = document.getElementById('inv-unidad').value;
+            const unidadPrincipal = document.getElementById('inv-unidad')?.value || 'Und';
             const sufijoSug = (unidadPrincipal === 'Kg') ? 'g' : (unidadPrincipal === 'Lts' ? 'ml' : '');
 
             div.innerHTML = `
-                <div style="width:100%; background:rgba(255,215,0,0.05); padding:12px; border-radius:10px; border:1px dashed var(--primary); margin-top:10px;">
-                    <label style="color:var(--primary); font-size:0.75em; display:block; margin-bottom:5px;">VALOR PERSONALIZADO (${sufijoSug}):</label>
+                <div class="contenedor-manual-dinamico">
+                    <label class="label-micro-primary" style="margin-bottom:5px; display:block;">
+                        VALOR PERSONALIZADO (${sufijoSug}):
+                    </label>
                     <div style="display:flex; gap:8px;">
-                        <input type="number" id="manual-nombre-din" placeholder="Ej: 750" class="glass" 
-                               style="flex:1; background:#111; color:white; border:1px solid #444; padding:8px; border-radius:5px;">
+                        <input type="number" id="manual-nombre-din" placeholder="Ej: 750" 
+                               class="glass input-manual-nombre">
                         
-                        <input type="number" id="${inputId}" placeholder="Cant" class="glass" 
-                               style="width:70px; background:#222; color:var(--primary); border:1px solid #444; text-align:center; border-radius:5px;"
+                        <input type="number" id="${inputId}" placeholder="Cant" 
+                               class="glass input-talla-dinamico" style="width:70px;"
                                oninput="tallasTemporales['Manual'] = parseFloat(this.value) || 0">
                     </div>
                 </div>`;
         } else {
             div.innerHTML = `
-                <label for="${inputId}" style="color:white; font-weight:600;">${isNaN(talla) ? talla : 'Talla ' + talla}</label>
+                <label for="${inputId}" style="color:white; font-weight:600; font-size:0.9em;">
+                    ${isNaN(talla) ? talla : 'Talla ' + talla}
+                </label>
                 <input type="number" 
                         id="${inputId}"
-                        name="${inputId}"
                         value="${tallasTemporales[talla] || 0}" 
                         oninput="tallasTemporales['${talla}'] = parseFloat(this.value) || 0"
                         min="0"
-                        class="glass"
-                        style="width: 75px; background: #222; color: var(--primary); border: 1px solid #444; text-align: center; border-radius: 5px; padding:5px;">
+                        class="glass input-talla-dinamico">
             `;
         }
         lista.appendChild(div);
     });
 }
 
+/**
+ * Actualiza visualmente el stock disponible cuando se cambia la talla en la venta.
+ */
 function actualizarStockEnVenta(nombreProducto) {
     const p = Inventario.productos.find(prod => prod.nombre === nombreProducto);
     const selectTalla = document.getElementById('v-talla');
     const infoStock = document.getElementById('info-stock-talla');
     
-    if (p && p.tallas) {
+    if (p && p.tallas && selectTalla) {
         selectTalla.onchange = () => {
             const talla = selectTalla.value;
             const cantidad = p.tallas[talla] || 0;
-            const unidad = p.tallas['Manual'] !== undefined ? p.unidad : 'Und';
+            const unidad = p.unidad || 'Und';
             
+            if (infoStock) {
+                infoStock.innerHTML = `📦 Disponible: ${cantidad} ${unidad}`;
+                
+                // Feedback visual si queda poco (menos de 3 unidades)
+                if (cantidad <= 3 && cantidad > 0) {
+                    infoStock.classList.add('stock-critico');
+                } else {
+                    infoStock.classList.remove('stock-critico');
+                }
+            }
         };
     }
 }
 
+/**
+ * Procesa los datos de tallasTemporales, limpia valores nulos y sincroniza con el inventario.
+ */
 function CerrarGestorTallas() {
     const nombreManualInput = document.getElementById('manual-nombre-din');
     const cantidadManualInput = document.getElementById(`input-dinamico-Manual`);
@@ -241,36 +304,43 @@ function CerrarGestorTallas() {
     const valorNombre = nombreManualInput?.value.trim();
     const cantManual = parseFloat(cantidadManualInput?.value) || 0;
     
-    // 🛡️ Lógica de guardado manual blindada
+    // 🛡️ Lógica de guardado manual: Convertimos "Manual" en un nombre real (Ej: 750g)
     if (valorNombre && cantManual > 0) {
-        const unidad = document.getElementById('inv-unidad').value;
+        const unidad = document.getElementById('inv-unidad')?.value || 'Und';
         const sufijo = (unidad === 'Kg') ? 'g' : (unidad === 'Lts' ? 'ml' : '');
         
-        // Evitamos guardar con la key 'Manual', usamos el nombre real
         tallasTemporales[valorNombre + sufijo] = cantManual;
         delete tallasTemporales['Manual']; 
     }
 
-    // 🛡️ Limpieza de basura: eliminamos lo que tenga stock 0
+    // 🛡️ Purga de datos: Eliminamos stocks vacíos o llaves genéricas
     Object.keys(tallasTemporales).forEach(key => {
-        if (tallasTemporales[key] <= 0 || key === 'Manual') delete tallasTemporales[key];
+        if (tallasTemporales[key] <= 0 || key === 'Manual') {
+            delete tallasTemporales[key];
+        }
     });
 
-    // 🚀 Sincronización con el formulario principal
+    // 🚀 Sincronización: Calculamos el total para el input principal de cantidad
     const total = Object.values(tallasTemporales).reduce((a, b) => a + b, 0);
     const inputCant = document.getElementById('inv-cant');
     
-    if(inputCant) {
-        // Si es peso, mantenemos decimales; si es unidad, redondeamos
-        const unidad = document.getElementById('inv-unidad').value;
+    if (inputCant) {
+        const unidad = document.getElementById('inv-unidad')?.value || 'Und';
+        // Precision decimal para peso/líquido, entero para el resto
         inputCant.value = (unidad === 'Kg' || unidad === 'Lts') ? total.toFixed(3) : total;
+        
+        // Disparamos el evento input manualmente para que otros listeners se enteren del cambio
+        inputCant.dispatchEvent(new Event('input'));
     }
 
-    document.getElementById('modal-gestor-tallas').style.display = 'none';
-    if(total > 0) notificar(`✅ ${total} desglosados correctamente`);
+    // Cierre visual
+    const modal = document.getElementById('modal-gestor-tallas');
+    if (modal) modal.style.display = 'none';
+
+    if (total > 0) {
+        notificar(`✅ ${total} desglosados correctamente`, "exito");
+    }
 }
-
-
 
 // Detección de potencia del teléfono
 
@@ -304,62 +374,69 @@ function efectoEscritura(elemento, texto, velocidad = 50) {
 async function iniciarCargaSistemas() {
     console.log("⚙️ DOMINUS: Acceso verificado. Sincronizando entorno...");
     
-    // 🚩 CLAVE: El sistema se detiene aquí hasta que la última letra de la frase aparezca
+    // 🚩 Sincronización con la frase
     if (window.promesaEscritura) {
         await window.promesaEscritura;
     }
 
-    // Al terminar la promesa de arriba, el autor ya se hace visible
-    console.log("⏱️ Frase completa y autor en pantalla. Iniciando conteo de 5s para finalizar...");
+    console.log("⏱️ Frase lista. Preparando entrada triunfal...");
     
-    // 🛡️ RE-ESCANEAMIENTO DE SEGURIDAD
+    // 🛡️ RE-ESCANEAMIENTO DE SEGURIDAD (En segundo plano)
     if (typeof Notificaciones !== 'undefined') {
         Notificaciones.revisarTodo();
     }
 
-    // Espera de 5 segundos de cortesía tras la animación
+    // Bajamos de 5000ms (5s) a 2000ms (2s). 
+    // Es tiempo suficiente para apreciar la estética sin desesperar al usuario.
     setTimeout(() => {
         finalizarArranque();
         
-        // 💡 LANZAMIENTO DEL PRIMER TIP (Sincronizado con la nueva lógica visual)
+        // 💡 Lanzamiento del TIP (Un poco después de entrar al dashboard)
         setTimeout(() => {
             if (typeof Notificaciones !== 'undefined' && Notificaciones.tips) {
                 const tip = Notificaciones.tips[Math.floor(Math.random() * Notificaciones.tips.length)];
-                // Usamos la nueva función visual persistente
                 Notificaciones.lanzarAnuncioVisual(`💡 TIP: ${tip.titulo}`, tip.texto, "var(--accent)");
             }
-        }, 2000);
+        }, 1500);
 
-    }, 5000); 
+    }, 2000); 
 }
 
 function finalizarArranque() {
     const splash = document.getElementById('splash-screen');
     const nav = document.querySelector('.bottom-nav');
 
-    if (splash) {
-        splash.classList.add('splash-fade-out');
+    if (!splash) return;
+
+    // Aplicamos la transición de salida
+    splash.classList.add('splash-fade-out');
+    splash.style.pointerEvents = 'none'; // Evita que el usuario toque algo mientras desaparece
+
+    setTimeout(() => {
+        splash.style.display = 'none';
         
-        setTimeout(() => {
-            splash.style.display = 'none';
-            
-            // 🚀 MOSTRAR EL MENÚ DE NAVEGACIÓN
-            if (nav) {
-                nav.classList.add('nav-visible');
-            }
-            
-            // Mostramos el dashboard
-            if (typeof Interfaz !== 'undefined') Interfaz.show('dashboard');
-            
-            // Sonido y Bienvenida
-            if (typeof DominusAudio !== 'undefined') {
-                DominusAudio.play('add'); 
-                DominusAudio.saludarSegunHora();
-            }
-            
-            notificar("Conexión establecida", "exito");
-        }, 800); 
-    }
+        // 🚀 MOSTRAR EL MENÚ DE NAVEGACIÓN
+        if (nav) {
+            nav.classList.add('nav-visible');
+        }
+        
+        // Mostramos el dashboard de inmediato
+        if (typeof Interfaz !== 'undefined') {
+            Interfaz.show('dashboard');
+        }
+        
+        // Audio y Bienvenida
+        if (typeof DominusAudio !== 'undefined') {
+            DominusAudio.play('add'); 
+            DominusAudio.saludarSegunHora();
+        }
+        
+        notificar("Conexión establecida", "exito");
+        
+        // Limpieza total del DOM para liberar memoria en la PC
+        setTimeout(() => splash.remove(), 1000);
+
+    }, 800); 
 }
 
 async function iniciarDominus() {
@@ -376,6 +453,7 @@ async function iniciarDominus() {
 
         // B. PREPARACIÓN DE DATOS Y SESIÓN
         const haySesionLocal = Usuario.init(); 
+        const contenedorWisdom = document.getElementById('contenedor-sabiduria');
 
         if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
             const txtFrase = document.getElementById('frase-splash');
@@ -393,11 +471,10 @@ async function iniciarDominus() {
                     15: { texto: "Hoy celebramos 15 días de una nueva era educativa en tu negocio. No pierdas el enfoque.", autor: "EQUIPO DOMINUS" }
                 };
 
-                if (frasesInduccion[diaUso]) {
-                    seleccion = frasesInduccion[diaUso];
-                } else {
-                    seleccion = bancoFrases[Math.floor(Math.random() * bancoFrases.length)];
-                }
+                seleccion = frasesInduccion[diaUso] || bancoFrases[Math.floor(Math.random() * bancoFrases.length)];
+
+                // Mostramos el contenedor antes de escribir
+                if (contenedorWisdom) contenedorWisdom.style.opacity = "1";
 
                 window.promesaEscritura = efectoEscritura(txtFrase, `"${seleccion.texto}"`, 40);
 
@@ -406,7 +483,7 @@ async function iniciarDominus() {
                         txtAutor.innerText = `— ${seleccion.autor || 'DOMINUS AI'}`;
                         txtAutor.style.opacity = "0";
                         txtAutor.style.transition = "opacity 1s";
-                        setTimeout(() => txtAutor.style.opacity = "1", 100);
+                        setTimeout(() => txtAutor.style.opacity = "0.8", 100);
                     }
                 });
             }
@@ -418,6 +495,7 @@ async function iniciarDominus() {
                 Interfaz.actualizarAvatarHeader(Usuario.datos);
             }
 
+            // SEGURIDAD: Aquí es donde se suele "pegar" si hay doble splash
             const accesoConcedido = await Seguridad.iniciarProteccion();
             
             if (accesoConcedido) {
@@ -426,26 +504,20 @@ async function iniciarDominus() {
                 // 🔥 ACTIVACIÓN DE COMUNICACIÓN CON ADMIN
                 if (typeof Usuario !== 'undefined' && Usuario.datos) {
                     Usuario.actualizarPresencia(); 
-                    
-                    // Activamos el "oído" para mensajes y anuncios globales
                     if (typeof Notificaciones !== 'undefined' && Notificaciones.escucharMandoCentral) {
                         Notificaciones.escucharMandoCentral(Usuario.datos.uid); 
                     }
                 }
 
                 // 🔴 MODO MANTENIMIENTO GLOBAL
-                if (typeof escucharComandosGlobales === 'function') {
-                    escucharComandosGlobales();
-                }
+                if (typeof escucharComandosGlobales === 'function') escucharComandosGlobales();
 
                 // D. CARGA DE DATOS LOCALES
                 window.DOMINUS.historial = Persistencia.cargar('dom_ventas') || [];
                 window.DOMINUS.deudas = Persistencia.cargar('dom_fiaos') || [];
                 window.DOMINUS.gastos = Persistencia.cargar('dom_gastos') || [];
 
-                if (typeof Notificaciones !== 'undefined') {
-                    Notificaciones.init();
-                }
+                if (typeof Notificaciones !== 'undefined') Notificaciones.init();
 
                 // E. CONFIGURACIÓN DE INVENTARIO
                 const configGuardada = localStorage.getItem('dom_config');
@@ -485,22 +557,27 @@ async function iniciarDominus() {
                     });
                 }
 
-                if(typeof Inventario !== 'undefined' && Inventario.actualizarDatalist) {
-                    Inventario.actualizarDatalist();
-                }
+                if(typeof Inventario !== 'undefined' && Inventario.actualizarDatalist) Inventario.actualizarDatalist();
+                if (typeof Usuario !== 'undefined' && Usuario.cargarAjustes) Usuario.cargarAjustes();
 
-                if (typeof Usuario !== 'undefined' && Usuario.cargarAjustes) {
-                    Usuario.cargarAjustes();
+                // 🚀 LANZADOR FINAL: Esperamos a que la frase termine para un cierre elegante
+                if (window.promesaEscritura) {
+                    await window.promesaEscritura;
+                    setTimeout(() => iniciarCargaSistemas(), 500);
+                } else {
+                    iniciarCargaSistemas();
                 }
-
-                // 🚀 LANZADOR FINAL
-                iniciarCargaSistemas();
                 
             } else {
                 notificar("PIN incorrecto o cancelado", "error");
                 setTimeout(() => location.reload(), 2000);
             }
         } else {
+            // No hay sesión: Ocultamos elementos del splash para mostrar el Login limpio
+            const loader = document.querySelector('.loader');
+            if (loader) loader.style.display = 'none';
+            if (contenedorWisdom) contenedorWisdom.style.display = 'none';
+
             if (!navigator.onLine) {
                 notificar("Internet requerido para activación", "alerta");
             } else {
@@ -510,9 +587,11 @@ async function iniciarDominus() {
 
     } catch (error) {
         console.error("❌ Fallo crítico en el arranque de Dominus:", error);
-        if (typeof finalizarArranque === 'function') finalizarArranque();
+        // Si algo falla, intentamos quitar el splash para que el usuario no se quede bloqueado
+        const splash = document.getElementById('splash-screen');
+        if (splash) splash.remove();
     }
-}
+};
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')
@@ -520,56 +599,8 @@ if ('serviceWorker' in navigator) {
         .catch(err => console.log("Error en SW:", err));
 }
 
-// Pon esto fuera o dentro de Notificaciones, pero que se ejecute al inicio
-function escucharComandosGlobales() {
-    console.log("🛰️ Mando Central: Escuchando directivas globales...");
 
-    // 1. MODO MANTENIMIENTO (Bloqueo Total)
-    // Usamos Cloud.db que es la instancia real de tu Firebase
-    Cloud.db.ref('config_global/mantenimiento').on('value', (snap) => {
-        if (snap.val() === true) {
-            document.body.innerHTML = `
-                <div style="height:100vh; display:flex; align-items:center; justify-content:center; background:#050505; color:white; text-align:center; flex-direction:column; font-family:sans-serif; padding:20px;">
-                    <div style="font-size:4rem; margin-bottom:20px;">⚒️</div>
-                    <h1 style="color:#ff3333; letter-spacing:5px; margin:0;">MANTENIMIENTO</h1>
-                    <p style="font-size:1.2rem; margin-top:15px; opacity:0.9;">El Gran Maestro está ajustando los engranajes.</p>
-                    <p style="color:#666; font-size:0.9rem;">DOMINUS volverá a estar en línea pronto.</p>
-                    <div style="margin-top:30px; width:50px; height:2px; background:#ff3333; border-radius:2px; animation: pulse 1.5s infinite;"></div>
-                </div>
-                <style>
-                    @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
-                </style>
-            `;
-        }
-    });
 
-    // 2. BROADCAST GLOBAL (Anuncios en Tarjeta)
-    // Sincronizado con la ruta 'config_global/anuncio' que usa tu Admin
-    Cloud.db.ref('config_global/anuncio').on('value', (snap) => {
-        const anuncio = snap.val();
-        
-        if (anuncio && anuncio.mensaje) {
-            // Validamos que el anuncio sea de las últimas 24 horas para no mostrar spam viejo
-            const esReciente = (Date.now() - anuncio.timestamp) < (24 * 60 * 60 * 1000);
-            
-            if (esReciente && typeof Notificaciones !== 'undefined') {
-                // Lanzamos la tarjeta visual que diseñamos con swipe
-                Notificaciones.lanzarAnuncioVisual(
-                    "📢 ANUNCIO GLOBAL", 
-                    anuncio.mensaje, 
-                    "var(--primary)"
-                );
-            }
-        } else {
-            // Si el Admin borró el anuncio (null), quitamos la tarjeta si existe
-            const cardExistente = document.getElementById('anuncio-activo');
-            if (cardExistente) {
-                cardExistente.style.right = '-450px';
-                setTimeout(() => cardExistente.remove(), 600);
-            }
-        }
-    });
-}
 
 document.addEventListener('DOMContentLoaded', iniciarDominus);
 

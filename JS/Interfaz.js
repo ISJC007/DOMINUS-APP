@@ -174,39 +174,39 @@ ejecutarConfirmacionRecarga: function(p, cantidad, tallaElegida) {
 // AÑADE ESTO A TU OBJETO INTERFAZ
 mostrarModalTallas: function(titulo, mensaje, tallas, onSeleccionar) {
     if (!tallas || tallas.length === 0) {
-        console.warn("DOMINUS: Intento de abrir modal sin tallas disponibles.");
+        console.warn("DOMINUS: Intento de abrir modal sin tallas.");
         return;
     }
 
     const uniqueId = Date.now();
     const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    // 🛡️ Mejora: Añadimos 'overflow-y: auto' por si hay muchas tallas
-    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px; overflow-y:auto;";
+    overlay.className = 'modal-overlay active'; // Reutilizamos tu clase de overlay estándar
 
-    // 1. Generar botones con reducción (más limpio que concatenar con +=)
-    const botonesTallas = tallas.map(talla => `
-        <button id="btn-talla-${talla}-${uniqueId}" 
-                class="btn-main" 
-                style="background:rgba(76, 175, 80, 0.2); border:1px solid #4caf50; flex: 1 1 calc(50% - 10px); min-width:80px; margin:5px; padding:12px;">
+    // Generamos los botones usando la nueva clase CSS
+    const botonesHTML = tallas.map(talla => `
+        <button id="btn-talla-${talla}-${uniqueId}" class="btn-talla-opcion">
             ${talla}
         </button>
     `).join('');
 
     overlay.innerHTML = `
-        <div class="card glass" style="max-width:350px; width:100%; text-align:center; border:1px solid #4caf50; padding:25px; border-radius:20px; background: #1a1a1a;">
-            <h3 style="color:#ffffff; margin-bottom:10px;">${titulo}</h3>
-            <p style="color:white; opacity:0.8; margin-bottom:20px; font-size:0.9em;">${mensaje}</p>
-            <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:5px; margin-bottom:20px; max-height:60vh; overflow-y:auto; padding-right:5px;">
-                ${botonesTallas}
+        <div class="card glass modal-alert-shake" style="max-width:350px; width:90%; border:1px solid #4caf50;">
+            <h3 style="margin-bottom:8px;">${titulo}</h3>
+            <p style="opacity:0.8; font-size:0.9em; margin-bottom:20px;">${mensaje}</p>
+            
+            <div class="tallas-grid-container">
+                ${botonesHTML}
             </div>
-            <button id="btn-cancelar-talla-${uniqueId}" class="btn-main" style="background:#cc3300; width:100%; margin-top:10px;">Cerrar</button>
+            
+            <button id="btn-cancelar-talla-${uniqueId}" class="btn-talla-cancelar">
+                Cerrar
+            </button>
         </div>
     `;
 
     document.body.appendChild(overlay);
 
-    // 2. Asignación de eventos segura
+    // Asignación de eventos
     tallas.forEach(talla => {
         const btn = document.getElementById(`btn-talla-${talla}-${uniqueId}`);
         if (btn) {
@@ -217,7 +217,6 @@ mostrarModalTallas: function(titulo, mensaje, tallas, onSeleccionar) {
         }
     });
 
-    // 🛡️ Blindaje de cierre: usamos el ID único también para el botón cancelar
     const btnCancel = document.getElementById(`btn-cancelar-talla-${uniqueId}`);
     if (btnCancel) btnCancel.onclick = () => overlay.remove();
 },
@@ -279,36 +278,35 @@ confirmarAccion(titulo, mensaje, onConfirmar, onCancelar = null, textoConfirmar 
     const icono = esPeligroso ? "⚠️" : "❓";
 
     const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; z-index:99999; padding:20px;";
+    overlay.className = 'modal-overlay active'; // Usando el estándar de DOMINUS
 
     overlay.innerHTML = `
-        <div class="card glass" style="max-width:320px; width:100%; text-align:center; border:1px solid ${colorPrimario}; padding:25px; border-radius:20px;">
-            <span style="font-size:3em;">${icono}</span>
-            <h3 style="color:#ffffff; margin:10px 0;">${titulo}</h3>
-            <p style="color:white; opacity:0.9; margin-bottom:20px;">${mensaje}</p>
-            <div style="display:flex; gap:10px;">
-                <button id="${btnAbortarId}" class="btn-main" style="background:#444; flex:1">${textoCancelar}</button>
-                <button id="${btnProcederId}" class="btn-main" style="background:${colorPrimario}; flex:1">${textoConfirmar}</button>
+        <div class="card glass modal-alert-shake" style="max-width:320px; width:90%; border:1px solid ${colorPrimario}; text-align:center;">
+            <div style="font-size:3.5em; margin-bottom:10px; filter: drop-shadow(0 0 10px ${colorPrimario}44);">${icono}</div>
+            <h3 style="color:#ffffff; margin-bottom:10px; letter-spacing:1px;">${titulo}</h3>
+            <p style="color:rgba(255,255,255,0.8); margin-bottom:25px; line-height:1.4;">${mensaje}</p>
+            
+            <div class="modal-confirm-btns">
+                <button id="${btnAbortarId}" class="btn-confirm-cancel">
+                    ${textoCancelar}
+                </button>
+                <button id="${btnProcederId}" class="btn-confirm-proceder" style="background:${colorPrimario};">
+                    ${textoConfirmar}
+                </button>
             </div>
         </div>
     `;
 
     document.body.appendChild(overlay);
 
-    document.getElementById(btnAbortarId).onclick = () => {
-        // Primero removemos el modal actual 🗑️
-        overlay.remove();
-        // Luego ejecutamos la acción secundaria (que puede abrir otro modal)
-        if (onCancelar) onCancelar(); 
+    // Lógica de cierre y ejecución
+    const cerrarYEjecutar = (callback) => {
+        overlay.remove(); // 🗑️ Limpiamos el DOM primero
+        if (callback) callback();
     };
 
-    document.getElementById(btnProcederId).onclick = () => {
-        // Primero removemos el modal actual 🗑️
-        overlay.remove();
-        // Luego ejecutamos la acción principal
-        onConfirmar();
-    };
+    document.getElementById(btnAbortarId).onclick = () => cerrarYEjecutar(onCancelar);
+    document.getElementById(btnProcederId).onclick = () => cerrarYEjecutar(onConfirmar);
 },
 
 
@@ -563,18 +561,18 @@ actualizarDashboard() {
 renderVentas() {
     const datos = Persistencia.cargar('dom_ventas') || [];
     const lista = document.getElementById('lista-ventas-historial');
-    if(!lista) return;
+    if (!lista) return;
 
     if (datos.length === 0) {
-        lista.innerHTML = '<p style="text-align:center; opacity:0.5; padding:20px;">No hay ventas registradas</p>';
+        lista.innerHTML = '<div class="empty-state">No hay ventas registradas</div>';
         return;
     }
 
     const mapaVentas = {};
     const ventasAgrupadas = [];
 
+    // Agrupación por Transacción
     datos.forEach(item => {
-        // Usamos el ID de transacción como ancla principal
         const llave = item.idTransaccion || `legacy-${item.fecha}-${item.hora}`;
         
         if (!mapaVentas[llave]) {
@@ -599,8 +597,7 @@ renderVentas() {
         }
     });
 
-    // Lo más nuevo arriba
-    const historialInvertido = ventasAgrupadas.reverse();
+    const historialInvertido = [...ventasAgrupadas].reverse(); // Copia y reversa
     let htmlFinal = '';
     
     if (historialInvertido.length <= 6) {
@@ -616,28 +613,27 @@ renderVentas() {
             gruposHora[horaBloque].push(v);
         });
 
-        // Ordenamos las llaves de hora para que el historial sea coherente
+        // Construcción de bloques horarios
         const htmlAntiguas = Object.keys(gruposHora).sort().reverse().map(hora => `
-            <div class="bloque-hora-container" style="border-left: 2px solid var(--primary-color); margin: 10px 0; padding-left: 10px;">
-                <div class="bloque-hora-titulo" style="font-size: 0.7em; font-weight: bold; opacity: 0.7;">🕒 BLOQUE ${hora}</div>
+            <div class="bloque-hora-container">
+                <div class="bloque-hora-titulo">🕒 BLOQUE ${hora}</div>
                 ${gruposHora[hora].map(v => this.generarFilaVenta(v)).join('')}
             </div>
         `).join('');
 
         htmlFinal = `
             ${recientes.map(v => this.generarFilaVenta(v)).join('')}
-            <details class="glass detalles-historial" style="border-radius:10px; overflow:hidden; margin-top:10px;">
-                <summary class="summary-historial" style="padding:10px; cursor:pointer; text-align:center; font-weight:bold; background: rgba(255,255,255,0.05);">
+            <details class="glass detalles-historial">
+                <summary class="summary-historial">
                     ➕ Ver ${antiguas.length} ventas anteriores
                 </summary>
-                <div class="detalles-content" style="padding: 10px; max-height: 400px; overflow-y: auto;">
+                <div class="detalles-content scroll-y-custom" style="max-height: 400px;">
                     ${htmlAntiguas}
                 </div>
             </details>
         `;
     }
 
-    // Inyección única: Aquí es donde ocurre la magia del "Cero Refresh"
     lista.innerHTML = htmlFinal;
 },
 
@@ -647,98 +643,90 @@ generarFilaVenta(v) {
 
     // Mapeamos los productos del ticket
     const htmlDetalleProductos = v.items.map(p => {
-        const cant = p.cantidadVenta > 1 ? `<span style="color:var(--primary)">${p.cantidadVenta}x</span>` : "";
-        
-        // 🎨 Estilo: Tachado si ya se devolvió
-        const estiloTachado = p.devuelta 
-            ? 'text-decoration: line-through; opacity: 0.4; font-style: italic;' 
-            : '';
+        const cant = p.cantidadVenta > 1 ? `<span style="color:var(--primary); font-weight:bold;">${p.cantidadVenta}x</span>` : "";
+        const claseEstado = p.devuelta ? 'producto-tachado' : '';
 
-        // 🛡️ EL BOTÓN: Usamos los IDs que ya aseguramos en registrarVenta
-        // v.id es el ID del grupo (Ticket), p.id es el ID del producto individual
-        const btnAccion = p.devuelta ? 
-            `<span style="font-size: 0.75em; opacity: 0.6;">(Devuelto)</span>` : 
+        const accionHtml = p.devuelta ? 
+            `<span style="font-size: 0.75em; color: #ff4757;">(Anulado)</span>` : 
             `<button class="btn-borrar-item" 
                      onclick="Ventas.anularProductoIndividual('${p.id}', '${v.id}')"
-                     title="Devolver este producto"
-                     style="background:none; border:none; color:#ff4757; cursor:pointer; font-size:14px; padding:0 5px; line-height:1;">
-                ✕
-             </button>`;
+                     title="Devolver este producto">✕</button>`;
 
         return `
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); ${estiloTachado}">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    ${btnAccion}
+            <div class="fila-producto-detalle ${claseEstado}">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    ${accionHtml}
                     <span>${cant} ${p.producto}</span>
                 </div>
-                <span style="opacity: 0.8;">${Number(p.montoBs).toLocaleString('es-VE')} Bs</span>
+                <span style="font-weight: 500;">${Number(p.montoBs).toLocaleString('es-VE')} Bs</span>
             </div>
         `;
     }).join('');
 
     return `
-        <div class="item-venta glass" style="border-left: 4px solid var(--primary); margin-bottom: 12px; padding: 0; overflow: hidden;">
-            <div style="padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="item-venta glass">
+            <div style="padding: 15px; display: flex; justify-content: space-between; align-items: center;">
                 <div class="venta-info">
-                    <strong style="font-size: 1.1em; color: var(--primary);">👤 ${v.cliente}</strong>
-                    <div style="font-size: 0.75em; opacity: 0.6;">🕒 ${v.hora} • ${v.metodo}</div>
+                    <div style="font-size: 1.1em; font-weight: 800; color: #fff;">👤 ${v.cliente.toUpperCase()}</div>
+                    <div style="font-size: 0.75em; opacity: 0.5; margin-top: 2px;">
+                        <span style="color:var(--primary)">●</span> ${v.hora} • ${v.metodo}
+                    </div>
                 </div>
                 
                 <div class="venta-montos" style="text-align: right;">
-                    <div style="font-weight: bold; font-size: 1.05em;">${totalBs} Bs</div>
-                    <div style="color: #2ecc71; font-size: 0.85em; font-weight: 500;">$ ${totalUSD}</div>
+                    <div style="font-weight: 900; font-size: 1.1em; color: #fff;">${totalBs} Bs</div>
+                    <div style="color: #2ecc71; font-size: 0.9em; font-weight: 700;">$ ${totalUSD}</div>
                 </div>
             </div>
 
-            <details class="detalles-historial-cliente" style="background: rgba(0,0,0,0.15); border-top: 1px solid rgba(255,255,255,0.05);">
-                <summary style="padding: 8px; font-size: 0.75em; text-align: center; cursor: pointer; color: var(--primary); list-style: none; opacity: 0.8;">
-                    ▼ Ver ${v.items.length} productos
+            <details class="detalles-historial-cliente" style="background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.05);">
+                <summary style="padding: 10px; font-size: 0.75em; text-align: center; cursor: pointer; color: var(--primary); list-style: none;">
+                    Ver detalle de compra (${v.items.length})
                 </summary>
-                <div style="padding: 5px 12px 12px 12px;">
+                <div style="padding: 5px 15px 15px 15px;">
                     ${htmlDetalleProductos}
-                    <div style="margin-top: 10px; text-align: right;">
-                        <span style="font-size: 0.65em; opacity: 0.3; letter-spacing: 0.5px;">TICKET: ${v.id.toString().substring(0,15)}</span>
+                    <div style="margin-top: 12px; text-align: right;">
+                        <span class="ticket-id-tag">ID: ${v.id.toString().substring(0,12)}</span>
                     </div>
                 </div>
             </details>
         </div>`;
 },
 
- alternarModoPunto() {
+alternarModoPunto() {
     const btnPunto = document.getElementById('btn-modo-punto');
     const wrapper = document.getElementById('wrapper-comision');
     const inputComision = document.getElementById('v-comision');
     const btnVender = document.querySelector('.btn-main'); 
     
-    if (!btnPunto || !wrapper) return; // 🛡️ Blindaje: Evita errores si los IDs no existen
+    if (!btnPunto || !wrapper) return;
 
+    // La clase 'activo-punto' ahora controla visualmente todo el botón
     const activo = btnPunto.classList.toggle('activo-punto');
     
     if (activo) {
         // --- ACTIVAR MODO SERVICIO ---
         wrapper.classList.remove('hidden');
-        btnPunto.style.background = "var(--primary)";
-        btnPunto.style.color = "black";
         btnPunto.innerText = "🏦 MODO SERVICIO ACTIVO";
         
         if (btnVender) btnVender.innerText = "Registrar Servicio de Punto";
         
-        // 🛡️ UX: Ponemos el cursor en la comisión automáticamente
+        // Foco automático para velocidad de operación
         if (inputComision) {
-            inputComision.focus();
-            inputComision.select(); // Selecciona el texto para escribir encima rápido
+            setTimeout(() => {
+                inputComision.focus();
+                inputComision.select();
+            }, 50); // Pequeño delay para asegurar que el wrapper sea visible
         }
 
     } else {
         // --- VOLVER A MODO VENTA NORMAL ---
         wrapper.classList.add('hidden');
-        btnPunto.style.background = "transparent";
-        btnPunto.style.color = "var(--primary)";
         btnPunto.innerText = "🏦 ¿Es Servicio de Punto?";
         
         if (btnVender) btnVender.innerText = "Registrar Venta";
         
-        // 🛡️ Limpieza profunda para que no afecte a la siguiente venta
+        // Reset de seguridad
         if (inputComision) inputComision.value = 0;
     }
 },
@@ -749,11 +737,11 @@ renderGastos() {
     if (!lista) return;
 
     if (datos.length === 0) {
-        lista.innerHTML = '<p style="text-align:center; opacity:0.5; padding:20px;">No hay gastos registrados</p>';
+        lista.innerHTML = '<div class="empty-state">No hay gastos registrados</div>';
         return;
     }
 
-    const gastosInvertidos = datos.slice().reverse();
+    const gastosInvertidos = [...datos].reverse();
     let htmlFinal = '';
 
     if (gastosInvertidos.length <= 6) {
@@ -762,8 +750,8 @@ renderGastos() {
         const recientes = gastosInvertidos.slice(0, 3);
         const antiguas = gastosInvertidos.slice(3);
         
-        // 🧮 Calculamos el total de lo que se va a ocultar
-        const totalAntiguosBs = antiguas.reduce((sum, g) => sum + g.montoBs, 0);
+        // 🧮 Cálculo de acumulado oculto para transparencia total
+        const totalAntiguosBs = antiguas.reduce((sum, g) => sum + (Number(g.montoBs) || 0), 0);
 
         const grupos = {};
         antiguas.forEach(g => {
@@ -772,9 +760,9 @@ renderGastos() {
             grupos[horaBloque].push(g);
         });
 
-        const htmlAntiguos = Object.keys(grupos).map(hora => `
-            <div style="border-left: 2px solid #ff5252; margin: 12px 0; padding-left: 12px;">
-                <div style="font-size: 10px; font-weight: bold; color: #ff5252; margin-bottom: 5px; text-transform: uppercase;">🕒 Bloque ${hora}</div>
+        const htmlAntiguos = Object.keys(grupos).sort().reverse().map(hora => `
+            <div class="bloque-gasto-container">
+                <div class="bloque-gasto-titulo">🕒 BLOQUE ${hora}</div>
                 ${grupos[hora].map(g => this.generarFilaGasto(g)).join('')}
             </div>
         `).join('');
@@ -782,12 +770,12 @@ renderGastos() {
         htmlFinal = `
             ${recientes.map(g => this.generarFilaGasto(g)).join('')}
             
-            <details class="glass" style="margin-top: 15px; border: 1px solid rgba(255, 82, 82, 0.3); border-radius: 10px;">
-                <summary style="padding: 12px; cursor: pointer; text-align: center; color: #ff5252; list-style: none;">
-                    <div style="font-weight: bold;">➕ Ver anteriores (${antiguas.length})</div>
-                    <div style="font-size: 0.75em; opacity: 0.8;">Acumulado: ${totalAntiguosBs.toLocaleString('es-VE')} Bs</div>
+            <details class="glass detalles-gastos">
+                <summary class="summary-gastos">
+                    <div style="font-weight: 800; color: #ff5252;">➕ Ver anteriores (${antiguas.length})</div>
+                    <div class="acumulado-text">Oculto: ${totalAntiguosBs.toLocaleString('es-VE')} Bs</div>
                 </summary>
-                <div style="max-height: 350px; overflow-y: auto; padding: 10px; background: rgba(0,0,0,0.15);">
+                <div class="scroll-y-custom" style="max-height: 350px; padding: 10px;">
                     ${htmlAntiguos}
                 </div>
             </details>
@@ -797,35 +785,35 @@ renderGastos() {
 },
 
 generarFilaGasto(g) {
-    // 💡 Calculamos la referencia para que el usuario siempre vea ambas monedas
-    const montoRef = g.monedaOriginal === 'BS' 
-        ? `$ ${Number(g.montoUSD).toFixed(2)}` 
-        : `${Number(g.montoBs).toLocaleString('es-VE')} Bs`;
+    const montoBs = Number(g.montoBs).toLocaleString('es-VE');
+    // Si manejas montos en USD para gastos también:
+    const montoUSD = g.montoUSD ? Number(g.montoUSD).toFixed(2) : null;
 
     return `
-        <div class="item-lista glass" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #ff5252; padding: 10px;">
-            <div style="display: flex; align-items: center; gap: 10px; flex-grow: 1;">
-                <button onclick="Ventas.eliminarGasto('${g.id}')" style="background:none; border:none; color:#ff5252; cursor:pointer; font-size:16px; padding:0 5px;">✕</button>
+        <div class="item-gasto glass">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <button class="btn-borrar-item" 
+                        onclick="Gastos.anularGasto('${g.id}')"
+                        style="background: rgba(255, 82, 82, 0.1); color: #ff5252;"
+                        title="Eliminar gasto">
+                    ✕
+                </button>
                 
-                <div style="line-height: 1.2;">
-                    <strong style="font-size: 0.95em; color: #fff;">${g.descripcion}</strong><br>
-                    <small style="opacity:0.6; font-size: 0.75em;">${g.fecha} • ${g.hora || ''}</small>
+                <div class="gasto-info">
+                    <div class="gasto-descripcion">${g.descripcion || 'Gasto General'}</div>
+                    <div class="gasto-meta">🕒 ${g.hora || '--:--'} • ${g.metodo || 'Caja'}</div>
                 </div>
             </div>
-            
-            <div style="text-align: right; margin-left: 10px;">
-                <div style="color:#ff5252; font-weight:bold; font-size: 0.95em;">
-                    -${Number(g.montoOriginal).toLocaleString('es-VE')} ${g.monedaOriginal}
-                </div>
-                <div style="font-size: 0.7em; opacity: 0.5;">
-                    Ref: ${montoRef}
-                </div>
+
+            <div class="gasto-monto">
+                <div>- ${montoBs} Bs</div>
+                ${montoUSD ? `<div style="font-size: 0.8em; opacity: 0.6;">$ ${montoUSD}</div>` : ''}
             </div>
-        </div>`;
+        </div>
+    `;
 },
 
 renderFiaos() {
-    // 1. Cargamos datos frescos de la persistencia
     const datos = Persistencia.cargar('dom_fiaos') || [];
     const lista = document.getElementById('lista-fiaos');
     if(!lista) return;
@@ -835,38 +823,28 @@ renderFiaos() {
         return;
     }
 
-    // 2. Lógica para agrupar por cliente (Sensible a variaciones de escritura)
-    const agrupado = {};
+    // Lógica de agrupación optimizada
+    const agrupado = datos.reduce((acc, f) => {
+        const nombre = (f.cliente || "Cliente Desconocido").trim();
+        const llave = nombre.toLowerCase();
 
-    datos.forEach(f => {
-        // Creamos una "Llave de Identidad" única: todo a minúsculas y sin espacios extras
-        // Esto hace que "Pedro " y "pedro" caigan en la misma bolsa
-        const nombreCrudo = f.cliente || "Cliente Desconocido";
-        const llaveUnica = nombreCrudo.trim().toLowerCase();
-
-        if (!agrupado[llaveUnica]) {
-            agrupado[llaveUnica] = {
-                cliente: nombreCrudo, // Guardamos el primer nombre que aparezca para el diseño
+        if (!acc[llave]) {
+            acc[llave] = {
+                cliente: nombre,
                 totalUSD: 0,
                 deudas: [] 
             };
         }
         
-        // Sumamos en dólares asegurando que sea un número (con blindaje de 2 decimales)
-        agrupado[llaveUnica].totalUSD += parseFloat(f.montoUSD || 0);
-        
-        // Guardamos la deuda completa para los detalles
-        agrupado[llaveUnica].deudas.push(f);
-    });
+        acc[llave].totalUSD += parseFloat(f.montoUSD || 0);
+        acc[llave].deudas.push(f);
+        return acc;
+    }, {});
 
-    // 3. Renderizar grupos
-    // Convertimos el objeto de grupos a un Array para poder mapearlo
     const listaAgrupada = Object.values(agrupado);
-    
     lista.className = 'lista-fiaos-container';
     
-    // Inyectamos el HTML usando el componente visual de filas
-    // Nota: 'this' debe ser el objeto Interfaz
+    // Renderizado mediante componente dedicado
     lista.innerHTML = listaAgrupada
         .map(c => this.generarFilaFiaoAgrupada(c))
         .join('');
@@ -880,86 +858,79 @@ generarFilaFiaoAgrupada(c) {
     const montoBsDisplay = Number(totalBs).toLocaleString('es-VE');
     const montoUSDDisplay = Number(c.totalUSD).toFixed(2);
 
-    // --- 1. LÓGICA DE DÍAS DE MORA ---
+    // --- LÓGICA DE MORA ---
     const fechaRaiz = new Date(c.deudas[0].fecha); 
     const hoy = new Date();
-    const diferenciaTiempo = hoy - fechaRaiz;
-    const diasMora = Math.floor(diferenciaTiempo / (1000 * 60 * 60 * 24));
+    const diasMora = Math.floor((hoy - fechaRaiz) / (1000 * 60 * 60 * 24));
 
-    // --- 2. LÓGICA DE SEMÁFORO ---
+    // --- SEMÁFORO ---
     const limiteRojo = parseInt(Persistencia.cargar('cfg_limite_dias')) || 5;
-    let colorClase = "fiao-verde";
-    if (diasMora >= limiteRojo) colorClase = "fiao-rojo";
-    else if (diasMora >= 3) colorClase = "fiao-amarillo";
+    let colorClase = diasMora >= limiteRojo ? "fiao-rojo" : (diasMora >= 3 ? "fiao-amarillo" : "fiao-verde");
 
-    // --- 3. LÓGICA DE SALUDO TEMPORAL ---
-    const hora = hoy.getHours();
-    let saludo = "Hola";
-    if (hora >= 6 && hora < 12) saludo = "Buenos días";
-    else if (hora >= 12 && hora < 19) saludo = "Buenas tardes";
-    else saludo = "Buenas noches";
-
-    // --- 4. CONSTRUCCIÓN DEL MENSAJE DINÁMICO ---
-    const nombreNegocio = Persistencia.cargar('cfg_nombre_negocio') || "DOMINUS BUSINESS";
+    // --- MENSAJE WHATSAPP ---
+    const horaActual = hoy.getHours();
+    const saludo = horaActual < 12 ? "Buenos días" : (horaActual < 19 ? "Buenas tardes" : "Buenas noches");
+    const nombreNegocio = Persistencia.cargar('cfg_nombre_negocio') || "DOMINUS";
     
-    // Obtenemos la plantilla personalizada según la franja horaria actual
-    let plantilla = Usuario.obtenerMensajeSegunHora();
-
-    // Formateo del detalle de productos para el mensaje de WhatsApp
+    let plantilla = Usuario.obtenerMensajeSegunHora() || "[saludo] [cliente], te escribo de [negocio]. Tu saldo pendiente es $[montoUSD].";
     const detalleTexto = c.deudas.map(d => `• ${d.producto} ($${Number(d.montoUSD).toFixed(2)})`).join('\n');
 
-    // Reemplazo de etiquetas
-    let mensajeFinal = plantilla
-        .split("[saludo]").join(saludo)
-        .split("[cliente]").join(c.cliente)
-        .split("[negocio]").join(nombreNegocio)
-        .split("[montoUSD]").join(montoUSDDisplay)
-        .split("[montoBs]").join(montoBsDisplay)
-        .split("[monto_detalle]").join(detalleTexto)
-        .split("[dias_mora]").join(diasMora);
+    // Mapeo de reemplazos para limpieza visual
+    const reemplazos = {
+        "[saludo]": saludo,
+        "[cliente]": c.cliente,
+        "[negocio]": nombreNegocio,
+        "[montoUSD]": montoUSDDisplay,
+        "[montoBs]": montoBsDisplay,
+        "[monto_detalle]": detalleTexto,
+        "[dias_mora]": diasMora
+    };
+
+    let mensajeFinal = plantilla;
+    Object.keys(reemplazos).forEach(key => {
+        mensajeFinal = mensajeFinal.split(key).join(reemplazos[key]);
+    });
 
     const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(mensajeFinal)}`;
 
-    // --- 5. RENDERIZADO DEL HTML ---
     return `
         <div class="card-fiao glass ${colorClase}">
             <div class="fiao-header">
                 <div class="fiao-info">
-                    <strong>👤 ${c.cliente}</strong>
-                    <div class="mora-tag">${diasMora > 0 ? `Hace ${diasMora} días` : 'Hoy'}</div>
+                    <strong style="font-size: 1.1em; color: #fff;">👤 ${c.cliente.toUpperCase()}</strong>
+                    <br>
+                    <span class="mora-tag">${diasMora > 0 ? `Hace ${diasMora} días` : 'Hoy'}</span>
                 </div>
-                <div class="fiao-actions">
-                    <div class="monto-block">
-                        <span class="monto-usd">$${montoUSDDisplay}</span>
-                        <span class="monto-bs">${montoBsDisplay} Bs</span>
-                    </div>
+                <div style="text-align: right;">
+                    <div style="font-weight: 900; font-size: 1.2em; color: #ffa500;">$${montoUSDDisplay}</div>
+                    <div style="font-size: 0.8em; opacity: 0.6;">${montoBsDisplay} Bs</div>
                     <div class="action-buttons">
-                        <a href="${urlWhatsapp}" target="_blank" class="btn-whatsapp btn-redondo-wa" title="Enviar cobro detallado">📲</a>
-                        <button class="btn-abonar" onclick="Ventas.abrirProcesoAbono('${c.cliente}')">Abonar</button>
+                        <a href="${urlWhatsapp}" target="_blank" class="btn-whatsapp">📲</a>
+                        <button class="btn-abonar" onclick="Ventas.abrirProcesoAbono('${c.cliente}')">ABONAR</button>
                     </div>
                 </div>
             </div>
             
-            <details class="fiao-details">
-                <summary>Ver desglose (${c.deudas.length} pendientes)</summary>
-                <div class="details-content">
+            <details class="fiao-details" style="background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.05);">
+                <summary style="padding: 10px; font-size: 0.75em; text-align: center; cursor: pointer; color: var(--primary);">
+                    Desglose de deuda (${c.deudas.length} items)
+                </summary>
+                <div style="padding: 10px 15px 15px;">
                     ${c.deudas.map(d => `
-                        <div class="detail-item">
-                            <div class="detail-text">
-                                <span class="detail-product">${d.producto}</span>
-                                <small class="detail-date">🕒 ${d.fecha}</small>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <div>
+                                <div style="font-size: 0.9em; font-weight: 600;">${d.producto}</div>
+                                <small style="opacity: 0.5;">🕒 ${d.fecha}</small>
                             </div>
-                            <div class="detail-price-actions">
-                                <span class="detail-price">$${Number(d.montoUSD).toFixed(2)}</span>
-                                <div class="detail-btns">
-                                    <button class="btn-edit-small" onclick="Ventas.editarDeudaEspecifica('${d.id}')">✏️</button>
-                                    <button class="btn-delete-small" onclick="Ventas.eliminarRegistroEspecifico('${d.id}')">🗑️</button>
-                                </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-weight: bold;">$${Number(d.montoUSD).toFixed(2)}</span>
+                                <button class="btn-borrar-item" onclick="Ventas.eliminarRegistroEspecifico('${d.id}')" style="font-size: 10px;">✕</button>
                             </div>
                         </div>
                     `).join('')}
-                    <button class="btn-eliminar-todo" onclick="Controlador.eliminarDeuda('${c.cliente}')">
-                        ⚠️ Liquidar cuenta total
+                    <button class="btn-main" onclick="Controlador.eliminarDeuda('${c.cliente}')" 
+                            style="background: #e74c3c; width: 100%; margin-top: 15px; font-size: 0.8em;">
+                        ⚠️ LIQUIDAR CUENTA TOTAL
                     </button>
                 </div>
             </details>
@@ -967,35 +938,37 @@ generarFilaFiaoAgrupada(c) {
 },
 
 filtrarFiaos() {
-    const busqueda = document.getElementById('search-deudores').value.toLowerCase().trim();
+    const busqueda = document.getElementById('search-deudores')?.value.toLowerCase().trim() || "";
     const tarjetas = document.querySelectorAll('.card-fiao');
     let resultadosEncontrados = 0;
 
     tarjetas.forEach(tarjeta => {
-        // Buscamos el nombre del cliente dentro de la etiqueta strong de la tarjeta
-        const nombreCliente = tarjeta.querySelector('strong').innerText.toLowerCase();
+        // Buscamos el nombre del cliente (está en el strong que pusimos en mayúsculas)
+        const nombreCliente = tarjeta.querySelector('strong')?.innerText.toLowerCase() || "";
         
         if (nombreCliente.includes(busqueda)) {
-            tarjeta.style.display = "block";
-            tarjeta.style.animation = "fadeIn 0.3s ease"; // Un pequeño efecto visual
+            tarjeta.classList.remove('card-fiao-hidden');
+            tarjeta.classList.add('card-fiao-visible');
             resultadosEncontrados++;
         } else {
-            tarjeta.style.display = "none";
+            tarjeta.classList.remove('card-fiao-visible');
+            tarjeta.classList.add('card-fiao-hidden');
         }
     });
 
-    // Opcional: Mostrar un mensaje si no hay resultados
+    // Gestión del mensaje de "No hay resultados"
     const listaContenedor = document.getElementById('lista-fiaos');
     let msgNoResult = document.getElementById('no-results-search');
 
     if (resultadosEncontrados === 0 && busqueda !== "") {
         if (!msgNoResult) {
-            msgNoResult = document.createElement('p');
+            msgNoResult = document.createElement('div');
             msgNoResult.id = 'no-results-search';
-            msgNoResult.innerHTML = "❌ No se encontró ningún deudor con ese nombre.";
-            msgNoResult.style.textAlign = "center";
-            msgNoResult.style.color = "#888";
-            msgNoResult.style.marginTop = "20px";
+            msgNoResult.className = 'search-empty-state';
+            msgNoResult.innerHTML = `
+                <div style="font-size: 2em; margin-bottom: 10px;">🔍</div>
+                No se encontró a "<strong>${busqueda}</strong>" en la lista de deudores.
+            `;
             listaContenedor.appendChild(msgNoResult);
         }
     } else {
@@ -1009,84 +982,63 @@ renderInventario() {
     if (!lista) return;
 
     const generarHTMLItem = (p) => {
-        const unidad = p.unidad || 'Und';
-        // 🛡️ Aseguramos precisión decimal para balanza
         const stockActual = parseFloat(p.cantidad) || 0;
-        const stockVisual = (p.unidad === 'Kg' || p.unidad === 'Lts') ? stockActual.toFixed(3) : Math.round(stockActual);
+        const minConfig = parseFloat(p.stockMinimo) || (['Kg', 'Lts'].includes(p.unidad) ? 1.5 : 3);
         
-        const minConfigurado = parseFloat(p.stockMinimo) || (p.unidad === 'Kg' || p.unidad === 'Lts' ? 1.5 : 3);
-        
+        // Determinación de estado
         const estaVacio = stockActual <= 0;
-        const esBajo = stockActual <= minConfigurado;
+        const esBajo = stockActual <= minConfig;
         
-        // Estilos dinámicos
-        let colorStock = 'var(--primary)';
-        let bordeStyle = 'border: 1px solid rgba(255,255,255,0.1);';
-        let fondoAlerta = 'rgba(255,255,255,0.05)';
-        let etiquetaAlerta = '';
+        const claseEstado = estaVacio ? 'inv-vacio' : (esBajo ? 'inv-bajo' : 'inv-normal');
+        const colorStock = estaVacio ? '#ff4444' : (esBajo ? '#ff9800' : 'var(--primary)');
+        
+        const etiquetaAlerta = estaVacio 
+            ? `<span class="badge-alerta" style="background:#ff4444;">SIN STOCK</span>` 
+            : (esBajo ? `<span class="badge-alerta" style="background:#ff9800;">REABASTECER</span>` : '');
 
-        if (estaVacio) {
-            colorStock = '#ff4444';
-            bordeStyle = 'border: 1px solid #ff4444;';
-            fondoAlerta = 'rgba(255, 68, 68, 0.1)';
-            etiquetaAlerta = `<span style="background:#ff4444; color:white; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold; margin-left:8px;">SIN STOCK</span>`;
-        } else if (esBajo) {
-            colorStock = '#ff9800';
-            bordeStyle = 'border: 1px solid #ff9800;';
-            fondoAlerta = 'rgba(255, 152, 0, 0.1)';
-            etiquetaAlerta = `<span style="background:#ff9800; color:white; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:bold; margin-left:8px;">REABASTECER</span>`;
-        }
+        const stockVisual = ['Kg', 'Lts'].includes(p.unidad) ? stockActual.toFixed(3) : Math.round(stockActual);
 
-        let htmlCodigo = p.codigo ? 
-            `<div style="font-family: monospace; font-size: 11px; color: rgba(255,255,255,0.5); background: rgba(255,215,0,0.1); padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px;">🆔 ${p.codigo}</div>` : '';
-
+        // Renderizado de tallas (solo las que tienen existencia)
         let htmlTallas = "";
-        if (p.tallas && Object.keys(p.tallas).length > 0) {
-            // 🛡️ Filtramos tallas con stock y las ordenamos alfabéticamente
+        if (p.tallas) {
             const tallasActivas = Object.entries(p.tallas)
-                                    .filter(([t, c]) => parseFloat(c) > 0)
-                                    .sort((a, b) => a[0].localeCompare(b[0]));
+                .filter(([_, cant]) => parseFloat(cant) > 0)
+                .sort((a, b) => a[0].localeCompare(b[0], undefined, {numeric: true}));
 
             if (tallasActivas.length > 0) {
-                htmlTallas = `
-                    <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
-                        ${tallasActivas.map(([t, c]) => `
-                            <span style="font-size: 10px; background: rgba(255,255,255,0.08); color: #ddd; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1); font-family: monospace;">
-                                ${t}:<b>${c}</b>
-                            </span>
-                        `).join('')}
-                    </div>`;
+                htmlTallas = `<div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
+                    ${tallasActivas.map(([t, c]) => `<span class="talla-tag">${t}:<b>${c}</b></span>`).join('')}
+                </div>`;
             }
         }
 
         return `
-            <div class="item-lista glass" style="margin-bottom:12px; display: flex; flex-direction: column; padding: 14px; border-radius: 15px; ${bordeStyle} background: ${fondoAlerta}; gap: 10px;">
+            <div class="item-lista-inv glass ${claseEstado}">
                 <div style="width: 100%;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <strong style="color: white; text-transform: uppercase; font-size: 0.95em; letter-spacing: 0.5px; flex: 1;">${p.nombre}</strong>
+                        <strong style="color: white; text-transform: uppercase; font-size: 0.9em; flex: 1;">${p.nombre}</strong>
                         ${etiquetaAlerta}
                     </div>
-                    ${htmlCodigo}
+                    ${p.codigo ? `<div class="id-badge-micro">🆔 ${p.codigo}</div>` : ''}
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
                     <div style="flex: 1;">
-                        <small style="color: ${colorStock}; font-weight: bold; font-size: 0.85em; display: block;">
-                            Disponible: ${stockVisual} ${unidad}
+                        <small style="color: ${colorStock}; font-weight: 800; font-size: 0.85em;">
+                            ${stockVisual} ${p.unidad || 'Und'}
                         </small>
                         ${htmlTallas}
                     </div>
                     
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <div style="position: relative;">
-                            <span style="position: absolute; left: 6px; top: 50%; transform: translateY(-50%); color: #4caf50; font-size: 0.75em; font-weight: bold;">$</span>
+                            <span style="position: absolute; left: 6px; top: 50%; transform: translateY(-50%); color: #4caf50; font-size: 0.7em; font-weight: bold;">$</span>
                             <input type="number" value="${p.precio}" step="0.01" 
-                                onchange="Controlador.editarPrecioRapido('${p.nombre}', this.value)" 
-                                style="width: 65px; background: rgba(0,0,0,0.4); color: #4caf50; border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 8px; text-align: right; font-weight: bold; padding: 6px 6px 6px 14px; outline: none; font-size: 0.9em;">
+                                   onchange="Controlador.editarPrecioRapido('${p.nombre}', this.value)" 
+                                   class="input-precio-rapido">
                         </div>
-
-                        <button class="btn-mini" onclick="Interfaz.modalRecargaRapida('${p.nombre}')" style="background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid #4caf50; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">➕</button>
-                        <button class="btn-mini" onclick="Controlador.prepararEdicionInventario('${p.nombre}')" style="background: rgba(33, 150, 243, 0.2); color: #2196f3; border: 1px solid #2196f3; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px;">✏️</button>
+                        <button class="btn-mini-action" onclick="Interfaz.modalRecargaRapida('${p.nombre}')" title="Recargar Stock">➕</button>
+                        <button class="btn-mini-action" onclick="Controlador.prepararEdicionInventario('${p.nombre}')" style="color:#2196f3; border-color:#2196f3;" title="Editar">✏️</button>
                     </div>
                 </div>
             </div>`;
@@ -1094,35 +1046,33 @@ renderInventario() {
 
     const dibujarItems = (prods) => {
         if (prods.length === 0) {
-            lista.innerHTML = `<p style="color: #666; text-align: center; padding: 30px; font-style: italic;">Sin coincidencias.</p>`;
+            lista.innerHTML = `<div class="empty-state-simple">Sin coincidencias en inventario.</div>`;
             return;
         }
 
-        // 🛡️ Ordenamiento inteligente: Sin Stock > Reabastecer > Normal
+        // Ordenamiento por prioridad de urgencia
         const prodsOrdenados = [...prods].sort((a, b) => {
-            const minA = parseFloat(a.stockMinimo) || (a.unidad === 'Kg' ? 1.5 : 3);
-            const minB = parseFloat(b.stockMinimo) || (b.unidad === 'Kg' ? 1.5 : 3);
-            
-            const nivelA = a.cantidad <= 0 ? 2 : (a.cantidad <= minA ? 1 : 0);
-            const nivelB = b.cantidad <= 0 ? 2 : (b.cantidad <= minB ? 1 : 0);
-            
-            return nivelB - nivelA;
+            const getPrioridad = (x) => {
+                const min = parseFloat(x.stockMinimo) || (['Kg', 'Lts'].includes(x.unidad) ? 1.5 : 3);
+                if (x.cantidad <= 0) return 2;
+                if (x.cantidad <= min) return 1;
+                return 0;
+            };
+            return getPrioridad(b) - getPrioridad(a);
         });
 
         lista.innerHTML = prodsOrdenados.map(p => generarHTMLItem(p)).join('');
     };
 
-    // 🚀 EJECUCIÓN INICIAL
     dibujarItems(Inventario.productos);
 
-    // 🛡️ GESTIÓN DE BUSCADOR (Sin duplicar eventos)
+    // Buscador en tiempo real
     const buscador = document.getElementById('busqueda-real-inv');
     if(buscador) {
         buscador.oninput = (e) => {
-            const t = e.target.value.toLowerCase().trim();
+            const query = e.target.value.toLowerCase().trim();
             const filtrados = Inventario.productos.filter(prod => 
-                prod.nombre.toLowerCase().includes(t) || 
-                (prod.codigo && String(prod.codigo).includes(t))
+                prod.nombre.toLowerCase().includes(query) || (prod.codigo && String(prod.codigo).includes(query))
             );
             dibujarItems(filtrados);
         };
@@ -1131,9 +1081,10 @@ renderInventario() {
 
 filtrarTallasPorBloque(rango) {
     const filas = document.querySelectorAll('.fila-talla');
-    // 🛡️ Blindaje: Si no existe el objeto de rangos, mostramos todo para no bloquear al usuario
+    
+    // 🛡️ Blindaje de Arquitectura
     if (typeof rangosTallas === 'undefined') {
-        filas.forEach(f => f.style.display = 'flex');
+        filas.forEach(f => f.classList.add('talla-visible'));
         return;
     }
 
@@ -1143,17 +1094,38 @@ filtrarTallasPorBloque(rango) {
         const nroTallaAttr = fila.getAttribute('data-talla');
         const nroTalla = parseInt(nroTallaAttr);
         
-        // Si no es un número (ej: "XL", "Manual"), lo dejamos visible siempre
+        // --- LÓGICA DE VISIBILIDAD ---
+        
+        // 1. Las tallas no numéricas (S, M, L, XL, "Única") siempre se muestran
         if (isNaN(nroTalla)) {
-            fila.style.display = 'flex';
+            fila.classList.remove('talla-oculta');
+            fila.classList.add('talla-visible');
             return;
         }
 
-        // Filtro inteligente
-        if (rango === 'todos' || permitidas.includes(nroTalla)) {
-            fila.style.display = 'flex';
+        // 2. Filtro por rango o mostrar 'todos'
+        const esPermitida = rango === 'todos' || permitidas.includes(nroTalla);
+
+        if (esPermitida) {
+            fila.classList.remove('talla-oculta');
+            fila.classList.add('talla-visible');
         } else {
-            fila.style.display = 'none';
+            fila.classList.remove('talla-visible');
+            fila.classList.add('talla-oculta');
+        }
+    });
+
+    // 🛡️ Feedback visual en los botones de filtro si existen
+    this.actualizarEstadoBotonesFiltro(rango);
+},
+
+actualizarEstadoBotonesFiltro(rangoActivo) {
+    const botones = document.querySelectorAll('.btn-filtro-talla');
+    botones.forEach(btn => {
+        if (btn.getAttribute('data-rango') === rangoActivo) {
+            btn.classList.add('btn-rango-activo');
+        } else {
+            btn.classList.remove('btn-rango-activo');
         }
     });
 },
@@ -1165,67 +1137,88 @@ actualizarSelectorTallas(nombreProducto) {
     
     if (!contenedor || !select) return;
 
-    // 1. Reset de estado inicial
+    // 1. Reset preventivo: Limpieza total antes de evaluar
     contenedor.classList.add('hidden');
     select.innerHTML = '';
 
     if (!nombreProducto || nombreProducto.trim() === "") return;
 
+    // Buscamos el producto en el Inventario global
     const p = Inventario.productos.find(prod => 
         prod.nombre.toLowerCase() === nombreProducto.trim().toLowerCase()
     );
 
     if (p) {
-        // AUTO-LLENADO DE PRECIO
+        // --- AUTO-LLENADO DE PRECIO ---
+        // Prioridad: El precio que ya viene configurado en el inventario
         if (inputMonto && p.precio) {
             inputMonto.value = parseFloat(p.precio) || 0;
         }
 
-        // LÓGICA DE VARIANTES
+        // --- LÓGICA DE VARIANTES ---
         if (p.tallas && Object.keys(p.tallas).length > 0) {
-            let opcionesHTML = '<option value="">Elegir Talla/Peso...</option>';
+            let opcionesHTML = '<option value="">-- Seleccionar Talla/Peso --</option>';
             let hayVariantesConStock = false;
 
-            Object.entries(p.tallas).forEach(([talla, cant]) => {
+            // Ordenamos las tallas numéricamente si es posible
+            const variantesOrdenadas = Object.entries(p.tallas).sort((a, b) => {
+                return parseFloat(a[0]) - parseFloat(b[0]);
+            });
+
+            variantesOrdenadas.forEach(([talla, cant]) => {
                 const stock = parseFloat(cant) || 0;
                 
                 if (stock > 0) {
                     hayVariantesConStock = true;
-                    // 🛡️ Normalizamos unidad para el prefijo
-                    const unidadLower = (p.unidad || 'und').toLowerCase();
-                    let prefijo = (unidadLower === 'kg' || unidadLower === 'lts') ? "Peso: " : "Talla: ";
+                    const unidad = (p.unidad || 'und').toLowerCase();
                     
-                    if (['manual', 'unica', 'única'].includes(talla.toLowerCase())) {
+                    // Lógica de Prefijo Inteligente
+                    let prefijo = (unidad === 'kg' || unidad === 'lts') ? "Peso: " : "Talla: ";
+                    const tLower = talla.toLowerCase();
+                    
+                    if (['manual', 'unica', 'única', 'u'].includes(tLower)) {
                         prefijo = "";
                     }
 
-                    opcionesHTML += `<option value="${talla}">${prefijo}${talla} (${stock} ${p.unidad || 'und'} disp.)</option>`;
+                    opcionesHTML += `<option value="${talla}">${prefijo}${talla} (${stock} ${unidad} disp.)</option>`;
                 }
             });
 
             if (hayVariantesConStock) {
                 select.innerHTML = opcionesHTML;
                 contenedor.classList.remove('hidden');
+                
+                // Efecto visual de enfoque para recordar que debe elegir talla
+                select.style.boxShadow = "0 0 10px rgba(255, 215, 0, 0.3)";
+                setTimeout(() => select.style.boxShadow = "none", 1000);
             }
         }
     }
 },
 
-notificarProximamente: function() {
-        // 1. Sonido de aviso con tu sistema AudioDOMINUS
-        if (typeof AudioDOMINUS !== 'undefined') {
-            AudioDOMINUS.reproducir('sonido-alerta');
-        }
-
-        // 2. Primer mensaje de intriga
-        notificar("🛠️ ¡Algo grande se está cocinando!", "info");
-        
-        // 3. Segundo mensaje con delay para generar curiosidad
-        setTimeout(() => {
-            notificar("Esta función se desbloqueará en una futura actualización. ¡No te desesperes! 😉", "alerta");
-        }, 1500);
-        
-        console.log("💡 El usuario intentó entrar a Devoluciones. ¡Sigue generando curiosidad!");
+notificarProximamente: function(funcionalidad = "Esta función") {
+    // 1. AudioDOMINUS: Feedback auditivo de sistema
+    if (typeof AudioDOMINUS !== 'undefined') {
+        AudioDOMINUS.reproducir('sonido-alerta');
     }
+
+    // 2. Primer impacto: Intriga
+    // Usamos el tipo "info" pero podrías crear uno llamado "futuro"
+    notificar(`🛠️ ¡${funcionalidad} está en el taller!`, "info");
+    
+    // 3. Segundo impacto: Promesa de valor con delay
+    setTimeout(() => {
+        notificar(
+            "Se desbloqueará en una futura actualización de DOMINUS. ¡Estamos trabajando para ti! 😉", 
+            "alerta"
+        );
+    }, 1800);
+    
+    // 4. Métrica silenciosa: Saber qué es lo que más intenta usar el usuario
+    console.log(
+        `%c💡 Intento de acceso: ${funcionalidad}. Generando expectativa...`, 
+        "color: #bb86fc; font-weight: bold; background: rgba(187, 134, 252, 0.1); padding: 5px; border-radius: 5px;"
+    );
+},
 };
 

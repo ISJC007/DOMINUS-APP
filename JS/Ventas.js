@@ -704,88 +704,120 @@ limpiarJornada() {
     notificar("Datos del día limpiados correctamente", "exito");
 },
 
- abrirProcesoAbono(nombreCliente) {
-    // 1. CARGAMOS DATOS FRESCOS DE LA PERSISTENCIA
-    // Esto asegura que si se hicieron abonos o ventas recientes,
-    // el saldo mostrado sea el correcto y no uno antiguo en memoria.
+/**
+ * Abre la interfaz para registrar un abono a la deuda total de un cliente.
+ * @param {string} nombreCliente - Nombre del deudor.
+ */
+abrirProcesoAbono(nombreCliente) {
+    // 1. SINCRONIZACIÓN DE DATOS (Single Source of Truth)
     const todosLosFiaos = Persistencia.cargar('dom_fiaos') || [];
-    
-    // Sincronizamos la memoria para seguridad de otros módulos
     Ventas.deudas = todosLosFiaos; 
 
-    // Buscamos todas las deudas del cliente para sumar el total
     const deudasCliente = Ventas.deudas.filter(d => d.cliente === nombreCliente);
-    
-    if (deudasCliente.length === 0) return notificar("No se encontraron deudas para este cliente", "error");
+    if (deudasCliente.length === 0) return notificar("No hay deudas pendientes", "error");
 
-    // 2. Calculamos el total agrupado para mostrarlo en el modal
+    // 2. CÁLCULOS DE SALDO
     const totalUSD = deudasCliente.reduce((sum, d) => sum + parseFloat(d.montoUSD || 0), 0);
-    const totalBs = totalUSD * Conversor.tasaActual;
+    const tasa = Conversor.tasaActual || 1;
+    const totalBs = totalUSD * tasa;
 
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
-
+    const overlay = this.crearOverlay('overlay-abono');
+    
     overlay.innerHTML = `
-        <div class="card glass" style="max-width:380px; width:100%; border:1px solid var(--primary); padding:25px; border-radius:20px; text-align:center; color:white;">
-            <h3 style="color:var(--primary); margin-bottom:5px;">🤝 Abonar Deuda</h3>
-            <p style="font-size:0.9em; opacity:0.8; margin-bottom:5px;">Cliente: <strong>${nombreCliente}</strong></p>
+        <div class="card glass" style="max-width:400px; width:100%; padding:30px; border-radius:25px; text-align:center; border:1px solid rgba(255,215,0,0.2);">
+            <h3 style="color:var(--primary); margin-bottom:5px; letter-spacing:1px;">🤝 REGISTRAR ABONO</h3>
+            <p style="font-size:0.9em; opacity:0.7;">Cliente: <span style="color:white; font-weight:bold;">${nombreCliente}</span></p>
             
-            <p style="font-size:1.1em; color:var(--primary); margin-bottom:15px; font-weight:bold;">
-                Debe Total: $${totalUSD.toFixed(2)} (${totalBs.toLocaleString('es-VE')} Bs)
-            </p>
+            <div class="deuda-total-highlight">
+                <span style="display:block; font-size:0.8em; opacity:0.6; text-transform:uppercase;">Saldo Pendiente</span>
+                <span style="font-size:1.6rem; color:var(--primary); font-weight:bold;">$${totalUSD.toFixed(2)}</span>
+                <span style="display:block; font-size:0.9em; opacity:0.8;">≈ ${totalBs.toLocaleString('es-VE')} Bs.</span>
+            </div>
             
-            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
-                <input type="number" id="monto-abono" placeholder="¿Cuánto paga?" 
-                       style="width:100%; padding:12px; border-radius:10px; border:1px solid var(--primary); background:rgba(0,0,0,0.2); color:white; font-size:1.1em; text-align:center;">
+            <div style="display:flex; flex-direction:column; gap:15px; margin-bottom:25px;">
+                <div style="position:relative;">
+                    <input type="number" id="monto-abono" placeholder="0.00" step="any"
+                           style="width:100%; padding:15px; border-radius:12px; border:2px solid #333; background:#111; color:var(--primary); font-size:1.5rem; text-align:center; outline:none; transition:0.3s;">
+                    <div id="conversion-live" style="font-size:0.8em; color:#888; margin-top:5px;">Equivale a: $0.00</div>
+                </div>
                 
-                <select id="moneda-abono" style="width:100%; padding:10px; border-radius:10px; background:#222; color:white; border:1px solid #444;">
-                    <option value="BS">Bs Bolívares</option>
-                    <option value="USD">$ Dólares</option>
-                </select>
+                <div style="display:flex; gap:10px;">
+                    <select id="moneda-abono" style="flex:1; padding:12px; border-radius:10px; background:#222; color:white; border:1px solid #444; cursor:pointer;">
+                        <option value="USD">$ Dólares</option>
+                        <option value="BS">Bs Bolívares</option>
+                    </select>
 
-                <select id="metodo-abono" style="width:100%; padding:10px; border-radius:10px; background:#222; color:white; border:1px solid #444;">
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Pago Móvil">Pago Móvil</option>
-                    <option value="Punto">Punto de Venta</option>
-                </select>
+                    <select id="metodo-abono" style="flex:1; padding:12px; border-radius:10px; background:#222; color:white; border:1px solid #444; cursor:pointer;">
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Pago Móvil">Pago Móvil</option>
+                        <option value="Transferencia">Transferencia</option>
+                    </select>
+                </div>
             </div>
 
-            <div style="display:flex; gap:10px;">
-                <button id="btn-cerrar-abono" class="btn-main" style="background:#444; flex:1">Cerrar</button>
-                <button id="btn-guardar-abono" class="btn-main" style="flex:1">Confirmar</button>
+            <div style="display:flex; gap:12px;">
+                <button id="btn-cerrar-abono" class="btn-main" style="background:#333; flex:1; padding:15px;">CANCELAR</button>
+                <button id="btn-guardar-abono" class="btn-main" style="flex:1; padding:15px; font-weight:bold;">CONFIRMAR</button>
             </div>
         </div>
     `;
 
     document.body.appendChild(overlay);
-    setTimeout(() => document.getElementById('monto-abono').focus(), 100);
+    
+    // CAPTURA DE ELEMENTOS
+    const inputMonto = document.getElementById('monto-abono');
+    const selectMoneda = document.getElementById('moneda-abono');
+    const labelLive = document.getElementById('conversion-live');
+    const btnGuardar = document.getElementById('btn-guardar-abono');
 
+    setTimeout(() => inputMonto.focus(), 150);
+
+    // --- LÓGICA DE CONVERSIÓN EN VIVO ---
+    const actualizarConversion = () => {
+        const val = parseFloat(inputMonto.value) || 0;
+        if (selectMoneda.value === 'BS') {
+            const enUSD = val / tasa;
+            labelLive.innerText = `Equivale a: $${enUSD.toFixed(2)}`;
+            if (enUSD > (totalUSD + 0.01)) inputMonto.style.borderColor = "#ff4444";
+            else inputMonto.style.borderColor = "var(--primary)";
+        } else {
+            labelLive.innerText = `Equivale a: ${(val * tasa).toLocaleString('es-VE')} Bs.`;
+            if (val > (totalUSD + 0.01)) inputMonto.style.borderColor = "#ff4444";
+            else inputMonto.style.borderColor = "var(--primary)";
+        }
+    };
+
+    inputMonto.oninput = actualizarConversion;
+    selectMoneda.onchange = actualizarConversion;
+
+    // --- GUARDADO ---
     document.getElementById('btn-cerrar-abono').onclick = () => overlay.remove();
 
-    document.getElementById('btn-guardar-abono').onclick = () => {
-        const monto = parseFloat(document.getElementById('monto-abono').value);
-        const mon = document.getElementById('moneda-abono').value;
+    btnGuardar.onclick = () => {
+        const monto = parseFloat(inputMonto.value);
+        const mon = selectMoneda.value;
         const met = document.getElementById('metodo-abono').value;
 
-        if (isNaN(monto) || monto <= 0) {
-            return notificar("Ingrese un monto válido", "error");
+        if (isNaN(monto) || monto <= 0) return notificar("Monto inválido", "error");
+        
+        // Validación de sobrepago (opcional, por si no quieres que el saldo sea negativo)
+        const montoEnUSD = mon === 'USD' ? monto : monto / tasa;
+        if (montoEnUSD > (totalUSD + 0.01)) {
+            if (!confirm("El abono supera la deuda. ¿Deseas dejar el saldo a favor?")) return;
         }
 
-        // 3. LLAMAMOS A LA FUNCIÓN QUE PROCESA POR CLIENTE
         const exito = Ventas.abonarDeudaPorCliente(nombreCliente, monto, mon, met);
 
         if (exito) {
             overlay.remove();
-            notificar("Abono registrado con éxito", "fiao");
+            notificar(`¡Abono de ${monto} ${mon} registrado!`, 'exito');
             if (typeof Interfaz !== 'undefined') {
                 Interfaz.actualizarDashboard();
-                // Aseguramos que se actualice la vista agrupada
                 if (Interfaz.renderFiaos) Interfaz.renderFiaos();
             }
         }
     };
-}
+},
 
 }
 

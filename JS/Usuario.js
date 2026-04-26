@@ -143,20 +143,22 @@ const Usuario = {
         return identidad;
     },
 
-   mostrarLogin() {
+
+mostrarLogin() {
     this.limpiarPantalla();
     const overlay = this.crearOverlay('overlay-login');
 
     overlay.innerHTML = `
-        <div class="glass" style="width: 85%; max-width: 400px; padding: 30px; border-radius: 15px; text-align: center;">
-            <h2 style="color: #ffd700; margin-bottom: 20px;">INICIAR SESIÓN</h2>
+        <div class="glass" style="width: 85%; max-width: 400px; padding: 35px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+            <h2 style="color: var(--primary); margin-bottom: 5px; letter-spacing: 2px;">DOMINUS</h2>
+            <p style="color: #888; font-size: 0.85em; margin-bottom: 25px; text-transform: uppercase;">Control de Acceso</p>
             
             <input type="text" id="login-user" placeholder="Usuario o Correo" class="input-moderno" 
-                   style="width: 100%; margin-bottom: 15px; padding: 12px; box-sizing: border-box;">
+                   style="width: 100%; margin-bottom: 15px; padding: 14px; box-sizing: border-box;">
             
-            <div style="position: relative; width: 100%; margin-bottom: 10px;">
+            <div style="position: relative; width: 100%; margin-bottom: 8px;">
                 <input type="password" id="login-pass" placeholder="Contraseña" class="input-moderno" 
-                       style="width: 100%; padding: 12px; padding-right: 45px; box-sizing: border-box;">
+                       style="width: 100%; padding: 14px; padding-right: 50px; box-sizing: border-box;">
                 
                 <span id="btn-ver-login" 
                       style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.2rem; filter: grayscale(1); user-select: none;"
@@ -165,239 +167,189 @@ const Usuario = {
                 </span>
             </div>
 
-            <p id="link-recuperar" style="color: #888; font-size: 0.8em; text-align: right; margin-bottom: 20px; cursor: pointer; transition: 0.3s;">
+            <p id="link-recuperar" style="color: #666; font-size: 0.75em; text-align: right; margin-bottom: 25px; cursor: pointer; transition: 0.3s;">
                 ¿Olvidaste tu contraseña?
             </p>
             
-            <button id="btn-login" class="btn-main" style="width: 100%; padding: 15px; margin-bottom: 15px;">ENTRAR</button>
+            <button id="btn-login" class="btn-main" style="width: 100%; padding: 16px; font-weight: bold; font-size: 1em;">ENTRAR</button>
             
-            <p style="color: #aaa; font-size: 0.9em; margin-top: 15px;">
+            <p style="color: #888; font-size: 0.85em; margin-top: 25px;">
                 ¿No tienes cuenta? <br>
-                <span id="link-registro" style="color: #ffd700; cursor: pointer; font-weight: bold; text-decoration: underline;">Regístrate aquí</span>
+                <span id="link-registro" style="color: var(--primary); cursor: pointer; font-weight: bold; text-decoration: underline; display: inline-block; margin-top: 5px;">Regístrate aquí</span>
             </p>
         </div>
     `;
+
     document.body.appendChild(overlay);
 
-    // --- LÓGICA DE RECUPERACIÓN ---
+    // --- LÓGICA DE RECUPERACIÓN (FIREBASE) ---
     document.getElementById('link-recuperar').onclick = async () => {
-        const email = prompt("Introduce tu correo electrónico para restablecer la contraseña:");
+        const email = prompt("Introduce tu correo para recibir instrucciones:");
         if (email) {
             try {
-                notificar("Enviando correo de recuperación...", "alerta");
+                notificar("Enviando correo...", "alerta");
+                // Asegúrate de que Cloud.auth esté correctamente inicializado
                 await Cloud.auth.sendPasswordResetEmail(email);
-                notificar("Revisa tu bandeja de entrada", "exito");
+                notificar("Instrucciones enviadas", "exito");
             } catch (error) {
-                console.error(error);
-                notificar("Error: Correo no encontrado", "error");
+                console.error("Auth Error:", error);
+                notificar("Error: Verifica el correo", "error");
             }
         }
     };
 
-    // Lógica de Login (Botón Entrar)
+    // --- LÓGICA DE ACCESO ---
     document.getElementById('btn-login').onclick = () => {
-        const u = document.getElementById('login-user').value;
-        const p = document.getElementById('login-pass').value;
-        if(!u || !p) return notificar("Ingresa credenciales", "alerta");
-        this.procesarLogin(u, p);
+        const user = document.getElementById('login-user').value.trim();
+        const pass = document.getElementById('login-pass').value.trim();
+        
+        if(!user || !pass) return notificar("Faltan datos", "alerta");
+        
+        this.procesarLogin(user, pass);
     };
 
-    // Ir a registro
+    // --- NAVEGACIÓN A REGISTRO ---
     document.getElementById('link-registro').onclick = () => {
-        const actual = document.getElementById('overlay-login');
-        if(actual) actual.remove();
-        this.mostrarRegistro();
+        overlay.style.opacity = '0'; // Efecto de salida suave
+        setTimeout(() => {
+            overlay.remove();
+            this.mostrarRegistro();
+        }, 300);
     };
 },
     // ==========================================
     // PANTALLA 2: REGISTRO
     // ==========================================
+
 mostrarRegistro() {
     this.limpiarPantalla();
     const overlay = this.crearOverlay('overlay-registro');
 
     overlay.innerHTML = `
-        <div class="glass" style="width: 90%; max-width: 450px; padding: 25px; border-radius: 15px; text-align: center; max-height: 90vh; overflow-y: auto;">
-            <h2 style="color: #ffd700; margin-bottom: 10px;">CREAR CUENTA</h2>
+        <div class="glass" style="width: 90%; max-width: 450px; padding: 25px; border-radius: 20px; text-align: center; max-height: 92vh; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1);">
+            <h2 style="color: var(--primary); margin-bottom: 5px; letter-spacing: 1px;">DOMINUS</h2>
+            <p style="color: #eee; margin-bottom: 20px; font-size: 0.9em; opacity: 0.7;">Crea tu ecosistema de gestión</p>
             
-            <div style="position: relative; width: 100px; height: 100px; margin: 0 auto 20px;">
-                <div id="p-container" style="width: 100%; height: 100%; border-radius: 50%; border: 3px solid #444; overflow: hidden; background: #222; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border 0.3s ease;">
-                    <span id="placeholder-icon" style="font-size: 3rem;">👤</span>
+            <div style="position: relative; width: 110px; height: 110px; margin: 0 auto 25px;">
+                <div id="p-container" class="p-container-avatar">
+                    <span id="placeholder-icon" style="font-size: 3.2rem;">👤</span>
                     <img id="img-preview" style="width: 100%; height: 100%; object-fit: cover; display: none;">
                 </div>
-                <label for="reg-foto" style="position: absolute; bottom: 0; right: 0; background: #ffd700; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid #111;">
+                <label for="reg-foto" style="position: absolute; bottom: 5px; right: 5px; background: var(--primary); width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 3px solid #111; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
                     📷
                 </label>
                 <input type="file" id="reg-foto" accept="image/*" style="display: none;">
             </div>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                <input type="text" id="reg-nombre" placeholder="Nombres" class="input-moderno" style="width: 50%; padding: 10px;">
-                <input type="text" id="reg-apellido" placeholder="Apellidos" class="input-moderno" style="width: 50%; padding: 10px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <input type="text" id="reg-nombre" placeholder="Nombres" class="input-moderno" style="width: 50%; padding: 12px;">
+                <input type="text" id="reg-apellido" placeholder="Apellidos" class="input-moderno" style="width: 50%; padding: 12px;">
             </div>
             
-            <input type="text" id="reg-negocio" placeholder="Nombre de tu Negocio" class="input-moderno" style="width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box; border-left: 4px solid #ffd700;">
+            <input type="text" id="reg-negocio" placeholder="Nombre de tu Negocio" class="input-moderno" style="width: 100%; margin-bottom: 12px; padding: 12px; box-sizing: border-box; border-left: 4px solid var(--primary);">
             
-            <input type="email" id="reg-correo" placeholder="Correo Electrónico" class="input-moderno" style="width: 100%; margin-bottom: 5px; padding: 10px; box-sizing: border-box;">
-            <p id="msg-correo" style="font-size: 0.75rem; color: #888; text-align: left; margin-bottom: 10px; padding-left: 5px;">• Ingresa un correo válido (@ y .com)</p>
+            <input type="email" id="reg-correo" placeholder="Correo Electrónico" class="input-moderno" style="width: 100%; padding: 12px; box-sizing: border-box;">
+            <p id="msg-correo" class="msg-validacion">• Ingresa un correo válido (@ y .com)</p>
             
-            <input type="tel" id="reg-tlf" value="+58" class="input-moderno" style="width: 100%; margin-bottom: 5px; padding: 10px; box-sizing: border-box; border-left: 4px solid #2ecc71;">
-            <p id="msg-tlf" style="font-size: 0.75rem; color: #888; text-align: left; margin-bottom: 10px; padding-left: 5px;">• Completa tu número después del +58</p>
+            <input type="tel" id="reg-tlf" value="+58" class="input-moderno" style="width: 100%; padding: 12px; box-sizing: border-box; border-left: 4px solid #2ecc71;">
+            <p id="msg-tlf" class="msg-validacion">• Completa tu número después del +58</p>
 
-            <input type="text" id="reg-user" placeholder="Nombre de Usuario" class="input-moderno" style="width: 100%; margin-bottom: 10px; padding: 10px; box-sizing: border-box;">
+            <input type="text" id="reg-user" placeholder="Nombre de Usuario" class="input-moderno" style="width: 100%; margin-bottom: 15px; padding: 12px; box-sizing: border-box;">
             
-            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: left;">
+            <div style="background: rgba(0,0,0,0.25); padding: 18px; border-radius: 12px; margin-bottom: 20px; text-align: left; border: 1px solid rgba(255,255,255,0.05);">
                 <div style="position: relative; width: 100%; margin-bottom: 5px;">
-                    <input type="password" id="reg-pass1" placeholder="Contraseña" class="input-moderno" 
-                           style="width: 100%; padding: 10px; padding-right: 40px; box-sizing: border-box; transition: 0.3s;">
-                    <span id="ojo-reg-1" 
-                          style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; filter: grayscale(1); user-select: none;"
+                    <input type="password" id="reg-pass1" placeholder="Nueva Contraseña" class="input-moderno" 
+                           style="width: 100%; padding: 12px; padding-right: 45px; box-sizing: border-box;">
+                    <span id="ojo-reg-1" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; opacity: 0.5;"
                           onclick="Usuario.togglePassword('reg-pass1', 'ojo-reg-1')">👁️</span>
                 </div>
-                <p id="msg-pass1" style="font-size: 0.75rem; color: #888; margin-bottom: 10px; padding-left: 5px;">• Mínimo 8 caracteres, una Mayúscula y un Número.</p>
+                <p id="msg-pass1" class="msg-validacion">• 8+ carac, Mayúscula y Número.</p>
 
                 <div style="position: relative; width: 100%; margin-bottom: 5px;">
-                    <input type="password" id="reg-pass2" placeholder="Confirmar Contraseña" class="input-moderno" 
-                           style="width: 100%; padding: 10px; padding-right: 40px; box-sizing: border-box; transition: 0.3s;">
-                    <span id="ojo-reg-2" 
-                          style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; filter: grayscale(1); user-select: none;"
+                    <input type="password" id="reg-pass2" placeholder="Repetir Contraseña" class="input-moderno" 
+                           style="width: 100%; padding: 12px; padding-right: 45px; box-sizing: border-box;">
+                    <span id="ojo-reg-2" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; opacity: 0.5;"
                           onclick="Usuario.togglePassword('reg-pass2', 'ojo-reg-2')">👁️</span>
                 </div>
-                <p id="msg-pass2" style="font-size: 0.75rem; color: #888; padding-left: 5px;">• Las contraseñas deben ser iguales.</p>
+                <p id="msg-pass2" class="msg-validacion">• Deben coincidir.</p>
             </div>
 
-            <button id="btn-crear-cuenta" class="btn-main" style="width: 100%; padding: 15px; opacity: 0.5; cursor: not-allowed;" disabled>REGISTRARSE</button>
-            <p id="link-volver-login" style="color: #888; cursor: pointer; margin-top: 15px; font-size: 0.9em;">Volver a Inicio de Sesión</p>
+            <button id="btn-crear-cuenta" class="btn-main" style="width: 100%; padding: 16px; opacity: 0.5; cursor: not-allowed;" disabled>FINALIZAR REGISTRO</button>
+            <p id="link-volver-login" style="color: #666; cursor: pointer; margin-top: 20px; font-size: 0.85em; text-decoration: underline;">Ya tengo una cuenta</p>
         </div>
     `;
+
     document.body.appendChild(overlay);
 
-    // --- CAPTURA DE ELEMENTOS ---
-    const p1 = document.getElementById('reg-pass1');
-    const p2 = document.getElementById('reg-pass2');
-    const correo = document.getElementById('reg-correo');
-    const tlf = document.getElementById('reg-tlf');
-    const btn = document.getElementById('btn-crear-cuenta');
-    
-    const m1 = document.getElementById('msg-pass1');
-    const m2 = document.getElementById('msg-pass2');
-    const mCorreo = document.getElementById('msg-correo');
-    const mTlf = document.getElementById('msg-tlf');
+    const campos = {
+        p1: document.getElementById('reg-pass1'),
+        p2: document.getElementById('reg-pass2'),
+        correo: document.getElementById('reg-correo'),
+        tlf: document.getElementById('reg-tlf'),
+        btn: document.getElementById('btn-crear-cuenta')
+    };
 
-    // --- LÓGICA DE PROTECCIÓN DEL PREFIJO (+58) ---
-    tlf.onkeydown = (e) => {
-        // Bloquea borrar el +58 con retroceso o suprimir si el cursor está al inicio
-        if (tlf.selectionStart <= 3 && (e.key === 'Backspace' || e.key === 'Delete')) {
+    const mensajes = {
+        m1: document.getElementById('msg-pass1'),
+        m2: document.getElementById('msg-pass2'),
+        mCorreo: document.getElementById('msg-correo'),
+        mTlf: document.getElementById('msg-tlf')
+    };
+
+    // --- PROTECCIÓN DE PREFIJO ---
+    campos.tlf.onkeydown = (e) => {
+        if (campos.tlf.selectionStart <= 3 && (e.key === 'Backspace' || e.key === 'Delete')) {
             e.preventDefault();
         }
     };
 
-    // --- LÓGICA DE VALIDACIÓN MAESTRA ---
+    // --- VALIDACIÓN MAESTRA ---
     const validarFormulario = () => {
-        // Forzar que siempre empiece con +58 si intentan pegar texto o borrar todo
-        if (!tlf.value.startsWith('+58')) {
-            tlf.value = '+58' + tlf.value.replace(/^\+?5?8?/, '');
-        }
+        if (!campos.tlf.value.startsWith('+58')) campos.tlf.value = '+58';
 
-        const valP1 = p1.value;
-        const valP2 = p2.value;
-        const valCorreo = correo.value;
-        const valTlf = tlf.value.trim();
-        
         const regexPass = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
         const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        let passOk = false;
-        let coincidenOk = false;
-        let correoOk = false;
-        let tlfOk = false;
+        const checks = {
+            correo: regexEmail.test(campos.correo.value),
+            tlf: campos.tlf.value.trim().length === 13,
+            pass: regexPass.test(campos.p1.value),
+            match: campos.p2.value.length > 0 && campos.p1.value === campos.p2.value
+        };
 
-        // Validar Correo
-        if (regexEmail.test(valCorreo)) {
-            mCorreo.innerText = "✅ Correo válido";
-            mCorreo.style.color = "#2ecc71";
-            correo.style.border = "1px solid #2ecc71";
-            correoOk = true;
-        } else {
-            mCorreo.innerText = "❌ Correo inválido (@ y .com)";
-            mCorreo.style.color = "#e74c3c";
-            correo.style.border = "1px solid #e74c3c";
-            correoOk = false;
-        }
+        // Estilos dinámicos
+        const updateUI = (ok, msgElement, inputElement, textOk, textError) => {
+            msgElement.innerText = ok ? `✅ ${textOk}` : `❌ ${textError}`;
+            msgElement.style.color = ok ? "#2ecc71" : "#ff4444";
+            inputElement.style.borderColor = ok ? "#2ecc71" : "rgba(255,255,255,0.1)";
+        };
 
-        // Validar WhatsApp (+58 + 10 dígitos = 13 caracteres)
-        if (valTlf.length === 13) {
-            mTlf.innerText = "✅ Número completo";
-            mTlf.style.color = "#2ecc71";
-            tlf.style.border = "1px solid #2ecc71";
-            tlfOk = true;
-        } else {
-            const faltan = 13 - valTlf.length;
-            mTlf.innerText = faltan > 0 ? `❌ Faltan ${faltan} dígitos` : "❌ Número demasiado largo";
-            mTlf.style.color = "#e74c3c";
-            tlf.style.border = "1px solid #e74c3c";
-            tlfOk = false;
-        }
+        updateUI(checks.correo, mensajes.mCorreo, campos.correo, "Válido", "Correo inválido");
+        updateUI(checks.tlf, mensajes.mTlf, campos.tlf, "Completo", "Faltan dígitos");
+        updateUI(checks.pass, mensajes.m1, campos.p1, "Segura", "8+ carac, Mayús y Núm");
+        updateUI(checks.match, mensajes.m2, campos.p2, "Coinciden", "No coinciden");
 
-        // Validar Requisitos Pass
-        if (regexPass.test(valP1)) {
-            m1.innerText = "✅ Seguridad validada";
-            m1.style.color = "#2ecc71";
-            p1.style.border = "1px solid #2ecc71";
-            passOk = true;
-        } else {
-            m1.innerText = "❌ Falta: 8 carac, Mayús o Número";
-            m1.style.color = "#e74c3c";
-            p1.style.border = "1px solid #e74c3c";
-            passOk = false;
-        }
-
-        // Validar Coincidencia
-        if (valP2.length > 0 && valP1 === valP2) {
-            m2.innerText = "✅ Las contraseñas coinciden";
-            m2.style.color = "#2ecc71";
-            p2.style.border = "1px solid #2ecc71";
-            coincidenOk = true;
-        } else {
-            m2.innerText = "❌ Las contraseñas no coinciden";
-            m2.style.color = "#e74c3c";
-            p2.style.border = "1px solid #e74c3c";
-            coincidenOk = false;
-        }
-
-        // CONTROL DEL BOTÓN
-        if (passOk && coincidenOk && correoOk && tlfOk) {
-            btn.disabled = false;
-            btn.style.opacity = "1";
-            btn.style.cursor = "pointer";
-        } else {
-            btn.disabled = true;
-            btn.style.opacity = "0.5";
-            btn.style.cursor = "not-allowed";
-        }
+        const todoOk = Object.values(checks).every(v => v);
+        campos.btn.disabled = !todoOk;
+        campos.btn.style.opacity = todoOk ? "1" : "0.5";
+        campos.btn.style.cursor = todoOk ? "pointer" : "not-allowed";
     };
 
-    p1.oninput = validarFormulario;
-    p2.oninput = validarFormulario;
-    correo.oninput = validarFormulario;
-    tlf.oninput = validarFormulario;
+    [campos.p1, campos.p2, campos.correo, campos.tlf].forEach(el => el.oninput = validarFormulario);
 
-    // --- LÓGICA DE IMAGEN ---
+    // --- MANEJO DE IMAGEN ---
     const inputFoto = document.getElementById('reg-foto');
     const imgPreview = document.getElementById('img-preview');
     const placeholder = document.getElementById('placeholder-icon');
-    const container = document.getElementById('p-container');
     let fotoProcesada = null;
 
     inputFoto.onchange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            container.style.border = "3px solid #3498db"; 
             fotoProcesada = await this.procesarFotoRegistro(file);
             imgPreview.src = fotoProcesada;
             imgPreview.style.display = 'block';
             placeholder.style.display = 'none';
-            container.style.border = "3px solid #ffd700"; 
         }
     };
 
@@ -406,25 +358,16 @@ mostrarRegistro() {
         this.mostrarLogin();
     };
 
-    // --- REGISTRO FINAL ---
-    btn.onclick = async () => {
-        const valTlf = tlf.value.trim();
-        const usuario = document.getElementById('reg-user').value;
-        const nombre = document.getElementById('reg-nombre').value;
-        const negocio = document.getElementById('reg-negocio').value;
-
-        if (!usuario || !nombre || !negocio || !valTlf) return notificar("Faltan datos obligatorios", 'alerta');
-
+    campos.btn.onclick = async () => {
         const identidad = await this.obtenerIDUnico();
-
         const nuevoPerfil = {
-            nombre: nombre,
+            nombre: document.getElementById('reg-nombre').value,
             apellido: document.getElementById('reg-apellido').value,
-            negocio: negocio,
-            correo: correo.value,
-            telefono: valTlf,
-            usuario: usuario,
-            pass: p1.value,
+            negocio: document.getElementById('reg-negocio').value,
+            correo: campos.correo.value,
+            telefono: campos.tlf.value,
+            usuario: document.getElementById('reg-user').value,
+            pass: campos.p1.value,
             foto: fotoProcesada,
             identidad: identidad
         };
@@ -476,59 +419,101 @@ cerrarSesion() {
         }
     },
 
+/**
+ * Renderiza la interfaz de verificación de identidad mediante código.
+ * @param {Object} perfil - Datos del usuario a registrar.
+ * @param {string} codigoReal - El código generado aleatoriamente.
+ */
 mostrarVerificacion(perfil, codigoReal) {
-        const overlay = this.crearOverlay('overlay-verificacion');
+    const overlay = this.crearOverlay('overlay-verificacion');
 
-        overlay.innerHTML = `
-            <div class="glass" style="width: 85%; max-width: 400px; padding: 30px; border-radius: 15px; text-align: center;">
-                <h2 style="color: #ffd700; margin-bottom: 5px;">VERIFICA TU CORREO</h2>
-                <p style="color: white; opacity: 0.8; margin-bottom: 25px; font-size: 0.9em;">
-                    Hemos enviado un código a:<br><strong style="color:#ffd700;">${perfil.correo}</strong>
-                </p>
-                
-                <input type="text" id="codigo-input" placeholder="· · · · · ·" maxlength="6" inputmode="numeric"
-                       style="width: 200px; text-align: center; font-size: 2.2rem; letter-spacing: 8px; padding: 10px; border: none; border-bottom: 3px solid #ffd700; background: transparent; color: white; margin-bottom: 30px; outline: none; transition: border-color 0.3s ease;">
-                
-                <button id="btn-verificar" class="btn-main" style="width: 100%; padding: 15px; font-weight: bold;">CONFIRMAR CÓDIGO</button>
-                
-                <p id="resend-code" style="color: #888; margin-top: 20px; font-size: 0.8em; cursor: pointer;">
-                    ¿No recibiste el código? <span style="color: #ffd700;">Reenviar</span>
-                </p>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
-        const input = document.getElementById('codigo-input');
-        input.focus(); // Foco automático para mejorar la experiencia
-
-        document.getElementById('btn-verificar').onclick = () => {
-            const inputCodigo = input.value.trim();
+    overlay.innerHTML = `
+        <div class="glass" style="width: 85%; max-width: 400px; padding: 35px 30px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
+            <h2 style="color: var(--primary); margin-bottom: 8px; letter-spacing: 1px;">VERIFICA TU CORREO</h2>
+            <p style="color: #eee; opacity: 0.8; margin-bottom: 30px; font-size: 0.9em; line-height: 1.4;">
+                Hemos enviado un código de acceso a:<br>
+                <strong style="color: var(--primary); font-family: monospace; font-size: 1.1em;">${perfil.correo}</strong>
+            </p>
             
-            if (inputCodigo === codigoReal) {
-                notificar("Identidad confirmada", 'exito');
-                overlay.remove();
-                
-                // Procedemos al guardado final que hablará con el Admin
-                this.guardarEnBaseDeDatos(perfil);
-            } else {
-                // Efecto de error visual
-                input.style.borderBottomColor = "#ff4d4d";
-                notificar("Código incorrecto. Revisa tu correo.", 'error');
-                
-                setTimeout(() => {
-                    input.style.borderBottomColor = "#ffd700";
-                    input.value = '';
-                    input.focus();
-                }, 600);
-            }
-        };
+            <div style="position: relative; width: 100%; display: flex; justify-content: center; margin-bottom: 35px;">
+                <input type="text" id="codigo-input" placeholder="000000" maxlength="6" inputmode="numeric"
+                       style="width: 220px; text-align: center; font-size: 2.8rem; letter-spacing: 6px; 
+                              padding: 10px; border: none; border-bottom: 3px solid var(--primary); 
+                              background: transparent; color: white; outline: none; font-family: 'Courier New', monospace;">
+            </div>
+            
+            <button id="btn-verificar" class="btn-main" style="width: 100%; padding: 18px; font-weight: bold; font-size: 1em; letter-spacing: 1px;">
+                CONFIRMAR IDENTIDAD
+            </button>
+            
+            <p id="resend-code" style="color: #666; margin-top: 25px; font-size: 0.85em; cursor: pointer; transition: 0.3s;">
+                ¿No recibiste el código? <span style="color: var(--primary); font-weight: bold;">Reenviar ahora</span>
+            </p>
+        </div>
+    `;
 
-        // Lógica simple de reenvío (Vuelve a disparar el flujo de simulación)
-        document.getElementById('resend-code').onclick = () => {
+    document.body.appendChild(overlay);
+
+    const input = document.getElementById('codigo-input');
+    const btnConfirmar = document.getElementById('btn-verificar');
+    
+    // Auto-focus inteligente
+    setTimeout(() => input.focus(), 200);
+
+    // --- LÓGICA DE VALIDACIÓN ---
+    const procesarValidacion = () => {
+        const inputCodigo = input.value.trim();
+        
+        if (inputCodigo === String(codigoReal)) {
+            // ÉXITO
+            notificar("¡Identidad confirmada!", 'exito');
+            overlay.style.opacity = '0';
+            
+            setTimeout(() => {
+                overlay.remove();
+                // ✅ GUARDADO FINAL: Inicia la persistencia en Firebase/Cloud
+                this.guardarEnBaseDeDatos(perfil);
+            }, 300);
+        } else {
+            // ERROR: Feedback visual y físico
+            if (typeof Seguridad !== 'undefined' && Seguridad.vibrar) {
+                Seguridad.vibrar([100, 50, 100]);
+            }
+            
+            input.classList.add('shake-anim');
+            input.style.borderBottomColor = "#ff4d4d";
+            notificar("Código incorrecto", 'error');
+            
+            setTimeout(() => {
+                input.classList.remove('shake-anim');
+                input.style.borderBottomColor = "var(--primary)";
+                input.value = '';
+                input.focus();
+            }, 600);
+        }
+    };
+
+    // Confirmar con el botón
+    btnConfirmar.onclick = procesarValidacion;
+
+    // Confirmar automáticamente al llenar los 6 dígitos
+    input.oninput = () => {
+        input.value = input.value.replace(/[^0-9]/g, '');
+        if (input.value.length === 6) {
+            setTimeout(procesarValidacion, 300); // Pequeño delay para que el usuario vea el último dígito
+        }
+    };
+
+    // Lógica de reenvío
+    document.getElementById('resend-code').onclick = () => {
+        notificar("Generando nuevo código...", "alerta");
+        overlay.style.opacity = '0';
+        setTimeout(() => {
             overlay.remove();
             this.simularEnvioCorreo(perfil);
-        };
-    },
+        }, 300);
+    };
+},
 
 async guardarEnBaseDeDatos(perfil) {
     // 1. PREPARACIÓN DE IDENTIDAD (Hardware Binding)
@@ -636,34 +621,76 @@ escucharComandosGlobales() {
     });
 },
 
+/**
+ * Bloquea la interfaz completa para realizar tareas de mantenimiento.
+ * Se puede activar remotamente si se integra con una bandera en la base de datos.
+ */
 bloquearPorMantenimiento() {
-    // Creamos un telón negro que cubra todo
     let capa = document.getElementById('capa-mantenimiento');
+    
     if (!capa) {
         capa = document.createElement('div');
         capa.id = 'capa-mantenimiento';
+        
         capa.innerHTML = `
-            <div style="text-align: center; color: white; font-family: sans-serif;">
-                <h1 style="font-size: 3em;">⚒️</h1>
-                <h2>DOMINUS EN MANTENIMIENTO</h2>
-                <p>Estamos reforzando el sistema para servirte mejor.</p>
-                <p style="color: #ffd700;"><i>"El amor y la educación son la única verdad."</i></p>
+            <div style="text-align: center; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px;">
+                <span class="mantenimiento-icon">⚒️</span>
+                <h2 style="font-size: 1.8rem; letter-spacing: 2px; margin: 10px 0;">DOMINUS</h2>
+                <h3 style="font-weight: 300; opacity: 0.9;">SISTEMA EN MANTENIMIENTO</h3>
+                
+                <div style="width: 50px; height: 2px; background: var(--primary); margin: 20px auto;"></div>
+                
+                <p style="max-width: 300px; margin: 0 auto 15px; line-height: 1.5; font-size: 0.95em; color: #ccc;">
+                    Estamos reforzando el núcleo del sistema para servirte mejor.
+                </p>
+                
+                <p class="quote-mantenimiento">
+                    "El amor y la educación son la única verdad."
+                </p>
             </div>
         `;
-        // Estilos para que sea un bloqueo total
+
+        // Estilos de bloqueo total
         Object.assign(capa.style, {
-            position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
-            backgroundColor: 'rgba(0,0,0,0.95)', zIndex: '9999',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(10, 10, 10, 0.98)',
+            zIndex: '100000', // Por encima de cualquier modal o notificación
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: '0',
+            transition: 'opacity 0.5s ease'
         });
+
         document.body.appendChild(capa);
+        
+        // Trigger de opacidad para entrada suave
+        setTimeout(() => { capa.style.opacity = '1'; }, 10);
+        
+        // Bloquear scroll del body
+        document.body.style.overflow = 'hidden';
     }
 },
 
+
+
+    
+
 desbloquearApp() {
-    const capa = document.getElementById('capa-mantenimiento');
-    if (capa) capa.remove();
+const capa = document.getElementById('capa-mantenimiento');
+    if (capa) {
+        capa.style.opacity = '0';
+        setTimeout(() => {
+            capa.remove();
+            document.body.style.overflow = 'auto';
+        }, 500);
+    }
 },
+
 
     // ==========================================
     // PANTALLA 4: PREGUNTA DE PIN
@@ -713,6 +740,11 @@ preguntarPorPIN() {
         };
     },
 
+/**
+ * Lanza el flujo de creación o confirmación de PIN de seguridad.
+ * @param {string} titulo - Texto de encabezado.
+ * @param {string|null} primerPin - Si existe, estamos en fase de confirmación.
+ */
 pantallaCapturaPIN(titulo, primerPin = null) {
     // 1. Limpieza de overlays previos para evitar duplicados en el DOM
     const overlayPrevio = document.getElementById('overlay-input-pin');
@@ -721,23 +753,25 @@ pantallaCapturaPIN(titulo, primerPin = null) {
     const overlay = this.crearOverlay('overlay-input-pin');
 
     overlay.innerHTML = `
-        <div class="glass" style="width: 85%; max-width: 400px; padding: 35px 25px; border-radius: 15px; text-align: center; animation: fadeIn 0.3s ease;">
-            <h2 style="color: #ffd700; font-size: 1.2rem; letter-spacing: 1px;">${titulo}</h2>
-            <p style="color: white; opacity: 0.6; margin-bottom: 30px; font-size: 0.9em;">Ingresa 4 dígitos numéricos</p>
+        <div class="glass" style="width: 85%; max-width: 400px; padding: 35px 25px; border-radius: 20px; text-align: center; animation: fadeIn 0.3s ease; border: 1px solid rgba(255,255,255,0.1);">
+            <h2 style="color: var(--primary); font-size: 1.3rem; letter-spacing: 1px; margin-bottom: 5px;">${titulo}</h2>
+            <p style="color: white; opacity: 0.6; margin-bottom: 35px; font-size: 0.85em;">Por seguridad, ingresa 4 números</p>
             
-            <div style="position: relative; width: 100%; max-width: 180px; margin: 0 auto 40px; display: flex; justify-content: center; align-items: center;">
+            <div style="position: relative; width: 100%; max-width: 180px; margin: 0 auto 45px; display: flex; justify-content: center; align-items: center;">
                 <input type="password" id="pin-input" placeholder="****" maxlength="4" inputmode="numeric"
-                       style="width: 100%; text-align: center; font-size: 2.8rem; letter-spacing: 12px; padding: 10px 0; border: none; border-bottom: 2px solid #ffd700; background: transparent; color: white; outline: none; box-sizing: border-box; text-indent: 12px;">
+                       style="width: 100%; text-align: center; font-size: 3rem; letter-spacing: 12px; 
+                              padding: 10px 0; border: none; border-bottom: 2px solid var(--primary); 
+                              background: transparent; color: white; outline: none; box-sizing: border-box; text-indent: 12px;">
                 
                 <span id="ojo-pin" 
-                      style="position: absolute; right: -35px; cursor: pointer; font-size: 1.3rem; filter: grayscale(1); user-select: none; transition: all 0.3s ease; padding: 5px;"
+                      style="position: absolute; right: -40px; cursor: pointer; font-size: 1.3rem; filter: grayscale(1); user-select: none; transition: all 0.3s ease; padding: 5px;"
                       onclick="Usuario.togglePassword('pin-input', 'ojo-pin')">
                       👁️
                 </span>
             </div>
             
-            <button id="btn-continuar-pin" class="btn-main" style="width: 100%; padding: 16px; font-weight: bold; letter-spacing: 1px;">
-                ${primerPin ? 'CONFIRMAR PIN' : 'SIGUIENTE'}
+            <button id="btn-continuar-pin" class="btn-main" style="width: 100%; padding: 18px; font-weight: bold; letter-spacing: 1px; opacity: 0.5;">
+                ${primerPin ? 'VINCULAR DISPOSITIVO' : 'CONTINUAR'}
             </button>
         </div>
     `;
@@ -745,65 +779,94 @@ pantallaCapturaPIN(titulo, primerPin = null) {
     document.body.appendChild(overlay);
     
     const input = document.getElementById('pin-input');
-    input.focus();
+    const btn = document.getElementById('btn-continuar-pin');
+    
+    setTimeout(() => input.focus(), 150);
 
-    document.getElementById('btn-continuar-pin').onclick = () => {
+    // UX: Validación reactiva
+    input.oninput = () => {
+        input.value = input.value.replace(/[^0-9]/g, ''); // Solo números
+        const listo = input.value.length === 4;
+        btn.style.opacity = listo ? "1" : "0.5";
+        btn.style.cursor = listo ? "pointer" : "not-allowed";
+        
+        // Auto-click sutil al llegar a 4 dígitos para agilizar el flujo
+        if (listo && primerPin) {
+             // En confirmación, dejamos que el usuario presione el botón para estar seguro
+        }
+    };
+
+    btn.onclick = () => {
         const pinIngresado = input.value;
 
-        // Validación de formato
-        if (pinIngresado.length !== 4 || isNaN(pinIngresado)) {
+        if (pinIngresado.length !== 4) {
             this.vibrar([50, 100, 50]);
-            return notificar("El PIN debe ser de 4 números", 'error');
+            input.classList.add('input-pin-error');
+            setTimeout(() => input.classList.remove('input-pin-error'), 500);
+            return notificar("Ingresa los 4 dígitos", 'alerta');
         }
 
-        overlay.remove();
+        overlay.style.opacity = '0'; // Transición suave entre pasos
 
-        if (!primerPin) {
-            // PASO A: Captura inicial y salto a confirmación
-            this.pantallaCapturaPIN("CONFIRMA TU PIN", pinIngresado);
-        } else {
-            // PASO B: Verificación de coincidencia
-            if (pinIngresado === primerPin) {
-                // 🔐 ÉXITO: Vinculamos el PIN con el hardware antes de seguir
-                this.vincularPinSeguro(pinIngresado); 
+        setTimeout(() => {
+            overlay.remove();
+
+            if (!primerPin) {
+                // FASE 1: Registro inicial
+                this.pantallaCapturaPIN("CONFIRMAR PIN NUEVO", pinIngresado);
             } else {
-                // ❌ ERROR: Los pines no coinciden
-                notificar("Los PIN no coinciden. Reintenta.", 'error');
-                this.vibrar([100, 50, 100, 50, 100]);
-                // Reiniciamos el flujo desde el principio
-                this.pantallaCapturaPIN("CREAR NUEVO PIN"); 
+                // FASE 2: Verificación de igualdad
+                if (pinIngresado === primerPin) {
+                    notificar("PIN establecido correctamente", 'exito');
+                    this.vincularPinSeguro(pinIngresado); 
+                } else {
+                    notificar("Los PIN no coinciden. Intenta de nuevo.", 'error');
+                    if (this.vibrar) this.vibrar([100, 50, 100, 50, 100]);
+                    this.pantallaCapturaPIN("CREAR PIN DE ACCESO"); 
+                }
             }
-        }
+        }, 300);
     };
 },
 
 vincularPinSeguro(pin) {
-    // 1. OBTENCIÓN DEL UUID MAESTRO
-    // Buscamos en todas las posibles rutas donde guardamos el ID de hardware
-    const uuid = this.datos.idFinal || this.datos.identidad?.idFinal || "ID_LOCAL";
+    console.log("-> Iniciando vinculación de seguridad...");
+
+    // 1. OBTENCIÓN DEL UUID (Hardware ID)
+    // Usamos el ID que generamos al inicio del registro
+    const uuid = this.datos?.idFinal || "DEV_MODE_ID";
     
-    // 2. GENERACIÓN DE LLAVE DE CIFRADO (Base64)
-    // Combinamos el UUID del equipo con el PIN para crear una firma única
+    // 2. GENERACIÓN DE LLAVE DE ACCESO
+    // Creamos un hash simple en Base64 combinando el ID del equipo y el PIN
     const llaveMaestra = btoa(uuid + ":" + pin);
 
-    // 3. ACTUALIZACIÓN DEL PERFIL LOCAL
+    // 3. ACTUALIZACIÓN DEL PERFIL EN MEMORIA
+    if (!this.datos) this.datos = {}; // Salvaguarda
     this.datos.usaPin = true;
     this.datos.llaveMaestra = llaveMaestra; 
+    this.datos.pin = pin; // Guardamos el pin para validaciones locales rápidas
     
     // 4. PERSISTENCIA DE SESIÓN
-    // IMPORTANTE: logueado: true permite que el sistema mantenga la instancia activa
-    // mientras el centinela espera la aprobación del Admin.
-    Persistencia.guardar(this.sesionActual, { 
+    // Aquí es donde DOMINUS dice: "Ya te conozco, pero espera a que el Admin te apruebe"
+    Persistencia.guardar('dom_sesion_activa', { 
         logueado: true, 
         perfil: this.datos,
-        aprobado: false // Sigue en false hasta que el Admin firme en la nube
+        aprobado: false // El Centinela revisará este estado
     });
 
-    notificar("✅ Seguridad Vinculada", "exito");
+    console.log("-> Seguridad vinculada con éxito. Llave generada.");
+    notificar("Seguridad Vinculada", "exito");
 
-    // 5. SALTO AL CENTINELA
-    // Damos un segundo para que el usuario vea el éxito y pasamos a la espera
-    setTimeout(() => this.mostrarPantallaEspera(), 1000);
+    // 5. SALTO AL CENTINELA (Pantalla de Espera)
+    // El setTimeout da aire a la UI antes de cambiar de pantalla
+    setTimeout(() => {
+        if (typeof this.mostrarPantallaEspera === 'function') {
+            this.mostrarPantallaEspera();
+        } else {
+            console.error("Error: mostrarPantallaEspera no está definida.");
+            notificar("Error de redirección", "error");
+        }
+    }, 1000);
 },
 
 mostrarPantallaEspera() {
@@ -811,12 +874,12 @@ mostrarPantallaEspera() {
     const overlay = this.crearOverlay('overlay-espera');
     let tiempoRestante = 300; 
     
-    // 🔑 OBTENCIÓN ROBUSTA DEL UUID
+    //  OBTENCIÓN ROBUSTA DEL UUID
     const uuid = this.datos.idFinal || this.datos.identidad?.idFinal || this.datos.uuid;
 
     overlay.innerHTML = `
         <div id="contenedor-espera" class="glass" style="width: 90%; max-width: 450px; padding: 35px; border-radius: 20px; text-align: center; transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); transform: scale(1); opacity: 1;">
-            <div id="loader-dominus" style="margin-bottom: 20px; font-size: 2.5rem; animation: pulse 2s infinite;">⏳</div>
+            <div id="loader-dominus" style="margin-bottom: 20px; font-size: 2.5rem; animation: pulse 2s infinite;">⌛</div>
             <h2 style="color: #ffd700; margin-bottom: 10px; letter-spacing: 1px; font-size: 1.4rem;">SOLICITUD ENVIADA</h2>
             <p style="color: white; opacity: 0.9; font-size: 0.95em; line-height: 1.5; margin-bottom: 25px;">
                 "El amor y la educación son la única verdad."<br>
@@ -893,8 +956,8 @@ mostrarPantallaEspera() {
     // --- 4. ACCIÓN DE CONTACTO ---
     btnContactar.onclick = () => {
         const mensaje = `Hola Johander! Mi ID es: ${uuid}. Sigo esperando aprobación en DOMINUS.`;
-        // ⚠️ RECUERDA: Cambiar las X por tu número real
-        const url = `https://wa.me/58412XXXXXXX?text=${encodeURIComponent(mensaje)}`;
+        // RECUERDA: Cambiar las X por tu número real
+        const url = `https://wa.me/584248466139?text=${encodeURIComponent(mensaje)}`;
         window.open(url, '_blank');
     };
 
@@ -1065,36 +1128,29 @@ async ejecutarVerificacionDeAcceso() {
 async procesarLogin(usuario, pass) {
     notificar("Conectando con la nube...", "alerta");
 
-    // 1. Validamos en Firebase Auth
     const uid = await Cloud.conectarACaja(usuario, pass);
 
     if (uid) {
         try {
             notificar("Sincronizando perfil integral...", "alerta");
             
-            // 🛰️ DESCARGA COMPLETA: Traemos todo el nodo del usuario (perfil + administracion + seguridad)
             const snapshot = await Cloud.db.ref(`usuarios/${uid}`).once('value');
             const dataNube = snapshot.val();
 
             if (dataNube) {
-                // 2. RECONSTRUCCIÓN DEL GUERRERO (Aplanamos las carpetas para uso local)
                 const perfilPersonal = dataNube.perfil || {};
                 const adminData = dataNube.administracion || {};
                 const seguridadData = dataNube.seguridad || {};
 
-                // Consolidamos todo en this.datos para que la App no note el cambio de estructura
                 this.datos = { 
                     ...perfilPersonal, 
                     ...adminData, 
                     idFinal: seguridadData.idFinal || uid 
                 };
 
-                // 3. ACTUALIZACIÓN DE IDENTIDAD FÍSICA
                 Persistencia.guardar('dom_id_unico', this.datos.idFinal);
 
-                // 4. FILTRO DE APROBACIÓN
                 const esAprobado = adminData.estado === 'aprobado';
-                
                 const datosSesion = { 
                     logueado: esAprobado, 
                     perfil: this.datos 
@@ -1102,10 +1158,16 @@ async procesarLogin(usuario, pass) {
 
                 Persistencia.guardar(this.sesionActual, datosSesion);
 
+                // --- 🚀 INICIO DE LIMPIEZA VISUAL ---
+                const overlayActual = document.getElementById('overlay-login');
+
                 // 5. DIRECCIONAMIENTO SEGÚN ESTADO
                 if (!esAprobado) {
                     notificar("Acceso pendiente de aprobación", "alerta");
-                    setTimeout(() => this.mostrarPantallaEspera(), 1000);
+                    setTimeout(() => {
+                        if (overlayActual) overlayActual.remove(); // Quitamos login para mostrar espera
+                        this.mostrarPantallaEspera();
+                    }, 1000);
                     return;
                 }
 
@@ -1117,9 +1179,17 @@ async procesarLogin(usuario, pass) {
                 notificar(`Bienvenido, ${this.datos.nombre}`, 'exito');
                 
                 setTimeout(() => {
+                    // Si vamos a otra pantalla, quitamos el overlay primero
+                    if (overlayActual) {
+                        overlayActual.style.opacity = '0';
+                        setTimeout(() => overlayActual.remove(), 300);
+                    }
+
                     if (this.datos.usaPin) {
                         this.pantallaDesbloqueoPIN();
                     } else {
+                        // Si usas reload, el overlay se iría solo, 
+                        // pero es mejor quitarlo antes por si el reload tarda.
                         location.reload();
                     }
                 }, 1500);
@@ -1228,63 +1298,90 @@ guardarNombreNegocio() {
             document.getElementById('cfg-limite-confianza').value = limite;
     },
 
+};
+
     
+ 
+const GestorMensajes = {
     franjaActual: 'mañana',
-    
     plantillasBase: {
-        mañana: "Buenos días [cliente], te escribo de [negocio]. Tienes un pendiente de:\n[monto_detalle]\n\nTotal: $[montoUSD]. ¡Feliz día!",
-        tarde: "Buenas tardes [cliente], de parte de [negocio]. Te recordamos tu cuenta:\n[monto_detalle]\n\nTotal: $[montoUSD]. ¡Saludos!",
-        noche: "Buenas noches [cliente], te escribo de [negocio] antes de cerrar. Tu cuenta es:\n[monto_detalle]\n\nTotal: $[montoUSD]. ¡Gracias!"
+        mañana: "¡Buen día, [cliente]! ☀️ Gracias por elegir a [negocio]. Aquí tienes el detalle de tu compra:\n\n[monto_detalle]\n\nTotal: $[montoUSD] ([montoBs] Bs.)\n¡Que tengas un excelente día!",
+        tarde: "¡Buenas tardes, [cliente]! ✨ En [negocio] confirmamos tu pedido:\n\n[monto_detalle]\n\nTotal: $[montoUSD] ([montoBs] Bs.)\n¡Gracias por tu preferencia!",
+        noche: "¡Feliz noche, [cliente]! 🌙 Aquí te enviamos el resumen de tu compra en [negocio]:\n\n[monto_detalle]\n\nTotal: $[montoUSD] ([montoBs] Bs.)\n¡Felices sueños!"
     },
 
+    /**
+     * Cambia la franja horaria seleccionada en la UI.
+     */
     cambiarFranjaMensaje(franja) {
         this.franjaActual = franja;
-        // Actualizar UI de botones
+        
+        // Actualizar UI de botones con clases y estilos
         ['mañana', 'tarde', 'noche'].forEach(f => {
             const btn = document.getElementById(`btn-msj-${f}`);
-            btn.style.background = (f === franja) ? '#ffd700' : '#333';
-            btn.style.color = (f === franja) ? 'black' : 'white';
+            if (btn) {
+                const esActivo = (f === franja);
+                btn.style.background = esActivo ? 'var(--primary)' : '#333';
+                btn.style.color = esActivo ? 'black' : 'white';
+                btn.style.boxShadow = esActivo ? '0 4px 15px rgba(255, 215, 0, 0.3)' : 'none';
+            }
         });
 
         // Cargar el mensaje de esa franja
         const guardado = Persistencia.cargar(`cfg_msj_${franja}`);
-        document.getElementById('cfg-msj-maestro').value = guardado || this.plantillasBase[franja];
+        const textarea = document.getElementById('cfg-msj-maestro');
+        if (textarea) {
+            textarea.value = guardado || this.plantillasBase[franja];
+        }
     },
 
     guardarPlantilla() {
         const txt = document.getElementById('cfg-msj-maestro').value;
         Persistencia.guardar(`cfg_msj_${this.franjaActual}`, txt);
+        notificar(`Plantilla de la ${this.franjaActual} guardada`, "exito");
     },
 
     restablecerPlantilla() {
-        if(confirm("¿Quieres volver al mensaje original de esta franja?")) {
+        if(confirm(`¿Quieres volver al mensaje original de la ${this.franjaActual}?`)) {
             const defaultMsj = this.plantillasBase[this.franjaActual];
             document.getElementById('cfg-msj-maestro').value = defaultMsj;
             this.guardarPlantilla();
         }
     },
 
+    /**
+     * Simulación visual de cómo se verá el mensaje final.
+     */
     mostrarEjemplo() {
         const txt = document.getElementById('cfg-msj-maestro').value;
-        const demo = txt
-            .replace("[cliente]", "Juan Pérez")
-            .replace("[negocio]", Persistencia.cargar('cfg_nombre_negocio') || "Mi Negocio")
-            .replace("[monto_detalle]", "• Harina ($1.00)\n• Arroz ($1.20)")
-            .replace("[montoUSD]", "2.20")
-            .replace("[montoBs]", "85.50");
+        const nombreNegocio = Persistencia.cargar('cfg_nombre_negocio') || "DOMINUS Store";
         
-        alert("ASÍ SE VERÁ EN WHATSAPP:\n\n" + demo);
+        const demo = txt
+            .replace(/\[cliente\]/g, "Johander José")
+            .replace(/\[negocio\]/g, nombreNegocio)
+            .replace(/\[monto_detalle\]/g, "• Calzado Deportivo ($45.00)\n• Medias Algodón ($5.00)")
+            .replace(/\[montoUSD\]/g, "50.00")
+            .replace(/\[montoBs\]/g, "1,850.00");
+        
+        // Usamos una notificación larga o un modal de previsualización
+        console.log("%c VISTA PREVIA WHATSAPP ", "background: #25D366; color: white; font-weight: bold;");
+        console.log(demo);
+        
+        alert("SIMULACIÓN DE WHATSAPP:\n\n" + demo);
     },
 
-    // Esta función la llamará Interfaz.js para saber qué mensaje usar según la hora
+    /**
+     * Retorna la plantilla correcta según la hora actual del sistema.
+     */
     obtenerMensajeSegunHora() {
         const hora = new Date().getHours();
         let franja = 'noche';
+        
         if (hora >= 6 && hora < 12) franja = 'mañana';
         else if (hora >= 12 && hora < 19) franja = 'tarde';
         
         return Persistencia.cargar(`cfg_msj_${franja}`) || this.plantillasBase[franja];
-    },
-};
+    }
+  };
 
 document.addEventListener('DOMContentLoaded', () => Usuario.init());

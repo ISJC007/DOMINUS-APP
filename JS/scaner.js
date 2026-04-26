@@ -138,28 +138,37 @@ iniciarEscannerCamara: function(callbackProcesar) {
     });
 },
 
-    // --- 🛠️ UTILIDADES DE INTERFAZ ---
-    asegurarControles: function(contenedor) {
-        // Botón Cerrar (X Roja)
-        if (!document.getElementById('btn-cerrar-scanner')) {
-            const btnCerrar = document.createElement('button');
-            btnCerrar.id = 'btn-cerrar-scanner';
-            btnCerrar.innerHTML = '✕';
-            btnCerrar.style = `position:absolute; top:20px; right:20px; z-index:10001; background:#ff4d4d; color:white; border:none; width:50px; height:50px; border-radius:50%; font-size:26px; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center;`;
-            btnCerrar.onclick = () => this.detenerYSalir();
-            contenedor.appendChild(btnCerrar);
-        }
+ /**
+ * Asegura que los botones de control existan sobre el contenedor del escáner.
+ * @param {HTMLElement} contenedor - El div que contiene el video de la cámara.
+ */
+asegurarControles: function(contenedor) {
+    if (!contenedor) return;
 
-        // Botón Deshacer (⟲ Naranja)
-        if (!document.getElementById('btn-deshacer-scanner')) {
-            const btnUndo = document.createElement('button');
-            btnUndo.id = 'btn-deshacer-scanner';
-            btnUndo.innerHTML = '⟲';
-            btnUndo.style = `position:absolute; top:20px; left:20px; z-index:10001; background:#f39c12; color:white; border:none; width:50px; height:50px; border-radius:50%; font-size:26px; cursor:pointer; display:none; align-items:center; justify-content:center; box-shadow:0 4px 15px rgba(0,0,0,0.5);`;
-            btnUndo.onclick = () => this.deshacerUltimoEscaneo();
-            contenedor.appendChild(btnUndo);
-        }
-    },
+    // 1. Botón Cerrar (X Roja)
+    if (!document.getElementById('btn-cerrar-scanner')) {
+        const btnCerrar = document.createElement('button');
+        btnCerrar.id = 'btn-cerrar-scanner';
+        btnCerrar.className = 'btn-flotante-scanner';
+        btnCerrar.innerHTML = '✕';
+        btnCerrar.title = "Cerrar Escáner";
+        
+        btnCerrar.onclick = () => this.detenerYSalir();
+        contenedor.appendChild(btnCerrar);
+    }
+
+    // 2. Botón Deshacer (⟲ Naranja)
+    if (!document.getElementById('btn-deshacer-scanner')) {
+        const btnUndo = document.createElement('button');
+        btnUndo.id = 'btn-deshacer-scanner';
+        btnUndo.className = 'btn-flotante-scanner';
+        btnUndo.innerHTML = '⟲';
+        btnUndo.title = "Deshacer último escaneo";
+        
+        btnUndo.onclick = () => this.deshacerUltimoEscaneo();
+        contenedor.appendChild(btnUndo);
+    }
+},
 
    deshacerUltimoEscaneo: function() {
     if (typeof Controlador !== 'undefined' && typeof Controlador.eliminarUltimoDelCarrito === 'function') {
