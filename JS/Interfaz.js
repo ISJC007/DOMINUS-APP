@@ -18,7 +18,15 @@ window.addEventListener('scroll', () => {
     lastScrollTop = scrollTop <= 0 ? 0 : scrollTop; 
 }, { passive: true });
 
-
+function purgarInterfaz() {
+    console.log("🧹 Limpiando capas de acceso...");
+    // Borramos físicamente el Splash y cualquier overlay de Login/Registro
+    const capas = document.querySelectorAll('.splash, #splash-screen, [id*="overlay"]');
+    capas.forEach(capa => capa.remove());
+    
+    // Devolvemos el scroll al cuerpo por si se quedó bloqueado
+    document.body.style.overflow = 'auto';
+}
 
 const Interfaz = { //muestra todo en pantalla lo que se clickea//
 
@@ -872,7 +880,7 @@ generarFilaFiaoAgrupada(c) {
     const saludo = horaActual < 12 ? "Buenos días" : (horaActual < 19 ? "Buenas tardes" : "Buenas noches");
     const nombreNegocio = Persistencia.cargar('cfg_nombre_negocio') || "DOMINUS";
     
-    let plantilla = Usuario.obtenerMensajeSegunHora() || "[saludo] [cliente], te escribo de [negocio]. Tu saldo pendiente es $[montoUSD].";
+    let plantilla = GestorMensajes.obtenerMensajeSegunHora() || "[saludo] [cliente], te escribo de [negocio]. Tu saldo pendiente es $[montoUSD].";
     const detalleTexto = c.deudas.map(d => `• ${d.producto} ($${Number(d.montoUSD).toFixed(2)})`).join('\n');
 
     // Mapeo de reemplazos para limpieza visual

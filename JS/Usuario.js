@@ -8,44 +8,34 @@ const Usuario = {
     dbSimulada: 'dom_usuarios_db',
     sesionActual: 'dom_sesion_activa',
 
-  init() {
-    console.log("🔐 DOMI: Verificando sesión y estado de aprobación...");
-    
-    // Cargamos lo que hay en LocalStorage (Offline First)
-    const sesion = Persistencia.cargar(this.sesionActual);
-    
-    if (sesion && sesion.perfil) {
-        this.datos = sesion.perfil;
-        
-        // 🛡️ FILTRO DE SEGURIDAD INTEGRAL
-        // Verificamos si el estado es 'pendiente' o 'bloqueado_temp'
-        // Al estar aplanados en 'procesarLogin', los campos están en el primer nivel de this.datos
-        const estadoActual = this.datos.estado;
+// En Usuario.js, cambia tu init por algo más pasivo:
 
-        if (estadoActual === 'pendiente' || !sesion.logueado) {
-            console.log("⏳ Acceso retenido: Esperando aprobación del Mando Central.");
-            this.mostrarPantallaEspera(); 
-            return false; 
-        }
+init() {
+    console.log("🔐 DOMI: Sistema de identidad listo (Esperando señal de Cloud...)");
+    // Ya no llamamos a mostrarLogin() aquí adentro.
+    // Dejamos que el observador de Firebase en Cloud.js sea el que mande.
+},
 
-        if (estadoActual === 'bloqueado_temp' || estadoActual === 'suspendido') {
-            console.log("🚫 Acceso denegado: Esta cuenta se encuentra inactiva.");
-            notificar("Cuenta suspendida temporalmente", "error");
-            this.mostrarLogin(); 
-            return false;
-        }
+// Creamos esta función para que Cloud la use cuando Firebase confirme quién eres
+configurarSesion(datosNube) {
+    // 1. Mapeamos los datos
+    this.datos = datosNube.perfil || {};
+    this.datos.estado = datosNube.administracion?.estado || 'pendiente';
 
-        console.log(`👤 Guerrero en línea: ${this.datos.usuario || this.datos.nombre}`);
-        
-        // Iniciamos el rastro de presencia en la nube
-        this.actualizarPresencia();
-        
-        return true; // Acceso concedido al Dashboard
-    } else {
-        console.log("🎟️ Sin sesión previa. Iniciando portal de acceso...");
-        this.mostrarLogin();
+    // 2. Filtro de aprobación
+    if (this.datos.estado === 'pendiente') {
+        this.mostrarPantallaEspera();
         return false;
     }
+
+    // 🚩 CLAVE: Guardamos el ID para que Seguridad.js pueda desencriptar el PIN
+    if (this.datos.uid) {
+        Persistencia.guardar('dom_id_unico', this.datos.uid);
+    }
+
+    // 3. Persistencia para el modo Offline
+    Persistencia.guardar('dom_usuario_local', this.datos);
+    return true; 
 },
 
     // --- OPTIMIZACIÓN DE MEDIA (GEMS: NIVEL 2) ---
@@ -145,7 +135,10 @@ const Usuario = {
 
 
 mostrarLogin() {
-    this.limpiarPantalla();
+    // 1. Limpieza absoluta antes de empezar
+    this.limpiarPantalla(); 
+
+    // 2. Creación del escenario usando tu método estándar
     const overlay = this.crearOverlay('overlay-login');
 
     overlay.innerHTML = `
@@ -182,14 +175,19 @@ mostrarLogin() {
 
     document.body.appendChild(overlay);
 
+    // --- ACCESO RÁPIDO CON ENTER ---
+    const inputPass = document.getElementById('login-pass');
+    inputPass.onkeypress = (e) => {
+        if (e.key === 'Enter') document.getElementById('btn-login').click();
+    };
+
     // --- LÓGICA DE RECUPERACIÓN (FIREBASE) ---
     document.getElementById('link-recuperar').onclick = async () => {
         const email = prompt("Introduce tu correo para recibir instrucciones:");
-        if (email) {
+        if (email && email.trim() !== "") {
             try {
                 notificar("Enviando correo...", "alerta");
-                // Asegúrate de que Cloud.auth esté correctamente inicializado
-                await Cloud.auth.sendPasswordResetEmail(email);
+                await Cloud.auth.sendPasswordResetEmail(email.trim());
                 notificar("Instrucciones enviadas", "exito");
             } catch (error) {
                 console.error("Auth Error:", error);
@@ -200,19 +198,36 @@ mostrarLogin() {
 
     // --- LÓGICA DE ACCESO ---
     document.getElementById('btn-login').onclick = () => {
+        const btn = document.getElementById('btn-login');
         const user = document.getElementById('login-user').value.trim();
         const pass = document.getElementById('login-pass').value.trim();
         
         if(!user || !pass) return notificar("Faltan datos", "alerta");
         
+        // Bloqueo visual del botón para evitar spam de clics
+        btn.disabled = true;
+        btn.style.opacity = "0.7";
+        btn.innerText = "VERIFICANDO...";
+        
         this.procesarLogin(user, pass);
+
+        // Reactivación de emergencia si procesarLogin no refresca la página
+        setTimeout(() => { 
+            const activeBtn = document.getElementById('btn-login');
+            if(activeBtn && activeBtn.disabled) {
+                activeBtn.disabled = false;
+                activeBtn.style.opacity = "1";
+                activeBtn.innerText = "ENTRAR";
+            }
+        }, 4000);
     };
 
     // --- NAVEGACIÓN A REGISTRO ---
     document.getElementById('link-registro').onclick = () => {
-        overlay.style.opacity = '0'; // Efecto de salida suave
+        overlay.style.opacity = '0';
+        overlay.style.transform = 'scale(0.9)'; // Efecto visual extra al salir
         setTimeout(() => {
-            overlay.remove();
+            this.limpiarPantalla(); // 🧹 Limpieza atómica antes de cambiar de vista
             this.mostrarRegistro();
         }, 300);
     };
@@ -222,7 +237,10 @@ mostrarLogin() {
     // ==========================================
 
 mostrarRegistro() {
-    this.limpiarPantalla();
+    // 1. Limpieza total para que el DOM esté ligero
+    this.limpiarPantalla(); 
+    
+    // 2. Creación del escenario (id único para evitar choques)
     const overlay = this.crearOverlay('overlay-registro');
 
     overlay.innerHTML = `
@@ -233,7 +251,7 @@ mostrarRegistro() {
             <div style="position: relative; width: 110px; height: 110px; margin: 0 auto 25px;">
                 <div id="p-container" class="p-container-avatar">
                     <span id="placeholder-icon" style="font-size: 3.2rem;">👤</span>
-                    <img id="img-preview" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                    <img id="img-preview" style="width: 100%; height: 100%; object-fit: cover; display: none; border-radius: 50%;">
                 </div>
                 <label for="reg-foto" style="position: absolute; bottom: 5px; right: 5px; background: var(--primary); width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 3px solid #111; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
                     📷
@@ -317,7 +335,6 @@ mostrarRegistro() {
             match: campos.p2.value.length > 0 && campos.p1.value === campos.p2.value
         };
 
-        // Estilos dinámicos
         const updateUI = (ok, msgElement, inputElement, textOk, textError) => {
             msgElement.innerText = ok ? `✅ ${textOk}` : `❌ ${textError}`;
             msgElement.style.color = ok ? "#2ecc71" : "#ff4444";
@@ -346,6 +363,7 @@ mostrarRegistro() {
     inputFoto.onchange = async (e) => {
         const file = e.target.files[0];
         if (file) {
+            notificar("Procesando imagen...", "alerta");
             fotoProcesada = await this.procesarFotoRegistro(file);
             imgPreview.src = fotoProcesada;
             imgPreview.style.display = 'block';
@@ -353,27 +371,38 @@ mostrarRegistro() {
         }
     };
 
+    // --- NAVEGACIÓN DE SALIDA (Suave) ---
     document.getElementById('link-volver-login').onclick = () => {
-        overlay.remove();
-        this.mostrarLogin();
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            this.limpiarPantalla(); 
+            this.mostrarLogin();
+        }, 300);
     };
 
     campos.btn.onclick = async () => {
         const identidad = await this.obtenerIDUnico();
         const nuevoPerfil = {
-            nombre: document.getElementById('reg-nombre').value,
-            apellido: document.getElementById('reg-apellido').value,
-            negocio: document.getElementById('reg-negocio').value,
-            correo: campos.correo.value,
-            telefono: campos.tlf.value,
-            usuario: document.getElementById('reg-user').value,
+            nombre: document.getElementById('reg-nombre').value.trim(),
+            apellido: document.getElementById('reg-apellido').value.trim(),
+            negocio: document.getElementById('reg-negocio').value.trim(),
+            correo: campos.correo.value.trim(),
+            telefono: campos.tlf.value.trim(),
+            usuario: document.getElementById('reg-user').value.trim(),
             pass: campos.p1.value,
             foto: fotoProcesada,
             identidad: identidad
         };
         
-        overlay.remove();
-        this.simularEnvioCorreo(nuevoPerfil);
+        campos.btn.disabled = true;
+        campos.btn.innerText = "REGISTRANDO...";
+        
+        // Efecto de desvanecimiento antes de pasar a la simulación
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            this.limpiarPantalla();
+            this.simularEnvioCorreo(nuevoPerfil);
+        }, 300);
     };
 },
 
@@ -392,39 +421,76 @@ cerrarSesion() {
     // ==========================================
     // PANTALLA 3: VERIFICACIÓN DE CORREO
     // ==========================================
-   simularEnvioCorreo(perfil) {
-        // 1. Generamos código de 6 dígitos para mayor seguridad
-        const codigoReal = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        // 2. Bifurcación técnica (Local vs Real)
-        const modoDesarrollador = confirm(
-            "DOMINUS DEVS:\n\n¿Desea usar el Simulador Local?\n(Aceptar = Alerta local / Cancelar = Preparar envío Gmail)"
-        );
+simularEnvioCorreo(perfil) {
+    // 1. Generamos código de 6 dígitos
+    const codigoReal = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // 2. Limpiamos rastro visual
+    this.limpiarPantalla();
+    
+    // 3. UI de Transición: Estética "Cifrando Datos"
+    const overlay = this.crearOverlay('overlay-transicion');
+    overlay.innerHTML = `
+        <div class="glass" style="padding: 40px; border-radius: 20px; text-align: center;">
+            <div class="loader-circular" style="margin-bottom: 20px;"></div>
+            <h3 style="color: var(--primary);">Protocolo de Seguridad</h3>
+            <p style="color: #888;">Preparando cifrado para ${perfil.correo}</p>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    setTimeout(() => {
+        const modoDesarrollador = true; // 🚩 Mantener en TRUE para tus pruebas locales
 
         if (modoDesarrollador) {
-            // MODO LOCAL: Para pruebas rápidas
-            alert(`[SIMULADOR LOCAL]\n\nCódigo para ${perfil.correo}:\n${codigoReal}`);
-            this.mostrarVerificacion(perfil, codigoReal);
+            // MODO LOCAL: Mostramos el código en un anuncio visual para no ir a la consola
+            console.log(`%c [DEBUG DOMINUS] Código: ${codigoReal}`, 'background: #222; color: #bada55; font-size: 1.2em;');
+            
+            if (typeof Notificaciones !== 'undefined') {
+                Notificaciones.lanzarAnuncioVisual(
+                    "🔐 MODO DESARROLLADOR", 
+                    `Código de verificación: ${codigoReal}`, 
+                    "var(--accent)"
+                );
+            } else {
+                notificar(`Código: ${codigoReal}`, "exito");
+            }
+
+            // Transición suave a la pantalla de ingreso de código
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                this.limpiarPantalla();
+                this.mostrarVerificacion(perfil, codigoReal);
+            }, 3000);
+
         } else {
-            // MODO GMAIL: Aquí es donde conectaremos el bot de correo luego
-            console.log("🚀 Iniciando protocolo de envío Gmail...");
+            // MODO REAL: Aquí es donde integrarás EmailJS o tu API de correos
+            notificar("Enviando código de seguridad...", "info");
             
-            // TODO: Integrar EmailJS o Firebase Functions aquí
-            notificar("Enviando código a su correo...", "info");
-            
-            // Por ahora, para no trabar el flujo hoy, lanzamos la alerta
-            // pero dejamos la marca de que esto será automático.
-            alert(`SOPORTE DOMINUS:\nSe ha enviado un código de seguridad a ${perfil.correo}`);
-            this.mostrarVerificacion(perfil, codigoReal);
+            // Simulación de envío exitoso
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                this.limpiarPantalla();
+                this.mostrarVerificacion(perfil, codigoReal);
+            }, 500);
         }
-    },
+    }, 1500); 
+},
 
 /**
  * Renderiza la interfaz de verificación de identidad mediante código.
  * @param {Object} perfil - Datos del usuario a registrar.
  * @param {string} codigoReal - El código generado aleatoriamente.
  */
+/**
+ * Renderiza la interfaz de verificación de identidad mediante código.
+ * Blindada con el protocolo de limpieza de DOMINUS.
+ */
 mostrarVerificacion(perfil, codigoReal) {
+    // 1. LIMPIEZA ATÓMICA: Barremos el overlay de transición anterior
+    this.limpiarPantalla();
+
+    // 2. CREACIÓN: Usamos tu método estándar
     const overlay = this.crearOverlay('overlay-verificacion');
 
     overlay.innerHTML = `
@@ -457,28 +523,26 @@ mostrarVerificacion(perfil, codigoReal) {
     const input = document.getElementById('codigo-input');
     const btnConfirmar = document.getElementById('btn-verificar');
     
-    // Auto-focus inteligente
-    setTimeout(() => input.focus(), 200);
+    // Auto-focus inteligente con un pequeño delay para asegurar el render
+    setTimeout(() => input.focus(), 300);
 
     // --- LÓGICA DE VALIDACIÓN ---
     const procesarValidacion = () => {
         const inputCodigo = input.value.trim();
         
         if (inputCodigo === String(codigoReal)) {
-            // ÉXITO
             notificar("¡Identidad confirmada!", 'exito');
             overlay.style.opacity = '0';
+            overlay.style.transform = 'scale(1.1)'; // Efecto de "expansión" al éxito
             
             setTimeout(() => {
-                overlay.remove();
+                this.limpiarPantalla(); // 🧹 Limpieza final
                 // ✅ GUARDADO FINAL: Inicia la persistencia en Firebase/Cloud
                 this.guardarEnBaseDeDatos(perfil);
             }, 300);
         } else {
-            // ERROR: Feedback visual y físico
-            if (typeof Seguridad !== 'undefined' && Seguridad.vibrar) {
-                Seguridad.vibrar([100, 50, 100]);
-            }
+            // ERROR: Feedback visual y físico (Vibración si es móvil)
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
             
             input.classList.add('shake-anim');
             input.style.borderBottomColor = "#ff4d4d";
@@ -493,23 +557,26 @@ mostrarVerificacion(perfil, codigoReal) {
         }
     };
 
-    // Confirmar con el botón
+    // Eventos
     btnConfirmar.onclick = procesarValidacion;
 
-    // Confirmar automáticamente al llenar los 6 dígitos
-    input.oninput = () => {
+    input.oninput = (e) => {
+        // Solo números
         input.value = input.value.replace(/[^0-9]/g, '');
+        
         if (input.value.length === 6) {
-            setTimeout(procesarValidacion, 300); // Pequeño delay para que el usuario vea el último dígito
+            // Bloqueamos input momentáneamente para evitar doble envío
+            input.blur(); 
+            setTimeout(procesarValidacion, 400); 
         }
     };
 
-    // Lógica de reenvío
+    // Lógica de reenvío: Limpia y vuelve al simulador
     document.getElementById('resend-code').onclick = () => {
         notificar("Generando nuevo código...", "alerta");
         overlay.style.opacity = '0';
         setTimeout(() => {
-            overlay.remove();
+            this.limpiarPantalla();
             this.simularEnvioCorreo(perfil);
         }, 300);
     };
@@ -519,7 +586,7 @@ async guardarEnBaseDeDatos(perfil) {
     // 1. PREPARACIÓN DE IDENTIDAD (Hardware Binding)
     const uuidMaestro = perfil.identidad?.idFinal || await this.obtenerIDUnico();
 
-    // 🛰️ CAPTURA DE METADATOS (Añadimos la marca del dispositivo aquí también)
+    // 🛰️ CAPTURA DE METADATOS
     const metadatos = {
         dispositivo: navigator.userAgent.includes("Android") ? "Android" : "PC/Browser",
         plataforma: navigator.platform,
@@ -530,92 +597,104 @@ async guardarEnBaseDeDatos(perfil) {
         zonaHoraria: Intl.DateTimeFormat().resolvedOptions().timeZone
     };
 
-    // 💎 OBJETO DE TRASPASO
-    // Solo mandamos los datos crudos, Cloud.js se encargará de crear las carpetas
+    // 💎 OBJETO DE TRASPASO (Datos planos para el registro)
     const datosParaRegistro = {
         ...perfil,
         idFinal: uuidMaestro,
         metadatos: metadatos
     };
 
-    // 2. RESPALDO LOCAL PREVENTIVO (Offline First)
-    // Guardamos una versión plana localmente mientras esperamos aprobación
-    this.datos = datosParaRegistro;
-    Persistencia.guardar(this.sesionActual, { 
-        logueado: false, // Importante: falso hasta que el Admin apruebe
-        perfil: datosParaRegistro,
-        aprobado: false 
-    });
-
     notificar("Vinculando hardware con red DOMINUS...", "info");
 
-    // 3. ENVÍO AL MOTOR DE NUBE
+    // 2. ENVÍO AL MOTOR DE NUBE
     try {
-        // Llamamos a la función de Cloud que ya organizamos antes
-        const perfilCreado = await Cloud.registrarNuevoUsuario(datosParaRegistro);
+        const perfilEstructurado = await Cloud.registrarNuevoUsuario(datosParaRegistro);
 
-        if (perfilCreado) {
+        if (perfilEstructurado) {
+            // ✅ ACTUALIZACIÓN CLAVE: Ahora 'this.datos' tiene la estructura de Firebase
+            // (perfil, administracion, seguridad)
+            this.datos = perfilEstructurado;
+
+            // RESPALDO LOCAL ACTUALIZADO
+            Persistencia.guardar(this.sesionActual, { 
+                logueado: true, // Ya tiene cuenta en Firebase
+                perfil: perfilEstructurado, 
+                aprobado: false 
+            });
+
             // 🔔 AVISO AL MAESTRO POR TELEGRAM
             if (this.notificarMaestroTelegram) {
-                const msj = `🆕 *NUEVO GUERRERO*\n👤: ${perfil.nombre}\n🏢: ${perfil.negocio}\n📱: ${metadatos.modelo}\n🆔: ${uuidMaestro}`;
+                // Usamos el UID de Firebase que es el ID definitivo en la nube
+                const uid = perfilEstructurado.perfil.uid;
+                const msj = `🆕 *NUEVO GUERRERO*\n👤: ${perfil.nombre}\n🏢: ${perfil.negocio}\n📱: ${metadatos.modelo}\n🆔: ${uid}`;
                 this.notificarMaestroTelegram(msj);
             }
 
             notificar("¡Solicitud enviada al Mando Central!", "exito");
-            this.preguntarPorPIN();
+            
+            // Pasamos el perfil estructurado al siguiente paso
+            this.preguntarPorPIN(perfilEstructurado);
         } else {
+            // Fallback si no hay red: usamos los datos planos temporalmente
+            this.datos = datosParaRegistro;
             notificar("Perfil guardado localmente (Sin red)", "alerta");
-            this.preguntarPorPIN();
+            this.preguntarPorPIN(datosParaRegistro);
         }
     } catch (error) {
         console.error("❌ Error en el salto a la nube:", error);
-        this.preguntarPorPIN(); 
+        this.datos = datosParaRegistro;
+        this.preguntarPorPIN(datosParaRegistro); 
     }
 },
 
 // En Usuario.js (App del negocio)
 actualizarPresencia() {
-    // Usamos el ID de hardware vinculado
-    const uuid = this.datos.idFinal || this.datos.uuid;
+    // Buscamos el ID en la nueva estructura organizada
+    const uuid = this.datos?.perfil?.uid || this.datos?.idFinal;
     
     if (!uuid) return;
 
-    // 🛡️ RUTA ACTUALIZADA: Guardamos el rastro en la carpeta de seguridad
-    Cloud.db.ref(`usuarios/${uuid}/seguridad/ultimaConexion`).set(new Date().toISOString());
+    // 🛡️ RECOMENDACIÓN: Guardarlo en 'administracion' para que tú, 
+    // como Admin, veas quién está conectado desde tu panel.
+    Cloud.db.ref(`usuarios/${uuid}/administracion/ultimaConexion`).set(new Date().toISOString());
 },
 
 // En Usuario.js
 escucharMensajesAdmin() {
-    Cloud.db.ref(`usuarios/${this.datos.uuid}/comunicacion/mensajeDirecto`).on('value', (snap) => {
+    const uuid = this.datos?.perfil?.uid || this.datos?.idFinal;
+    if (!uuid) return;
+
+    Cloud.db.ref(`usuarios/${uuid}/comunicacion/mensajeDirecto`).on('value', (snap) => {
         const data = snap.val();
-        if (data && !data.leido) {
-            // Aquí puedes usar tu función de notificar()
-            notificar(`✉️ MENSAJE DEL ADMIN: ${data.texto}`, "alerta");
-            // Opcional: marcar como leído automáticamente tras 5 segundos
+        // Si hay mensaje y no ha sido leído
+        if (data && data.texto && !data.leido) {
+            notificar(`✉️ MENSAJE DE JOHANDER: ${data.texto}`, "alerta");
+            
+            // Opcional: Marcar como leído en la nube tras 8 segundos
+            setTimeout(() => {
+                Cloud.db.ref(`usuarios/${uuid}/comunicacion/mensajeDirecto/leido`).set(true);
+            }, 8000);
         }
     });
 },
 
 // En la App del Usuario (Lado Business)
 escucharComandosGlobales() {
-    // 1. Escuchar Modo Mantenimiento
+    // 1. Mantenimiento (Funciona perfecto como lo tienes)
     Cloud.db.ref('config_global/mantenimiento').on('value', (snap) => {
-        const enMantenimiento = snap.val();
-        if (enMantenimiento) {
-            this.bloquearPorMantenimiento();
-        } else {
-            this.desbloquearApp();
-        }
+        if (snap.val() === true) this.bloquearPorMantenimiento();
+        else this.desbloquearApp();
     });
 
-    // 2. Escuchar Anuncios o Mensajes Globales
+    // 2. Anuncios (Mejoramos la lógica de tiempo)
     Cloud.db.ref('config_global/anuncio').on('value', (snap) => {
         const anuncio = snap.val();
         if (anuncio && anuncio.mensaje) {
-            // Solo mostramos si el anuncio es reciente (ej. de las últimas 24h)
             const hace24h = Date.now() - (24 * 60 * 60 * 1000);
-            if (anuncio.timestamp > hace24h) {
+            // Si el anuncio es de hoy y no es el mismo que ya mostramos
+            if (anuncio.timestamp > hace24h && this.ultimoAnuncioId !== anuncio.timestamp) {
                 this.mostrarAnuncioGlobal(anuncio.mensaje);
+                this.ultimoAnuncioId = anuncio.timestamp; // Evita spam al recargar
             }
         }
     });
@@ -626,54 +705,32 @@ escucharComandosGlobales() {
  * Se puede activar remotamente si se integra con una bandera en la base de datos.
  */
 bloquearPorMantenimiento() {
-    let capa = document.getElementById('capa-mantenimiento');
-    
-    if (!capa) {
-        capa = document.createElement('div');
-        capa.id = 'capa-mantenimiento';
-        
-        capa.innerHTML = `
-            <div style="text-align: center; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px;">
-                <span class="mantenimiento-icon">⚒️</span>
-                <h2 style="font-size: 1.8rem; letter-spacing: 2px; margin: 10px 0;">DOMINUS</h2>
-                <h3 style="font-weight: 300; opacity: 0.9;">SISTEMA EN MANTENIMIENTO</h3>
-                
-                <div style="width: 50px; height: 2px; background: var(--primary); margin: 20px auto;"></div>
-                
-                <p style="max-width: 300px; margin: 0 auto 15px; line-height: 1.5; font-size: 0.95em; color: #ccc;">
-                    Estamos reforzando el núcleo del sistema para servirte mejor.
-                </p>
-                
-                <p class="quote-mantenimiento">
-                    "El amor y la educación son la única verdad."
-                </p>
-            </div>
-        `;
+    if (document.getElementById('capa-mantenimiento')) return;
 
-        // Estilos de bloqueo total
-        Object.assign(capa.style, {
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(10, 10, 10, 0.98)',
-            zIndex: '100000', // Por encima de cualquier modal o notificación
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: '0',
-            transition: 'opacity 0.5s ease'
-        });
+    const capa = document.createElement('div');
+    capa.id = 'capa-mantenimiento';
+    capa.innerHTML = `
+        <div style="text-align: center; color: white; padding: 20px; animation: slideUp 0.5s ease;">
+            <div style="font-size: 4rem; margin-bottom: 20px;">⚒️</div>
+            <h2 style="color: #ffd700; letter-spacing: 3px;">DOMINUS</h2>
+            <p style="opacity: 0.7; font-weight: 300; margin-bottom: 30px;">SISTEMA EN OPTIMIZACIÓN</p>
+            <p style="font-style: italic; color: #888; font-size: 0.9em;">
+                "El amor y la educación son la única verdad."
+            </p>
+        </div>
+    `;
 
-        document.body.appendChild(capa);
-        
-        // Trigger de opacidad para entrada suave
-        setTimeout(() => { capa.style.opacity = '1'; }, 10);
-        
-        // Bloquear scroll del body
-        document.body.style.overflow = 'hidden';
-    }
+    // Aplicamos estilos (Tu lógica de Object.assign es perfecta)
+    Object.assign(capa.style, {
+        position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+        backgroundColor: '#0a0a0a', zIndex: '999999',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        opacity: '0', transition: 'opacity 0.6s ease'
+    });
+
+    document.body.appendChild(capa);
+    setTimeout(() => { capa.style.opacity = '1'; }, 50);
+    document.body.style.overflow = 'hidden';
 },
 
 
@@ -695,52 +752,62 @@ const capa = document.getElementById('capa-mantenimiento');
     // ==========================================
     // PANTALLA 4: PREGUNTA DE PIN
     // ==========================================
-preguntarPorPIN() {
-        const overlay = this.crearOverlay('overlay-pregunta-pin');
+preguntarPorPIN(perfilInyectado = null) {
+    // 1. Aseguramos tener los datos más frescos
+    if (perfilInyectado) this.datos = perfilInyectado;
 
-        overlay.innerHTML = `
-            <div class="glass" style="width: 85%; max-width: 400px; padding: 30px; border-radius: 15px; text-align: center; border: 1px solid rgba(255, 215, 0, 0.2);">
-                <div style="font-size: 3rem; margin-bottom: 15px;">🛡️</div>
-                <h2 style="color: #ffd700; margin-bottom: 10px;">CAPA DE SEGURIDAD</h2>
-                <p style="color: white; opacity: 0.8; margin-bottom: 25px;">
-                    ¿Deseas activar un PIN de acceso rápido? <br>
-                    <span style="font-size: 0.85em; color: #aaa;">Protege tu inventario y ventas de miradas curiosas.</span>
-                </p>
-                <button id="btn-si-pin" class="btn-main" style="width: 100%; padding: 15px; margin-bottom: 10px; font-weight: bold;">SÍ, ASEGURAR MI APP</button>
-                <button id="btn-no-pin" style="width: 100%; padding: 12px; background: transparent; border: 1px solid #444; color: #666; border-radius: 10px; cursor: pointer;">Omitir protección</button>
-            </div>
-        `;
-        document.body.appendChild(overlay);
+    const overlay = this.crearOverlay('overlay-pregunta-pin');
 
-        // OPCIÓN: SÍ QUIERE PIN
-        document.getElementById('btn-si-pin').onclick = () => {
+    overlay.innerHTML = `
+        <div class="glass" style="width: 85%; max-width: 400px; padding: 30px; border-radius: 15px; text-align: center; border: 1px solid rgba(255, 215, 0, 0.2);">
+            <div style="font-size: 3rem; margin-bottom: 15px;">🛡️</div>
+            <h2 style="color: #ffd700; margin-bottom: 10px;">CAPA DE SEGURIDAD</h2>
+            <p style="color: white; opacity: 0.8; margin-bottom: 25px;">
+                ¿Deseas activar un PIN de acceso rápido? <br>
+                <span style="font-size: 0.85em; color: #aaa;">Protege tu inventario y ventas de miradas curiosas.</span>
+            </p>
+            <button id="btn-si-pin" class="btn-main" style="width: 100%; padding: 15px; margin-bottom: 10px; font-weight: bold;">SÍ, ASEGURAR MI APP</button>
+            <button id="btn-no-pin" style="width: 100%; padding: 12px; background: transparent; border: 1px solid #444; color: #666; border-radius: 10px; cursor: pointer;">Omitir protección</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // OPCIÓN: SÍ QUIERE PIN
+    document.getElementById('btn-si-pin').onclick = () => {
+        overlay.remove();
+        // Pasamos el título para la captura
+        this.pantallaCapturaPIN("CREAR NUEVO PIN"); 
+    };
+
+    // OPCIÓN: NO QUIERE PIN
+    document.getElementById('btn-no-pin').onclick = () => {
+        if (confirm("⚠️ ADVERTENCIA DE SEGURIDAD:\n\nSin un PIN, cualquier persona que tome tu teléfono podrá ver tus ganancias y deudas.\n\n¿Estás seguro?")) {
+            
+            // Ajustamos la nueva estructura organizada
+            if (!this.datos.seguridad) this.datos.seguridad = {};
+            this.datos.seguridad.usaPin = false;
+            this.datos.seguridad.pin = null;
+            
+            // Guardamos el estado en administración (Importante para el Centinela)
+            if (!this.datos.administracion) this.datos.administracion = { estado: 'pendiente' };
+
+            Persistencia.guardar('dom_sesion_activa', { 
+                logueado: true, 
+                perfil: this.datos,
+                aprobado: false 
+            });
+            
             overlay.remove();
-            this.pantallaCapturaPIN("CREAR NUEVO PIN"); 
-        };
-
-        // OPCIÓN: NO QUIERE PIN (Con Advertencia GEMS)
-        document.getElementById('btn-no-pin').onclick = () => {
-            if (confirm("⚠️ ADVERTENCIA DE SEGURIDAD:\n\nSin un PIN, cualquier persona que tome tu teléfono podrá ver tus ganancias y deudas. Además, el PIN facilita recuperar tu cuenta si cambias de equipo.\n\n¿Estás seguro de continuar sin protección?")) {
-                this.datos.usaPin = false;
-                this.datos.pin = null;
-                
-                // Actualizamos el perfil local y preparamos el salto final
-                Persistencia.guardar(this.sesionActual, { 
-                    logueado: true, 
-                    perfil: this.datos,
-                    aprobado: false // Sigue pendiente de tu aprobación en Admin
-                });
-                
-                overlay.remove();
-                notificar("Seguridad desactivada. Puedes activarla luego.", 'alerta');
-                
-                // En lugar de reload, vamos a la pantalla de "Espera de Aprobación"
-                setTimeout(() => this.mostrarPantallaEspera(), 1500);
-            }
-        };
-    },
+            notificar("Seguridad desactivada.", 'alerta');
+            
+            // Salto final inyectando los datos para que el ID se vea de inmediato
+            setTimeout(() => this.mostrarPantallaEspera(this.datos), 1000);
+        }
+    };
+},
 
 /**
+ /**
  * Lanza el flujo de creación o confirmación de PIN de seguridad.
  * @param {string} titulo - Texto de encabezado.
  * @param {string|null} primerPin - Si existe, estamos en fase de confirmación.
@@ -781,47 +848,51 @@ pantallaCapturaPIN(titulo, primerPin = null) {
     const input = document.getElementById('pin-input');
     const btn = document.getElementById('btn-continuar-pin');
     
+    // Auto-focus para mejorar la velocidad de entrada
     setTimeout(() => input.focus(), 150);
 
-    // UX: Validación reactiva
+    // UX: Validación reactiva (Solo números y control de opacidad del botón)
     input.oninput = () => {
-        input.value = input.value.replace(/[^0-9]/g, ''); // Solo números
+        input.value = input.value.replace(/[^0-9]/g, ''); 
         const listo = input.value.length === 4;
         btn.style.opacity = listo ? "1" : "0.5";
         btn.style.cursor = listo ? "pointer" : "not-allowed";
-        
-        // Auto-click sutil al llegar a 4 dígitos para agilizar el flujo
-        if (listo && primerPin) {
-             // En confirmación, dejamos que el usuario presione el botón para estar seguro
-        }
     };
 
     btn.onclick = () => {
         const pinIngresado = input.value;
 
+        // Validación de longitud
         if (pinIngresado.length !== 4) {
-            this.vibrar([50, 100, 50]);
+            if (this.vibrar) this.vibrar([50, 100, 50]);
             input.classList.add('input-pin-error');
             setTimeout(() => input.classList.remove('input-pin-error'), 500);
             return notificar("Ingresa los 4 dígitos", 'alerta');
         }
 
-        overlay.style.opacity = '0'; // Transición suave entre pasos
+        // Animación de salida suave
+        overlay.style.opacity = '0';
+        overlay.style.transform = "scale(0.9)";
+        overlay.style.transition = "all 0.3s ease";
 
         setTimeout(() => {
             overlay.remove();
 
             if (!primerPin) {
-                // FASE 1: Registro inicial
+                // FASE 1: Registro del primer PIN y llamada recursiva para confirmar
                 this.pantallaCapturaPIN("CONFIRMAR PIN NUEVO", pinIngresado);
             } else {
-                // FASE 2: Verificación de igualdad
+                // FASE 2: Verificación de coincidencia
                 if (pinIngresado === primerPin) {
                     notificar("PIN establecido correctamente", 'exito');
+                    
+                    // LLAMADA MAESTRA: Sella la seguridad y salta a la Pantalla de Espera
                     this.vincularPinSeguro(pinIngresado); 
                 } else {
                     notificar("Los PIN no coinciden. Intenta de nuevo.", 'error');
                     if (this.vibrar) this.vibrar([100, 50, 100, 50, 100]);
+                    
+                    // Si falla, reiniciamos el ciclo de captura
                     this.pantallaCapturaPIN("CREAR PIN DE ACCESO"); 
                 }
             }
@@ -830,38 +901,40 @@ pantallaCapturaPIN(titulo, primerPin = null) {
 },
 
 vincularPinSeguro(pin) {
-    console.log("-> Iniciando vinculación de seguridad...");
+    console.log("-> Iniciando vinculación de seguridad estructurada...");
 
-    // 1. OBTENCIÓN DEL UUID (Hardware ID)
-    // Usamos el ID que generamos al inicio del registro
-    const uuid = this.datos?.idFinal || "DEV_MODE_ID";
+    // 1. OBTENCIÓN ROBUSTA DEL ID (Priorizamos el UID de Firebase)
+    // Buscamos en todas las rutas posibles para no perder la referencia
+    const uuidDefinitivo = this.datos?.perfil?.uid || this.datos?.perfil?.idHardware || this.datos?.idFinal || "ID_PENDIENTE";
     
     // 2. GENERACIÓN DE LLAVE DE ACCESO
-    // Creamos un hash simple en Base64 combinando el ID del equipo y el PIN
-    const llaveMaestra = btoa(uuid + ":" + pin);
+    // Usamos el ID definitivo para que la llave sea única por dispositivo/usuario
+    const llaveMaestra = btoa(uuidDefinitivo + ":" + pin);
 
-    // 3. ACTUALIZACIÓN DEL PERFIL EN MEMORIA
-    if (!this.datos) this.datos = {}; // Salvaguarda
-    this.datos.usaPin = true;
-    this.datos.llaveMaestra = llaveMaestra; 
-    this.datos.pin = pin; // Guardamos el pin para validaciones locales rápidas
+    // 3. ACTUALIZACIÓN DEL PERFIL EN MEMORIA (Estructura Firebase)
+    // Si no existe la carpeta de seguridad, la creamos para no romper el código
+    if (!this.datos.seguridad) this.datos.seguridad = {};
     
+    this.datos.seguridad.usaPin = true;
+    this.datos.seguridad.llaveMaestra = llaveMaestra; 
+    this.datos.seguridad.pin = pin; 
+
     // 4. PERSISTENCIA DE SESIÓN
-    // Aquí es donde DOMINUS dice: "Ya te conozco, pero espera a que el Admin te apruebe"
+    // Guardamos todo el objeto estructurado para que al recargar la app sepa qué hacer
     Persistencia.guardar('dom_sesion_activa', { 
         logueado: true, 
-        perfil: this.datos,
-        aprobado: false // El Centinela revisará este estado
+        perfil: this.datos, // Aquí va el objeto con perfil, administracion y seguridad
+        aprobado: false 
     });
 
-    console.log("-> Seguridad vinculada con éxito. Llave generada.");
+    console.log("-> Seguridad vinculada. Llave maestra:", llaveMaestra);
     notificar("Seguridad Vinculada", "exito");
 
-    // 5. SALTO AL CENTINELA (Pantalla de Espera)
-    // El setTimeout da aire a la UI antes de cambiar de pantalla
+    // 5. SALTO AL CENTINELA (Pasando los datos "en la mano")
     setTimeout(() => {
         if (typeof this.mostrarPantallaEspera === 'function') {
-            this.mostrarPantallaEspera();
+            // INYECCIÓN CRÍTICA: Pasamos this.datos para que el ID aparezca de una
+            this.mostrarPantallaEspera(this.datos);
         } else {
             console.error("Error: mostrarPantallaEspera no está definida.");
             notificar("Error de redirección", "error");
@@ -869,13 +942,17 @@ vincularPinSeguro(pin) {
     }, 1000);
 },
 
-mostrarPantallaEspera() {
+mostrarPantallaEspera(datosInyectados = null) {
     this.limpiarPantalla();
+    
+    // 1. RESCATE DE DATOS (Prioridad: parámetro > memoria > persistencia)
+    const d = datosInyectados || this.datos || Persistencia.cargar('dom_sesion_activa')?.perfil;
+    
+    // 2. OBTENCIÓN ULTRA-ROBUSTA DEL ID (Para que nunca salga "Generando...")
+    const uuid = d?.perfil?.uid || d?.uid || d?.perfil?.idHardware || d?.idFinal || "ID_PENDIENTE";
+    
     const overlay = this.crearOverlay('overlay-espera');
     let tiempoRestante = 300; 
-    
-    //  OBTENCIÓN ROBUSTA DEL UUID
-    const uuid = this.datos.idFinal || this.datos.identidad?.idFinal || this.datos.uuid;
 
     overlay.innerHTML = `
         <div id="contenedor-espera" class="glass" style="width: 90%; max-width: 450px; padding: 35px; border-radius: 20px; text-align: center; transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); transform: scale(1); opacity: 1;">
@@ -887,8 +964,8 @@ mostrarPantallaEspera() {
             </p>
 
             <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #333;">
-                <p style="color: #ffd700; font-size: 0.7em; margin-bottom: 5px; text-transform: uppercase;">ID de Dispositivo (UUID)</p>
-                <code style="color: #fff; font-family: monospace; font-size: 1rem; word-break: break-all;">${uuid || 'Generando ID...'}</code>
+                <p style="color: #ffd700; font-size: 0.7em; margin-bottom: 5px; text-transform: uppercase;">ID DE ACCESO (UID)</p>
+                <code style="color: #fff; font-family: monospace; font-size: 1rem; word-break: break-all;">${uuid}</code>
             </div>
 
             <button id="btn-check-status" class="btn-main" style="width: 100%; padding: 15px; margin-bottom: 15px; transition: all 0.3s; font-weight: bold;">
@@ -910,7 +987,7 @@ mostrarPantallaEspera() {
     const contenedor = document.getElementById('contenedor-espera');
 
     // --- 1. CAPTURA DE TOKEN (PUSH) ---
-    if (uuid && typeof Notificaciones !== 'undefined') {
+    if (uuid !== "ID_PENDIENTE" && typeof Notificaciones !== 'undefined') {
         Notificaciones.capturarDireccionPush(uuid).catch(e => console.warn("Push no disponible"));
     }
 
@@ -919,10 +996,7 @@ mostrarPantallaEspera() {
         tiempoRestante--;
         const min = Math.floor(tiempoRestante / 60);
         const seg = tiempoRestante % 60;
-        
-        if (displayTimer) {
-            displayTimer.innerText = `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
-        }
+        if (displayTimer) displayTimer.innerText = `${min.toString().padStart(2, '0')}:${seg.toString().padStart(2, '0')}`;
 
         if (tiempoRestante <= 0) {
             clearInterval(cuentaRegresiva);
@@ -942,9 +1016,9 @@ mostrarPantallaEspera() {
 
     // --- 3. ACCIÓN MANUAL ---
     btnCheck.onclick = async () => {
-        btnCheck.disabled = true; // Evitamos spam de clicks
+        btnCheck.disabled = true;
         notificar("Consultando red DOMINUS...", "info");
-        const aprobado = await this.ejecutarVerificacionDeAcceso();
+        const aprobado = await this.ejecutarVerificacionDeAcceso(); // Esta función debe usar la nueva ruta
         
         if (aprobado) {
             this.finalizarEsperaExitosa(overlay, contenedor, cuentaRegresiva);
@@ -956,20 +1030,21 @@ mostrarPantallaEspera() {
     // --- 4. ACCIÓN DE CONTACTO ---
     btnContactar.onclick = () => {
         const mensaje = `Hola Johander! Mi ID es: ${uuid}. Sigo esperando aprobación en DOMINUS.`;
-        // RECUERDA: Cambiar las X por tu número real
         const url = `https://wa.me/584248466139?text=${encodeURIComponent(mensaje)}`;
         window.open(url, '_blank');
     };
 
-    // --- 5. EL CENTINELA (TIEMPO REAL) ---
-    if (uuid && Cloud.db) {
-        const refEstado = Cloud.db.ref(`usuarios/${uuid}/perfil/estado`);
+    // --- 5. EL CENTINELA (TIEMPO REAL - CORREGIDO) ---
+    if (uuid !== "ID_PENDIENTE" && Cloud.db) {
+        // RUTA CORREGIDA: usuarios -> UID -> administracion -> estado
+        const refEstado = Cloud.db.ref(`usuarios/${uuid}/administracion/estado`);
         
-        // Escuchamos cualquier cambio en el nodo 'estado'
         refEstado.on('value', async (snapshot) => {
-            if (snapshot.val() === 'aprobado') {
-                console.log("⚡ Acceso detectado desde DOMINUS Admin.");
-                refEstado.off(); // Dejamos de escuchar una vez aprobado
+            const estado = snapshot.val();
+            console.log("-> Centinela detectó estado:", estado);
+            
+            if (estado === 'aprobado') {
+                refEstado.off(); // ¡Importante apagar el radar!
                 this.finalizarEsperaExitosa(overlay, contenedor, cuentaRegresiva);
             }
         });
@@ -981,46 +1056,57 @@ async finalizarEsperaExitosa(overlay, contenedor, cuentaRegresiva) {
     // 1. Detenemos el cronómetro inmediatamente
     if (cuentaRegresiva) clearInterval(cuentaRegresiva);
     
-    // Obtenemos el ID de forma segura
-    const uuid = this.datos.idFinal || this.datos.identidad?.idFinal;
+    // OBTENCIÓN ROBUSTA: Buscamos el ID en la nueva estructura
+    const uuid = this.datos?.perfil?.uid || this.datos?.perfil?.idHardware || this.datos?.idFinal;
 
     // 2. Animación de salida cinematográfica
     if (contenedor) {
+        contenedor.style.transition = "all 0.8s cubic-bezier(0.4, 0, 0.2, 1)";
         contenedor.style.opacity = "0";
         contenedor.style.transform = "scale(1.1) translateY(-30px)";
         contenedor.style.filter = "blur(15px)";
     }
-    if (overlay) overlay.style.background = "rgba(0,0,0,1)"; 
+    if (overlay) {
+        overlay.style.transition = "background 0.8s ease";
+        overlay.style.background = "rgba(0,0,0,1)"; 
+    }
 
-    // Esperamos a que la animación de arriba termine (800ms)
+    // Esperamos a que la animación termine
     setTimeout(async () => {
         try {
             // 3. Sincronización final con la Nube
-            // Traemos los datos que el Admin acaba de autorizar (fechaCorte, estado, etc.)
-            const perfilActualizado = await Cloud.obtenerEstadoUsuario(uuid);
+            // Cloud.obtenerEstadoUsuario(uuid) debe traer el nodo 'administracion'
+            const adminData = await Cloud.obtenerEstadoUsuario(uuid);
             
-            if (perfilActualizado) {
-                // Fusionamos datos locales (como la llaveMaestra del PIN) con los de la nube
-                this.datos = { ...this.datos, ...perfilActualizado };
+            if (adminData) {
+                // ESTRUCTURA POR COMPOSICIÓN:
+                // Actualizamos la subcarpeta 'administracion' sin borrar lo demás
+                this.datos.administracion = { 
+                    ...this.datos.administracion, 
+                    ...adminData,
+                    estado: 'aprobado' 
+                };
             }
 
             // 4. Persistencia de Sesión Activa
-            // Guardamos como logueado: true para que el Main.js arranque el ecosistema.
-            // El Centinela ya hizo su trabajo, ahora le toca al Dashboard.
-            Persistencia.guardar(this.sesionActual, { 
+            // Marcamos 'aprobado: true' para que el inicio de la app sea directo
+            Persistencia.guardar('dom_sesion_activa', { 
                 logueado: true, 
-                perfil: this.datos 
+                perfil: this.datos,
+                aprobado: true 
             });
 
             if (overlay) overlay.remove();
             notificar("¡Ecosistema Activado!", "exito");
             
             // 5. Recarga limpia para entrar al Dashboard
-            setTimeout(() => location.reload(), 500);
+            // Usamos un pequeño delay extra para que la notificación se vea
+            setTimeout(() => location.reload(), 800);
 
         } catch (error) {
             console.error("Error en la activación final:", error);
-            notificar("Error al sincronizar perfil", "error");
+            // Si falla la red, igual intentamos entrar con lo que tenemos local
+            location.reload(); 
         }
     }, 800);
 },
@@ -1057,45 +1143,68 @@ verificarAprobacionAutomatica() {
         }
     });
 },
+
 async ejecutarVerificacionDeAcceso() {
-    const uuid = this.datos.idFinal || this.datos.identidad?.idFinal || this.datos.uuid;
-    if (!uuid) return false;
+    // 1. OBTENCIÓN DEL ID (Ruta completa por si acaso)
+    const uuid = this.datos?.perfil?.uid || this.datos?.idFinal || this.datos?.identidad?.idFinal;
+    
+    if (!uuid) {
+        console.warn("⚠️ No se encontró UUID para verificar.");
+        return false;
+    }
 
     try {
-        // 🛰️ CONSULTA: Ahora Cloud.obtenerEstadoUsuario(uuid) nos trae el nodo 'administracion'
+        // 🛰️ CONSULTA: Cloud.obtenerEstadoUsuario debe apuntar a usuarios/uuid/administracion
         const adminData = await Cloud.obtenerEstadoUsuario(uuid);
 
-        // 🛡️ VERIFICACIÓN: Buscamos el estado dentro de la nueva carpeta 'administracion'
+        // 🛡️ VERIFICACIÓN
         if (adminData && adminData.estado === 'aprobado') {
             
-            // Sincronizamos: Mantenemos lo que tenemos y añadimos lo legal (administracion)
-            // Esto asegura que this.datos.estado ahora sea 'aprobado'
-            this.datos = { 
-                ...this.datos, 
-                ...adminData 
+            // ✅ SINCRONIZACIÓN ESTRUCTURADA
+            // En lugar de mezclar todo, actualizamos solo la "cajita" de administración
+            this.datos.administracion = { 
+                ...this.datos.administracion, 
+                ...adminData,
+                estado: 'aprobado' // Forzamos por seguridad
             };
             
-            // ✅ PERSISTENCIA TOTAL
-            Persistencia.guardar(this.sesionActual, { 
+            // ✅ PERSISTENCIA TOTAL (Actualizamos el disco local)
+            Persistencia.guardar('dom_sesion_activa', { 
                 logueado: true, 
-                perfil: this.datos 
+                perfil: this.datos,
+                aprobado: true // ¡Importante! Aquí ya es oficial
             });
 
-            notificar("¡ACCESO CONCEDIDO!", "exito");
+            notificar("¡CONEXIÓN EXITOSA!", "exito");
             
+            // 2. Transición visual antes del reload
             setTimeout(() => {
                 const overlay = document.getElementById('overlay-espera');
-                if (overlay) overlay.remove();
+                const contenedor = document.getElementById('contenedor-espera');
                 
-                location.reload(); 
-            }, 1200);
+                if (contenedor) {
+                    contenedor.style.transform = "scale(1.1)";
+                    contenedor.style.opacity = "0";
+                }
+                
+                if (overlay) {
+                    overlay.style.backdropFilter = "blur(20px)";
+                    overlay.style.opacity = "0";
+                }
+
+                setTimeout(() => location.reload(), 500); 
+            }, 1000);
 
             return true;
         }
         
+        // Si no está aprobado, notificamos sutilmente
+        notificar("Acceso aún en revisión...", "info");
         return false;
+
     } catch (e) {
         console.error("❌ Fallo en la comunicación con la red DOMINUS:", e.message);
+        notificar("Error de conexión con la red", "error");
         return false;
     }
 },
@@ -1127,83 +1236,79 @@ async ejecutarVerificacionDeAcceso() {
     // ==========================================
 async procesarLogin(usuario, pass) {
     notificar("Conectando con la nube...", "alerta");
-
+    
+    // Intentamos la autenticación con Firebase
     const uid = await Cloud.conectarACaja(usuario, pass);
 
     if (uid) {
         try {
             notificar("Sincronizando perfil integral...", "alerta");
-            
             const snapshot = await Cloud.db.ref(`usuarios/${uid}`).once('value');
             const dataNube = snapshot.val();
 
             if (dataNube) {
+                // 1. UNIFICACIÓN DE DATOS (Perfil, Administración y Seguridad)
                 const perfilPersonal = dataNube.perfil || {};
                 const adminData = dataNube.administracion || {};
                 const seguridadData = dataNube.seguridad || {};
 
                 this.datos = { 
                     ...perfilPersonal, 
-                    ...adminData, 
-                    idFinal: seguridadData.idFinal || uid 
+                    ...adminData,
+                    ...seguridadData, 
+                    uid: uid 
                 };
 
-                Persistencia.guardar('dom_id_unico', this.datos.idFinal);
+                // 2. PERSISTENCIA ATÓMICA
+                Persistencia.guardar('dom_usuario_local', this.datos);
+                Persistencia.guardar('dom_id_unico', uid); // Vital para que Seguridad.js reconozca el PIN
 
-                const esAprobado = adminData.estado === 'aprobado';
-                const datosSesion = { 
-                    logueado: esAprobado, 
-                    perfil: this.datos 
-                };
-
-                Persistencia.guardar(this.sesionActual, datosSesion);
-
-                // --- 🚀 INICIO DE LIMPIEZA VISUAL ---
-                const overlayActual = document.getElementById('overlay-login');
-
-                // 5. DIRECCIONAMIENTO SEGÚN ESTADO
-                if (!esAprobado) {
-                    notificar("Acceso pendiente de aprobación", "alerta");
-                    setTimeout(() => {
-                        if (overlayActual) overlayActual.remove(); // Quitamos login para mostrar espera
-                        this.mostrarPantallaEspera();
-                    }, 1000);
+                // 3. GESTIÓN DE INTERFAZ (Caso: Usuario no aprobado)
+                if (this.datos.estado !== 'aprobado') {
+                    this.limpiarPantalla(); 
+                    this.mostrarPantallaEspera();
+                    this.verificarAprobacionAutomatica(); 
                     return;
                 }
 
-                // 6. ÉXITO Y FEEDBACK
-                if (window.Interfaz && Interfaz.actualizarAvatarHeader) {
-                    Interfaz.actualizarAvatarHeader(this.datos);
-                }
-
+                // 4. FLUJO DE ÉXITO
                 notificar(`Bienvenido, ${this.datos.nombre}`, 'exito');
                 
                 setTimeout(() => {
-                    // Si vamos a otra pantalla, quitamos el overlay primero
-                    if (overlayActual) {
-                        overlayActual.style.opacity = '0';
-                        setTimeout(() => overlayActual.remove(), 300);
-                    }
+                    // LIMPIEZA TOTAL: Borramos físicamente el formulario de login del DOM
+                    this.limpiarPantalla();
 
-                    if (this.datos.usaPin) {
-                        this.pantallaDesbloqueoPIN();
-                    } else {
-                        // Si usas reload, el overlay se iría solo, 
-                        // pero es mejor quitarlo antes por si el reload tarda.
-                        location.reload();
-                    }
-                }, 1500);
+                    // 🔓 LIBERACIÓN DEL CANDADO:
+                    // Como la página ya cargó, el candado está en 'true'. 
+                    // Debemos ponerlo en 'false' para que iniciarDominus() no se bloquee al entrar.
+                    window.dominusIniciado = false; 
+
+                    // REARRANQUE COORDINADO: 
+                    // Llamamos a la secuencia de inicio (Splash -> PIN -> Dashboard)
+                    iniciarDominus(); 
+                }, 800); 
 
             } else {
                 notificar("Error: Nodo de usuario inexistente", "error");
+                this.resetearBotonLogin();
             }
-
         } catch (error) {
-            console.error("❌ Error sincronizando datos:", error);
-            notificar("Fallo de red al recuperar perfil", "error");
+            console.error("❌ Error sincronizando:", error);
+            notificar("Fallo de red al sincronizar", "error");
+            this.resetearBotonLogin();
         }
     } else {
         notificar("Credenciales incorrectas", 'error');
+        this.resetearBotonLogin();
+    }
+},
+
+// Función auxiliar para desbloquear el botón si algo falla
+resetearBotonLogin() {
+    const btn = document.getElementById('btn-login');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerText = "ENTRAR";
     }
 },
     // ==========================================

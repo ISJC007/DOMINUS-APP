@@ -721,7 +721,7 @@ abrirProcesoAbono(nombreCliente) {
     const tasa = Conversor.tasaActual || 1;
     const totalBs = totalUSD * tasa;
 
-    const overlay = this.crearOverlay('overlay-abono');
+    const overlay = Usuario.crearOverlay('overlay-abono');
     
     overlay.innerHTML = `
         <div class="card glass" style="max-width:400px; width:100%; padding:30px; border-radius:25px; text-align:center; border:1px solid rgba(255,215,0,0.2);">

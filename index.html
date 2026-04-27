@@ -570,7 +570,7 @@
 
     <script src="JS/Cloud.js"></script>
     <script src="JS/Offline.js"></script> 
-    <script src="JS/Usuaro.js"></script>
+    <script src="JS/Usuario.js"></script>
     <script src="JS/Seguridad.js"></script> 
     <script src="JS/Centinela.js"></script>
     <script src="JS/Audio.js"></script>
@@ -587,18 +587,10 @@
 
     <script src="JS/Controlador.js"></script> 
     <script src="JS/Main.js"></script>
+</main>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log("DOMINUS PWA: Activa", reg.scope))
-                    .catch(err => console.error("DOMINUS PWA: Error", err));
-            });
-        }
-    </script>
 </main>
-</main>
+
 </div>
 </body>
 </html>

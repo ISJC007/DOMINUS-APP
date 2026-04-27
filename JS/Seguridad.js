@@ -49,34 +49,36 @@ getClave() {
 
     // 2. LÓGICA DE INICIO (Con control de tiempo)
    async iniciarProteccion() {
-        // 1. PRIMERO: Verificar si el usuario logueado quiere usar PIN
-        // Buscamos en la sesión que creó Usuario.js
-        const sesion = Persistencia.cargar('dom_sesion_activa');
-        
-        // Si no hay sesión o el usuario explícitamente dijo que NO quiere PIN, salimos.
-        if (!sesion || !sesion.perfil || sesion.perfil.usaPin === false) {
-            console.log("🔓 Seguridad: El usuario desactivó el PIN o no ha iniciado sesión.");
-            return true; 
-        }
+    // 1. PRIMERO: Unificamos con el nombre que usa Usuario.js
+    const datosLocal = Persistencia.cargar('dom_usuario_local');
+    
+    // Si no hay datos, o el usuario desactivó el PIN, o es un invitado
+    // (Asegúrate de que 'usaPin' sea la propiedad correcta en tu Firebase)
+    if (!datosLocal || datosLocal.usaPin === false) {
+        console.log("🔓 Seguridad: PIN desactivado o usuario no identificado.");
+        return true; 
+    }
 
-        // 2. SEGUNDO: Control de tiempo (los 5 minutos)
-        const ultimaVez = localStorage.getItem('dom_ultima_auth');
-        const ahora = Date.now();
-        const cincoMinutos = 5 * 60 * 1000;
+    // 2. SEGUNDO: Control de tiempo (los 5 minutos)
+    const ultimaVez = localStorage.getItem('dom_ultima_auth');
+    const ahora = Date.now();
+    const cincoMinutos = 5 * 60 * 1000;
 
-        if (ultimaVez && (ahora - ultimaVez < cincoMinutos)) {
-            console.log("🔓 Sesión activa (menos de 5 min). Acceso directo.");
-            return true; 
-        }
+    if (ultimaVez && (ahora - ultimaVez < cincoMinutos)) {
+        console.log("🔓 Sesión reciente. Acceso directo.");
+        return true; 
+    }
 
-        // 3. TERCERO: Si llegamos aquí, es porque SÍ quiere PIN y ya pasó el tiempo
-        let resultado = await this.solicitarPIN();
+    // 3. TERCERO: Lanzamos el modal de PIN
+    // Pasamos el mensaje y el largo de 4 dígitos por defecto
+    let resultado = await this.solicitarPIN("Identidad Requerida", "4");
 
-        if (resultado) {
-            localStorage.setItem('dom_ultima_auth', Date.now());
-        }
-        return resultado;
-    },
+    if (resultado) {
+        localStorage.setItem('dom_ultima_auth', Date.now());
+    }
+    
+    return resultado; // Retorna true o false/null
+},
 
     // 3. MÉTODOS DE AUTENTICACIÓN
     async autenticarBiometrico() {
@@ -121,6 +123,7 @@ solicitarPIN() {
             return resolve(false);
         }
 
+        // Usamos el ID estándar para que el sistema sepa que es una capa de seguridad
         const overlay = Usuario.crearOverlay('overlay-seguridad-pin');
 
         overlay.innerHTML = `
@@ -155,35 +158,31 @@ solicitarPIN() {
         const input = document.getElementById('pin-invisible');
         const errorDiv = document.getElementById('pin-error');
         
-        // Auto-focus inmediato
         setTimeout(() => input.focus(), 100);
 
-        // --- MANEJO DE OLVIDO ---
+        // --- MANEJO DE OLVIDO (Unificado con dom_usuario_local) ---
         document.getElementById('btn-olvido-pin').onclick = () => {
-            if(confirm("Si olvidaste tu PIN, deberás iniciar sesión nuevamente con tu correo para restablecerlo. ¿Continuar?")) {
-                Persistencia.eliminar('dom_sesion_activa'); 
+            if(confirm("Si olvidaste tu PIN, deberás iniciar sesión nuevamente. ¿Continuar?")) {
+                Persistencia.eliminar('dom_usuario_local'); 
                 location.reload();
             }
         };
 
-        // --- VALIDACIÓN EN TIEMPO REAL ---
         input.oninput = () => {
-            // Solo números
             input.value = input.value.replace(/[^0-9]/g, '');
 
             if (input.value.length === 4) {
-                const claveCorrecta = this.getClave(); // El método que une UUID + PIN
+                const claveCorrecta = this.getClave(); 
 
                 if (input.value === claveCorrecta) {
                     // ÉXITO
                     this.intentosFallidos = 0; 
                     Persistencia.guardar('dom_seguridad_bloqueo', null); 
-                    Usuario.sesionValidadaPorPin = true; 
                     
                     overlay.style.opacity = '0';
                     setTimeout(() => {
                         overlay.remove();
-                        resolve(true);
+                        resolve(true); // Liberamos el flujo hacia iniciarDominus
                     }, 300);
                 } else {
                     // ERROR

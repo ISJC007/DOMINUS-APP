@@ -354,15 +354,19 @@ function CerrarGestorTallas() {
 function efectoEscritura(elemento, texto, velocidad = 50) {
     return new Promise((resolve) => {
         let i = 0;
-        elemento.innerText = ""; // Limpiamos el "Preparando ecosistema..." por defecto
+        if (!elemento) return resolve(); // Salvaguarda: si el elemento no existe, no rompemos el código
+        
+        elemento.textContent = ""; // Usamos textContent para limpieza inicial rápida
         
         function escribir() {
             if (i < texto.length) {
-                elemento.innerHTML += texto.charAt(i);
+                // Usamos textContent para evitar problemas con símbolos y mejorar rendimiento
+                elemento.textContent += texto.charAt(i); 
                 i++;
                 setTimeout(escribir, velocidad);
             } else {
-                resolve(); // Notifica que terminó de escribir
+                // Pequeña pausa táctica de 500ms al final para que el usuario respire la frase
+                setTimeout(resolve, 500); 
             }
         }
         escribir();
@@ -371,27 +375,37 @@ function efectoEscritura(elemento, texto, velocidad = 50) {
 
 // --- FUNCIONES DE ARRANQUE Y CARGA ---
 
-async function iniciarCargaSistemas() {
+async function iniciarCargaSistemas(datosUsuario = null) {
     console.log("⚙️ DOMINUS: Acceso verificado. Sincronizando entorno...");
     
-    // 🚩 Sincronización con la frase
+    // 1. SINCRONIZACIÓN DE INTERFAZ
+    // Esperamos a que la "Frase de Visión" termine de escribirse
     if (window.promesaEscritura) {
         await window.promesaEscritura;
     }
 
     console.log("⏱️ Frase lista. Preparando entrada triunfal...");
+
+    // 2. INYECCIÓN DE DATOS EN MÓDULOS
+    // Si recibimos datos de la nube, los repartimos a los sistemas antes de que despierten
+    if (datosUsuario) {
+        if (typeof Inventario !== 'undefined') Inventario.cargar(datosUsuario.inventario || []);
+        if (typeof Ventas !== 'undefined') Ventas.inicializar(datosUsuario.administracion || {});
+    }
     
-    // 🛡️ RE-ESCANEAMIENTO DE SEGURIDAD (En segundo plano)
+    // 3. SEGURIDAD PASIVA
     if (typeof Notificaciones !== 'undefined') {
-        Notificaciones.revisarTodo();
+        // Revisamos mensajes directos, alertas de stock o pagos pendientes
+        Notificaciones.revisarTodo(); 
     }
 
-    // Bajamos de 5000ms (5s) a 2000ms (2s). 
-    // Es tiempo suficiente para apreciar la estética sin desesperar al usuario.
+    // 4. TRANSICIÓN CINEMATOGRÁFICA
+    // Bajamos a 2s para que la app se sienta rápida pero elegante
     setTimeout(() => {
-        finalizarArranque();
+        // Esta función debe ocultar el Splash y mostrar el Dashboard
+        finalizarArranque(); 
         
-        // 💡 Lanzamiento del TIP (Un poco después de entrar al dashboard)
+        // 5. ENGAGEMENT (Tips de educación/negocio)
         setTimeout(() => {
             if (typeof Notificaciones !== 'undefined' && Notificaciones.tips) {
                 const tip = Notificaciones.tips[Math.floor(Math.random() * Notificaciones.tips.length)];
@@ -405,203 +419,211 @@ async function iniciarCargaSistemas() {
 function finalizarArranque() {
     const splash = document.getElementById('splash-screen');
     const nav = document.querySelector('.bottom-nav');
+    // 🚩 Buscamos cualquier overlay que haya quedado vivo (Login, PIN, etc)
+    const overlays = document.querySelectorAll('[id^="overlay-"]');
 
-    if (!splash) return;
+    // 1. DISPARO DE TRANSICIÓN VISUAL
+    if (splash) {
+        splash.classList.add('splash-fade-out');
+        splash.style.pointerEvents = 'none'; 
+    }
 
-    // Aplicamos la transición de salida
-    splash.classList.add('splash-fade-out');
-    splash.style.pointerEvents = 'none'; // Evita que el usuario toque algo mientras desaparece
+    // Desvanecemos también los overlays si existen
+    overlays.forEach(ov => {
+        ov.style.transition = "opacity 0.6s ease";
+        ov.style.opacity = "0";
+        ov.style.pointerEvents = "none";
+    });
 
+    // 2. SINCRONIZACIÓN DE LA UI
     setTimeout(() => {
-        splash.style.display = 'none';
+        // Limpieza física del DOM
+        if (splash) splash.style.display = 'none';
+        overlays.forEach(ov => ov.remove()); // 🧹 Aquí eliminamos el Login definitivamente
         
-        // 🚀 MOSTRAR EL MENÚ DE NAVEGACIÓN
+        // Revelamos la navegación
         if (nav) {
             nav.classList.add('nav-visible');
+            nav.style.display = 'flex';
         }
         
-        // Mostramos el dashboard de inmediato
-        if (typeof Interfaz !== 'undefined') {
-            Interfaz.show('dashboard');
+        // 🚀 ACTIVACIÓN DE MÓDULOS
+        try {
+            if (typeof Interfaz !== 'undefined') {
+                Interfaz.show('dashboard');
+            }
+        } catch (e) {
+            console.error("⚠️ Error al mostrar Dashboard:", e);
         }
         
-        // Audio y Bienvenida
+        // 🔊 MULTIMEDIA Y BIENVENIDA
         if (typeof DominusAudio !== 'undefined') {
-            DominusAudio.play('add'); 
+            DominusAudio.play('success_unlock'); 
             DominusAudio.saludarSegunHora();
         }
         
-        notificar("Conexión establecida", "exito");
+        notificar("Ecosistema Sincronizado", "exito");
         
-        // Limpieza total del DOM para liberar memoria en la PC
-        setTimeout(() => splash.remove(), 1000);
+        // Limpieza final del Splash
+        setTimeout(() => { if(splash) splash.remove(); }, 1000);
 
     }, 800); 
 }
 
-async function iniciarDominus() {
-    try {
-        console.log("🚀 Dominus: Iniciando sistema...");
 
-        // A. CONFIGURACIÓN VISUAL INICIAL
-        const isDark = Persistencia.cargar('dom_dark_mode');
-        if (isDark) {
-            document.body.classList.add('dark-mode');
-            const checkDark = document.getElementById('checkDarkMode');
-            if (checkDark) checkDark.checked = true;
+window.dominusIniciado = false;
+
+async function iniciarDominus() {
+    // 🚩 PROTECCIÓN: Evita que el DOMContentLoaded y Firebase disparen el inicio al mismo tiempo
+    if (window.dominusIniciado) return;
+    window.dominusIniciado = true;
+
+    try {
+        console.log("🚀 DOMINUS: Iniciando secuencia de arranque única...");
+
+        // --- 1. VERIFICACIÓN DE INTEGRIDAD Y VERSIONES ---
+        const VERSION_ACTUAL = "1.0.5"; 
+        const versionGuardada = Persistencia.cargar('dom_version');
+        if (versionGuardada !== VERSION_ACTUAL) {
+            console.log("🔄 Actualizando estructuras de datos...");
+            Persistencia.guardar('dom_version', VERSION_ACTUAL);
         }
 
-        // B. PREPARACIÓN DE DATOS Y SESIÓN
-        const haySesionLocal = Usuario.init(); 
-        const contenedorWisdom = document.getElementById('contenedor-sabiduria');
+        // --- 2. CONFIGURACIÓN VISUAL INICIAL ---
+        const isDark = Persistencia.cargar('dom_dark_mode');
+        if (isDark) document.body.classList.add('dark-mode');
 
+        // --- 3. CONEXIÓN Y SESIÓN (Sincronización Real con Firebase) ---
+        // Esperamos a que Firebase nos diga quién es el usuario de forma definitiva
+        const user = await new Promise(res => {
+            const unsub = Cloud.auth.onAuthStateChanged(u => {
+                unsub(); // Nos desuscribimos inmediatamente para no repetir el proceso
+                res(u);
+            });
+        });
+
+        // Inicializamos el objeto Usuario
+        Usuario.init(); 
+        const haySesionLocal = (Usuario.datos && Usuario.datos.uid);
+
+        // --- 4. LÓGICA DE BIENVENIDA (Frases y Sabiduría) ---
+        // Se ejecuta siempre para mostrar el splash con elegancia mientras cargamos
         if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
             const txtFrase = document.getElementById('frase-splash');
             const txtAutor = document.getElementById('autor-splash');
             
             if (txtFrase) {
-                let seleccion;
                 const diaUso = haySesionLocal ? Usuario.obtenerDiasDeUso() : 0;
-                
-                // 🧠 Lógica de Inducción Dominus
                 const frasesInduccion = {
-                    5:  { texto: "En solo 5 días, tu negocio ya respira el orden de DOMINUS. El control es el primer paso al éxito.", autor: "EQUIPO DOMINUS" },
-                    10: { texto: "10 días transformando datos en decisiones. Tu disciplina y DOMINUS son el equipo perfecto.", autor: "EQUIPO DOMINUS" },
-                    14: { texto: "Mañana se cumplen 15 días de evolución. Mira atrás y observa cuánto ha crecido tu claridad operativa.", autor: "EQUIPO DOMINUS" },
-                    15: { texto: "Hoy celebramos 15 días de una nueva era educativa en tu negocio. No pierdas el enfoque.", autor: "EQUIPO DOMINUS" }
+                    5:  { texto: "En solo 5 días, tu negocio ya respira el orden de DOMINUS.", autor: "EQUIPO DOMINUS" },
+                    10: { texto: "10 días transformando datos en decisiones. El éxito es disciplina.", autor: "EQUIPO DOMINUS" },
+                    15: { texto: "Hoy celebramos 15 días de una nueva era educativa en tu negocio.", autor: "EQUIPO DOMINUS" }
                 };
 
-                seleccion = frasesInduccion[diaUso] || bancoFrases[Math.floor(Math.random() * bancoFrases.length)];
-
-                // Mostramos el contenedor antes de escribir
+                const seleccion = frasesInduccion[diaUso] || bancoFrases[Math.floor(Math.random() * bancoFrases.length)];
+                
+                const contenedorWisdom = document.getElementById('contenedor-sabiduria');
                 if (contenedorWisdom) contenedorWisdom.style.opacity = "1";
-
+                
                 window.promesaEscritura = efectoEscritura(txtFrase, `"${seleccion.texto}"`, 40);
-
                 window.promesaEscritura.then(() => {
                     if (txtAutor) {
                         txtAutor.innerText = `— ${seleccion.autor || 'DOMINUS AI'}`;
-                        txtAutor.style.opacity = "0";
-                        txtAutor.style.transition = "opacity 1s";
-                        setTimeout(() => txtAutor.style.opacity = "0.8", 100);
+                        txtAutor.style.opacity = "0.8";
                     }
                 });
             }
         }
 
-        // C. CONTROL DE ACCESO
-        if (haySesionLocal) {
-            if (typeof Interfaz !== 'undefined' && Interfaz.actualizarAvatarHeader) {
-                Interfaz.actualizarAvatarHeader(Usuario.datos);
+        // --- 5. FILTRO DE SEGURIDAD Y ACCESO ---
+        if (user) {
+            // Sincronización: Si hay usuario en Firebase pero no localmente (ej: nuevo dispositivo)
+            if (!haySesionLocal) {
+                console.log("📡 Sesión en nube detectada. Restaurando perfil...");
+                const snapshot = await Cloud.db.ref(`usuarios/${user.uid}`).once('value');
+                if (snapshot.exists()) {
+                    Usuario.configurarSesion(snapshot.val());
+                } else {
+                    // Si el usuario existe en Auth pero no en DB (error raro)
+                    Usuario.mostrarLogin();
+                    return;
+                }
             }
 
-            // SEGURIDAD: Aquí es donde se suele "pegar" si hay doble splash
+            // A. ¿Estado del usuario aprobado?
+            if (Usuario.datos.estado !== 'aprobado') {
+                console.warn("⏳ Acceso pendiente.");
+                Usuario.mostrarPantallaEspera();
+                Usuario.verificarAprobacionAutomatica();
+                return; 
+            }
+
+            // B. PASO CRÍTICO: Validación de Identidad (PIN)
             const accesoConcedido = await Seguridad.iniciarProteccion();
             
             if (accesoConcedido) {
-                console.log("🔓 Acceso concedido. Sincronizando Mando Central...");
+                console.log("🔓 Identidad confirmada. Sincronizando módulos...");
 
-                // 🔥 ACTIVACIÓN DE COMUNICACIÓN CON ADMIN
-                if (typeof Usuario !== 'undefined' && Usuario.datos) {
-                    Usuario.actualizarPresencia(); 
-                    if (typeof Notificaciones !== 'undefined' && Notificaciones.escucharMandoCentral) {
-                        Notificaciones.escucharMandoCentral(Usuario.datos.uid); 
+                // --- 6. SINCRONIZACIÓN NUBE-LOCAL ---
+                if (navigator.onLine) {
+                    const invLocal = Persistencia.cargar('dom_inventario');
+                    if (!invLocal || invLocal.length === 0) {
+                        await Cloud.descargarRespaldo('inventario');
+                        await Cloud.descargarRespaldo('ventas');
                     }
+                    Usuario.actualizarPresencia();
                 }
 
-                // 🔴 MODO MANTENIMIENTO GLOBAL
-                if (typeof escucharComandosGlobales === 'function') escucharComandosGlobales();
-
-                // D. CARGA DE DATOS LOCALES
+                // --- 7. CARGA DE MEMORIA ---
                 window.DOMINUS.historial = Persistencia.cargar('dom_ventas') || [];
                 window.DOMINUS.deudas = Persistencia.cargar('dom_fiaos') || [];
-                window.DOMINUS.gastos = Persistencia.cargar('dom_gastos') || [];
 
                 if (typeof Notificaciones !== 'undefined') Notificaciones.init();
+                if (typeof Inventario !== 'undefined') Inventario.init();
 
-                // E. CONFIGURACIÓN DE INVENTARIO
-                const configGuardada = localStorage.getItem('dom_config');
-                let invActivo = (configGuardada === null) ? true : JSON.parse(configGuardada).invActivo;
-                
-                if (configGuardada === null) {
-                    localStorage.setItem('dom_config', JSON.stringify({ invActivo: true }));
-                }
-
-                if(typeof Inventario !== 'undefined') {
-                    Inventario.activo = invActivo;
-                    const checkInv = document.getElementById('check-inv-ajustes') || document.getElementById('check-inv');
-                    if (checkInv) checkInv.checked = invActivo;
-                    if (Inventario.init) Inventario.init();
-                }
-
-                // F. PREFERENCIAS Y AUTO-LLENADO
-                if (typeof Controlador !== 'undefined' && Controlador.verificarPreferenciaPunto) {
-                    Controlador.verificarPreferenciaPunto();
-                }
-
-                const inputProducto = document.getElementById('v-producto');
-                if (inputProducto) {
-                    inputProducto.setAttribute('list', 'sugerencias-ventas');
-                    inputProducto.addEventListener('input', (e) => {
-                        if (typeof Inventario !== 'undefined' && Inventario.buscarPrecioMemoria) {
-                            const precioRecordado = Inventario.buscarPrecioMemoria(e.target.value);
-                            if (precioRecordado !== null) {
-                                const inputMonto = document.getElementById('v-monto');
-                                if (inputMonto) {
-                                    inputMonto.value = precioRecordado;
-                                    inputMonto.style.backgroundColor = 'rgba(76, 175, 80, 0.2)'; 
-                                    setTimeout(() => inputMonto.style.backgroundColor = '', 500);
-                                }
-                            }
-                        }
-                    });
-                }
-
-                if(typeof Inventario !== 'undefined' && Inventario.actualizarDatalist) Inventario.actualizarDatalist();
-                if (typeof Usuario !== 'undefined' && Usuario.cargarAjustes) Usuario.cargarAjustes();
-
-                // 🚀 LANZADOR FINAL: Esperamos a que la frase termine para un cierre elegante
-                if (window.promesaEscritura) {
-                    await window.promesaEscritura;
-                    setTimeout(() => iniciarCargaSistemas(), 500);
-                } else {
-                    iniciarCargaSistemas();
-                }
+                // --- 8. LANZAMIENTO ---
+                if (window.promesaEscritura) await window.promesaEscritura;
+                setTimeout(() => finalizarArranque(), 800);
                 
             } else {
-                notificar("PIN incorrecto o cancelado", "error");
-                setTimeout(() => location.reload(), 2000);
+                // Si el PIN falló o se cerró, liberamos el candado para que el usuario pueda reintentar
+                window.dominusIniciado = false;
+                console.warn("🚫 Seguridad: Acceso denegado.");
             }
         } else {
-            // No hay sesión: Ocultamos elementos del splash para mostrar el Login limpio
+            // CASO: NO HAY SESIÓN ACTIVA
+            console.warn("☁️ Sin sesión detectada. Yendo al login.");
+            window.dominusIniciado = false; // Liberamos para que el login pueda disparar el arranque luego
+            
             const loader = document.querySelector('.loader');
             if (loader) loader.style.display = 'none';
-            if (contenedorWisdom) contenedorWisdom.style.display = 'none';
-
-            if (!navigator.onLine) {
-                notificar("Internet requerido para activación", "alerta");
-            } else {
-                Usuario.mostrarLogin();
-            }
+            
+            // Limpiamos la pantalla por si quedó el splash vacío
+            Usuario.limpiarPantalla();
+            Usuario.mostrarLogin();
         }
 
     } catch (error) {
-        console.error("❌ Fallo crítico en el arranque de Dominus:", error);
-        // Si algo falla, intentamos quitar el splash para que el usuario no se quede bloqueado
-        const splash = document.getElementById('splash-screen');
-        if (splash) splash.remove();
+        window.dominusIniciado = false;
+        console.error("❌ Fallo crítico en iniciarDominus:", error);
     }
-};
-
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js')
-        .then(() => console.log("Dominus PWA: Lista"))
-        .catch(err => console.log("Error en SW:", err));
 }
 
+/// 1. Declarar la variable UNA sola vez al principio de todo el archivo
+if (typeof window.dominusIniciado === 'undefined') {
+    window.dominusIniciado = false;
+}
 
+// 2. El disparador de inicio
+document.addEventListener('DOMContentLoaded', () => {
+    // IMPORTANTE: Aquí solo llamamos a la función. 
+    // La función iniciarDominus ya tiene su propio candado interno.
+    iniciarDominus(); 
+});
 
-
-document.addEventListener('DOMContentLoaded', iniciarDominus);
-
-
+// 3. Registro del Service Worker (Solo una vez)
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log("🛡️ DOMINUS PWA: Escudo Offline Activo"))
+        .catch(err => console.error("❌ Error en SW:", err));
+}
