@@ -1293,18 +1293,20 @@ eliminarInv(id) {
         localStorage.setItem('dom_inv_activo', activo);
         console.log("Inventario está ahora:", activo);
     },
-
-    toggleDarkMode(activo) { //para cambiar de claro a oscuro//
-        if (activo) {
-            document.body.classList.add('dark-mode');
-        } else {
-            document.body.classList.remove('dark-mode');
-        }
-        
-        Persistencia.guardar('dom_dark_mode', activo);
-        
-        console.log("Modo oscuro:", activo);
-    },
+toggleDarkMode(activo) {
+    if (activo) {
+        document.body.classList.add('dark-mode');
+        // Cambia la barra superior del móvil a negro
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0a0a0a');
+    } else {
+        document.body.classList.remove('dark-mode');
+        // Cambia la barra superior del móvil a dorado o gris platino
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#f5f5f7');
+    }
+    
+    Persistencia.guardar('dom_dark_mode', activo);
+    console.log("DOMINUS Theme - Modo oscuro:", activo);
+},
 
     // Dentro del objeto Controlador = { ... }
 
@@ -1361,7 +1363,7 @@ generarCierre: function() {
     const totalVentas = r.conteoVentas || 0;
     const ticketPromedioBs = totalVentas > 0 ? (r.balanceNeto / totalVentas).toFixed(2) : 0;
 
-    // Construcción del reporte (Mantenemos el formato para WA)
+    // Construcción del reporte
     let texto = `📊 *REPORTE DOMINUS - ${hoy}*\n`;
     texto += `━━━━━━━━━━━━━━━━━━\n\n`;
     texto += `🛍️ *ACTIVIDAD:* \n`;
@@ -1381,21 +1383,25 @@ generarCierre: function() {
     texto += `✅ *TOTAL NETO DEL DÍA:* \n`;
     texto += `💰 *${r.balanceNeto.toLocaleString('es-VE')} Bs*`;
 
-    // Abrimos el modal con los estilos mejorados
+    // SVG Logos
+    const logoWS = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.06 3.973L0 16l4.14-1.086A7.98 7.98 0 0 0 7.994 16h.004c4.367 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg>`;
+    const logoPDF = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/><path d="M4.603 12.087a.81.81 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.68 7.68 0 0 1 1.487-.64c.21-.075.408-.139.605-.192a3.323 3.323 0 0 1 .12-.367 1.92 1.92 0 0 1 .116-.277c.18-.328.375-.677.582-.999.253-.393.51-.762.754-1.017.242-.252.432-.359.584-.406.309-.095.646-.01.91.137.357.198.557.569.579.927.015.233-.051.5-.165.723-.121.238-.321.407-.51.523-.351.213-.761.306-1.162.356-.369.046-.73.042-1.036.027a19.12 19.12 0 0 1-1.527-.145 11.91 11.91 0 0 1-1.315 1.833 5.1 5.1 0 0 1-1.059 1.13c-.15.115-.313.208-.474.269.04.03.078.06.115.09.11.088.196.162.243.213.06.064.06.115.043.153-.024.053-.131.066-.255.034-.143-.037-.306-.118-.465-.234z"/></svg>`;
+
+    // Abrimos el modal con los botones estéticos
     modalEleccion.abrir({
         titulo: "📊 Finalizar Jornada",
         mensaje: "¿Cómo deseas exportar el reporte detallado?",
         botones: [
             { 
-                texto: "📱 WhatsApp", 
-                clase: "btn-whatsapp", 
+                texto: `${logoWS} WHATSAPP`, 
+                clase: "btn-whatsapp-cierre", 
                 accion: () => {
                     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
                     setTimeout(() => { this.preguntarLimpieza(); }, 2000);
                 }
             },
             { 
-                texto: "📄 PDF", 
+                texto: `${logoPDF} GENERAR PDF`, 
                 clase: "btn-pdf",
                 accion: () => { 
                     this.generarPDF();

@@ -1,10 +1,16 @@
 let lastScrollTop = 0;
 const header = document.querySelector('.main-header');
 
-// Ajustamos el body o el contenedor principal para que no empiece debajo del header
-document.body.style.paddingTop = header.offsetHeight + "px";
+// Ajustamos el body para que el contenido no quede tapado por el header fixed
+if (header) {
+    document.body.style.paddingTop = header.offsetHeight + "px";
+}
 
 window.addEventListener('scroll', () => {
+    // 🛡️ EL CANDADO DE DOMINUS:
+    // Si Herramientas.bloqueado es true, ignoramos por completo el movimiento del scroll.
+    if (typeof Herramientas !== 'undefined' && Herramientas.bloqueado) return;
+
     let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 
     if (scrollTop > lastScrollTop && scrollTop > 100) {
@@ -883,7 +889,6 @@ generarFilaFiaoAgrupada(c) {
     let plantilla = GestorMensajes.obtenerMensajeSegunHora() || "[saludo] [cliente], te escribo de [negocio]. Tu saldo pendiente es $[montoUSD].";
     const detalleTexto = c.deudas.map(d => `• ${d.producto} ($${Number(d.montoUSD).toFixed(2)})`).join('\n');
 
-    // Mapeo de reemplazos para limpieza visual
     const reemplazos = {
         "[saludo]": saludo,
         "[cliente]": c.cliente,
@@ -901,6 +906,9 @@ generarFilaFiaoAgrupada(c) {
 
     const urlWhatsapp = `https://wa.me/?text=${encodeURIComponent(mensajeFinal)}`;
 
+    // --- SVG LOGO WHATSAPP ---
+    const logoWS = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.06 3.973L0 16l4.14-1.086A7.98 7.98 0 0 0 7.994 16h.004c4.367 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg>`;
+
     return `
         <div class="card-fiao glass ${colorClase}">
             <div class="fiao-header">
@@ -910,16 +918,20 @@ generarFilaFiaoAgrupada(c) {
                     <span class="mora-tag">${diasMora > 0 ? `Hace ${diasMora} días` : 'Hoy'}</span>
                 </div>
                 <div style="text-align: right;">
-                    <div style="font-weight: 900; font-size: 1.2em; color: #ffa500;">$${montoUSDDisplay}</div>
+                    <div style="font-weight: 900; font-size: 1.2em; color: var(--primary);">$${montoUSDDisplay}</div>
                     <div style="font-size: 0.8em; opacity: 0.6;">${montoBsDisplay} Bs</div>
-                    <div class="action-buttons">
-                        <a href="${urlWhatsapp}" target="_blank" class="btn-whatsapp">📲</a>
-                        <button class="btn-abonar" onclick="Ventas.abrirProcesoAbono('${c.cliente}')">ABONAR</button>
+                    <div class="action-buttons" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+                        <a href="${urlWhatsapp}" target="_blank" class="btn-whatsapp-cierre" style="padding: 8px 12px; width: auto; margin-bottom: 0;">
+                            ${logoWS}
+                        </a>
+                        <button class="btn-abonar" onclick="Ventas.abrirProcesoAbono('${c.cliente}')" style="background: var(--primary); color: #000; border: none; border-radius: 8px; padding: 8px 12px; font-weight: bold; cursor: pointer;">
+                            ABONAR
+                        </button>
                     </div>
                 </div>
             </div>
             
-            <details class="fiao-details" style="background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.05);">
+            <details class="fiao-details" style="background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.05); border-radius: 0 0 16px 16px;">
                 <summary style="padding: 10px; font-size: 0.75em; text-align: center; cursor: pointer; color: var(--primary);">
                     Desglose de deuda (${c.deudas.length} items)
                 </summary>
@@ -932,12 +944,12 @@ generarFilaFiaoAgrupada(c) {
                             </div>
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span style="font-weight: bold;">$${Number(d.montoUSD).toFixed(2)}</span>
-                                <button class="btn-borrar-item" onclick="Ventas.eliminarRegistroEspecifico('${d.id}')" style="font-size: 10px;">✕</button>
+                                <button class="btn-borrar-item" onclick="Ventas.eliminarRegistroEspecifico('${d.id}')" style="background: none; border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 4px; cursor: pointer; padding: 2px 6px; font-size: 10px;">✕</button>
                             </div>
                         </div>
                     `).join('')}
                     <button class="btn-main" onclick="Controlador.eliminarDeuda('${c.cliente}')" 
-                            style="background: #e74c3c; width: 100%; margin-top: 15px; font-size: 0.8em;">
+                            style="background: #e74c3c; color: white; border: none; border-radius: 10px; width: 100%; margin-top: 15px; padding: 10px; font-size: 0.8em; font-weight: bold; cursor: pointer;">
                         ⚠️ LIQUIDAR CUENTA TOTAL
                     </button>
                 </div>

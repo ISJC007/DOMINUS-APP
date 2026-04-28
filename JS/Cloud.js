@@ -84,21 +84,31 @@ async conectarACaja(email, password) {
      */
 async registrarNuevoUsuario(datos) {
     try {
-        // 1. Crear el usuario en Firebase Auth (Google genera un UID único)
-        const userCredential = await this.auth.createUserWithEmailAndPassword(datos.correo, datos.pass);
-        
-        // 🔑 EL CAMBIO CLAVE: Usamos el UID de Firebase como Identidad Maestra
-        // Esto asegura que Cloud.userId siempre coincida con la base de datos.
-        const uidGoogle = userCredential.user.uid; 
-        const idHardware = datos.idFinal; // Conservamos tu ID de hardware para seguridad
-        
+        let uidGoogle;
+        let user;
+
+        try {
+            // Intentamos crear el usuario
+            const userCredential = await this.auth.createUserWithEmailAndPassword(datos.correo, datos.pass);
+            uidGoogle = userCredential.user.uid;
+        } catch (authError) {
+            // 🛡️ SI EL CORREO YA EXISTE: En lugar de fallar, nos logueamos para recuperar el UID
+            if (authError.code === 'auth/email-already-in-use') {
+                console.warn("⚠️ Usuario existente en Auth. Sincronizando datos de base de datos...");
+                const loginResult = await this.auth.signInWithEmailAndPassword(datos.correo, datos.pass);
+                uidGoogle = loginResult.user.uid;
+            } else {
+                throw authError; // Si es otro error de Auth, lo lanzamos al catch principal
+            }
+        }
+
+        const idHardware = datos.idFinal; 
         this.userId = uidGoogle; 
 
         const ahora = new Date();
         const fechaCorte = new Date();
-        fechaCorte.setDate(ahora.getDate() + 16); // 15 días + 1 de margen
+        fechaCorte.setDate(ahora.getDate() + 16);
 
-        // 🛰️ CAPTURA DE METADATOS TÉCNICOS
         const metadatosEnriquecidos = {
             dispositivo: navigator.userAgent.includes("Android") ? "Android" : "PC/Browser",
             plataforma: navigator.platform,
@@ -109,7 +119,6 @@ async registrarNuevoUsuario(datos) {
             zonaHoraria: Intl.DateTimeFormat().resolvedOptions().timeZone
         };
 
-        // 📦 ESTRUCTURA ORGANIZADA (El ID de Google manda, el Hardware acompaña)
         const perfilEstructurado = {
             perfil: {
                 nombre: datos.nombre,
@@ -119,8 +128,8 @@ async registrarNuevoUsuario(datos) {
                 correo: datos.correo,
                 telefono: datos.telefono || "Sin número",
                 fotoPerfil: "https://cdn-icons-png.flaticon.com/512/6522/6522516.png",
-                uid: uidGoogle,          // ID para la nube
-                idHardware: idHardware   // ID para seguridad física
+                uid: uidGoogle,
+                idHardware: idHardware
             },
             administracion: {
                 estado: 'pendiente',
@@ -139,11 +148,11 @@ async registrarNuevoUsuario(datos) {
             }
         };
 
-        // 2. Guardar el Perfil Completo usando el UID de Google
-        // Ahora la carpeta se llama igual que el usuario que Firebase reconoce
+        // 2. Guardar el Perfil Completo
         await this.db.ref(`usuarios/${uidGoogle}`).set(perfilEstructurado);
         
         // 3. Crear acceso para el Admin (Mando Central)
+        // Usamos set() para asegurar que la solicitud aparezca sí o sí en tu Admin
         await this.db.ref(`solicitudes_pendientes/${uidGoogle}`).set({
             nombre: perfilEstructurado.perfil.nombre,
             negocio: perfilEstructurado.perfil.negocio,
@@ -154,15 +163,12 @@ async registrarNuevoUsuario(datos) {
             fecha: perfilEstructurado.administracion.fechaRegistro
         });
 
-        console.log("🆕 Guerrero registrado en Firebase:", uidGoogle);
+        console.log("🆕 Guerrero sincronizado en DOMINUS:", uidGoogle);
         return perfilEstructurado;
 
     } catch (error) {
         console.error("❌ Error crítico en registro:", error.message);
-        let mensaje = "Error al crear cuenta";
-        if (error.code === 'auth/email-already-in-use') mensaje = "Este correo ya está en uso";
-        
-        if (typeof notificar === "function") notificar(mensaje, "error");
+        if (typeof notificar === "function") notificar("Error al sincronizar cuenta", "error");
         return null;
     }
 },
@@ -171,32 +177,49 @@ async aprobarUsuarioManualmente(uid) {
     try {
         const hoy = new Date();
         const fechaCorte = new Date();
-        
-        // Configuración de prueba: 15 días de acceso total
         fechaCorte.setDate(hoy.getDate() + 15); 
 
-        // 🛡️ ACTUALIZACIÓN DE ADMINISTRACIÓN
-        // Usamos update para no tocar 'fechaRegistro' que ya existía
-        await this.db.ref(`usuarios/${uid}/administracion`).update({
-            estado: 'aprobado',
-            fechaAprobacion: hoy.toISOString(),
-            fechaCorte: fechaCorte.toISOString(),
-            licenciaActiva: true,
-            tipoCuenta: 'trial' // Para saber que es un usuario en prueba
-        });
+        // 1. OBTENER EL ID DE HARDWARE DE LA SOLICITUD
+        // Antes de borrar la solicitud, extraemos el ID que capturó el registro
+        const snapSolicitud = await this.db.ref(`solicitudes_pendientes/${uid}`).once('value');
+        const datosSolicitud = snapSolicitud.val();
+
+        if (!datosSolicitud) {
+            console.error("❌ No se encontró la solicitud pendiente para este UID.");
+            return false;
+        }
+
+        const idHardwareOriginal = datosSolicitud.idHardware || "No detectado";
+
+        // 🛡️ ACTUALIZACIÓN DE ADMINISTRACIÓN Y SEGURIDAD
+        const updates = {};
+        
+        // Carpeta de Administración
+        updates[`usuarios/${uid}/administracion/estado`] = 'aprobado';
+        updates[`usuarios/${uid}/administracion/fechaAprobacion`] = hoy.toISOString();
+        updates[`usuarios/${uid}/administracion/fechaCorte`] = fechaCorte.toISOString();
+        updates[`usuarios/${uid}/administracion/tipoCuenta`] = 'trial';
+        updates[`usuarios/${uid}/administracion/licenciaActiva`] = true;
+
+        // Carpeta de Seguridad: VINCULACIÓN FÍSICA
+        // Guardamos el ID de hardware como el ÚNICO autorizado para esta cuenta
+        updates[`usuarios/${uid}/seguridad/dispositivoVinculado`] = idHardwareOriginal;
+        updates[`usuarios/${uid}/seguridad/centinela/alertaHora`] = false;
+
+        // Ejecutamos todos los cambios de una sola vez
+        await this.db.ref().update(updates);
 
         // 🧹 LIMPIEZA DEL MANDO CENTRAL
-        // Eliminamos la solicitud de la lista de espera para mantener el orden
         await this.db.ref(`solicitudes_pendientes/${uid}`).remove();
 
-        // ✉️ OPCIONAL: Dejar un mensaje de bienvenida en la nube
+        // ✉️ MENSAJE DE BIENVENIDA
         await this.db.ref(`usuarios/${uid}/comunicacion/mensajeDirecto`).set({
-            texto: "¡Bienvenido a DOMINUS! Tu ecosistema ha sido activado. Tienes 15 días de prueba total.",
+            texto: "¡Bienvenido a DOMINUS! Tu ecosistema ha sido activado y vinculado a este dispositivo.",
             fecha: hoy.toISOString(),
             leido: false
         });
 
-        console.log(`🔓 Acceso concedido al UID: ${uid}. Ecosistema en marcha.`);
+        console.log(`🔓 Acceso concedido al UID: ${uid}. Dispositivo vinculado: ${idHardwareOriginal}`);
         return true;
     } catch (error) {
         console.error("❌ Error crítico en aprobación manual:", error.message);
@@ -296,6 +319,32 @@ async descargarRespaldo(clave) {
         return null;
     }
 },
+
+// Dentro del objeto Cloud en la App del Cliente
+async subirRespaldoTotal() {
+    console.log("📤 Iniciando respaldo total solicitado por el Admin...");
+    
+    // 1. Extraemos todo lo vital del LocalStorage usando tu objeto Persistencia
+    const inventario = Persistencia.cargar('dom_inventario') || [];
+    const ventas = Persistencia.cargar('dom_ventas') || [];
+    const fiaos = Persistencia.cargar('dom_fiaos') || [];
+    const config = Persistencia.cargar('dom_config') || {};
+
+    try {
+        // 2. Usamos tu función respaldarDatos para cada categoría
+        // Esto asegura que se guarde en: usuarios/UID/operatividad/clave
+        this.respaldarDatos('inventario', inventario);
+        this.respaldarDatos('ventas', ventas);
+        this.respaldarDatos('fiaos', fiaos);
+        this.respaldarDatos('configuracion', config);
+
+        console.log("✅ Respaldo total enviado a la nube.");
+        return true;
+    } catch (e) {
+        console.error("❌ Error en el respaldo total:", e);
+        return false;
+    }
+},
     /**
      * Consulta el estado de aprobación del usuario (Usado por el Centinela)
      */
@@ -336,32 +385,34 @@ async obtenerEstadoUsuario(uid) {
  */
 async solicitarAccesoAdmin(perfilCompleto) {
     try {
-        // Aseguramos la ruta del UID según la nueva estructura
-        const uid = perfilCompleto.perfil?.uid || perfilCompleto.uid;
+        // Aseguramos la extracción de datos desde la estructura correcta
+        const p = perfilCompleto.perfil; // El objeto perfil dentro del estructurado
+        const uid = p?.uid || perfilCompleto.uid;
         const fecha = new Date().toISOString();
 
         if (!uid) throw new Error("UID no encontrado en el perfil");
 
         // 1. Actualizamos la carpeta de administración del usuario
-        // Usamos update para no borrar otros datos que puedan existir
         await this.db.ref(`usuarios/${uid}/administracion`).update({
             estado: 'pendiente',
             fechaRegistro: fecha,
-            rol: 'vendedor_junior' // Ejemplo: asignas un rol base por defecto
+            rol: 'vendedor_junior'
         });
 
-        // 2. Notificamos al Mando Central
-        // Aquí guardamos solo lo necesario para que tu panel de Admin vuele
+        // 2. Notificamos al Mando Central (Panel Admin)
+        // 🚩 AQUÍ AGREGAMOS EL TELÉFONO Y EL ID HARDWARE
         await this.db.ref(`solicitudes_pendientes/${uid}`).set({
-            nombre: perfilCompleto.perfil?.nombre || "Sin nombre",
-            negocio: perfilCompleto.perfil?.negocio || "Sin negocio",
-            email: perfilCompleto.perfil?.correo || "Sin correo",
+            nombre: p?.nombre || "Sin nombre",
+            negocio: p?.negocio || "Sin negocio",
+            email: p?.correo || "Sin correo",
+            telefono: p?.telefono || "Sin número", // <--- SECCIÓN DEL NÚMERO
             uid: uid,
+            idHardware: p?.idHardware || "No registrado", // Clave para tu seguridad física
             fecha: fecha,
-            modelo: perfilCompleto.metadatos?.modelo || "Desconocido" // Para saber qué teléfono usan
+            modelo: perfilCompleto.seguridad?.metadatos?.modelo || "Desconocido"
         });
 
-        console.log("🛰️ Solicitud enviada al Mando Central. Esperando aprobación.");
+        console.log("🛰️ Solicitud enviada al Mando Central (con datos de contacto).");
         return true;
     } catch (error) {
         console.error("❌ Error en el salto al Mando Central:", error.message);

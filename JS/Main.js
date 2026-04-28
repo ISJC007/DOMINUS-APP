@@ -481,7 +481,7 @@ async function iniciarDominus() {
     try {
         console.log("🚀 DOMINUS: Iniciando secuencia de arranque única...");
 
-        // --- 1. VERIFICACIÓN DE INTEGRIDAD Y VERSIONES ---
+        // --- 1. VERIFICACIÓN DE INTEGRIDAD Y VERSIONES LOCALES ---
         const VERSION_ACTUAL = "1.0.5"; 
         const versionGuardada = Persistencia.cargar('dom_version');
         if (versionGuardada !== VERSION_ACTUAL) {
@@ -494,20 +494,17 @@ async function iniciarDominus() {
         if (isDark) document.body.classList.add('dark-mode');
 
         // --- 3. CONEXIÓN Y SESIÓN (Sincronización Real con Firebase) ---
-        // Esperamos a que Firebase nos diga quién es el usuario de forma definitiva
         const user = await new Promise(res => {
             const unsub = Cloud.auth.onAuthStateChanged(u => {
-                unsub(); // Nos desuscribimos inmediatamente para no repetir el proceso
+                unsub(); 
                 res(u);
             });
         });
 
-        // Inicializamos el objeto Usuario
         Usuario.init(); 
         const haySesionLocal = (Usuario.datos && Usuario.datos.uid);
 
         // --- 4. LÓGICA DE BIENVENIDA (Frases y Sabiduría) ---
-        // Se ejecuta siempre para mostrar el splash con elegancia mientras cargamos
         if (typeof bancoFrases !== 'undefined' && bancoFrases.length > 0) {
             const txtFrase = document.getElementById('frase-splash');
             const txtAutor = document.getElementById('autor-splash');
@@ -521,7 +518,6 @@ async function iniciarDominus() {
                 };
 
                 const seleccion = frasesInduccion[diaUso] || bancoFrases[Math.floor(Math.random() * bancoFrases.length)];
-                
                 const contenedorWisdom = document.getElementById('contenedor-sabiduria');
                 if (contenedorWisdom) contenedorWisdom.style.opacity = "1";
                 
@@ -537,23 +533,30 @@ async function iniciarDominus() {
 
         // --- 5. FILTRO DE SEGURIDAD Y ACCESO ---
         if (user) {
-            // Sincronización: Si hay usuario en Firebase pero no localmente (ej: nuevo dispositivo)
             if (!haySesionLocal) {
                 console.log("📡 Sesión en nube detectada. Restaurando perfil...");
                 const snapshot = await Cloud.db.ref(`usuarios/${user.uid}`).once('value');
                 if (snapshot.exists()) {
                     Usuario.configurarSesion(snapshot.val());
                 } else {
-                    // Si el usuario existe en Auth pero no en DB (error raro)
                     Usuario.mostrarLogin();
                     return;
                 }
             }
 
+            // [NUEVO] 🛡️ VALIDACIÓN DE VERSIÓN GLOBAL (Desde Mando Central)
+            const snapConfig = await Cloud.db.ref('config_global/versionMinima').once('value');
+            const versionMinima = snapConfig.val() || "1.0.0";
+            
+            if (VERSION_ACTUAL < versionMinima) {
+                Usuario.mostrarPantallaBloqueo("⚠️ VERSIÓN OBSOLETA", `Es necesario actualizar DOMINUS a la versión ${versionMinima} para continuar.`);
+                return;
+            }
+
             // A. ¿Estado del usuario aprobado?
             if (Usuario.datos.estado !== 'aprobado') {
-                console.warn("⏳ Acceso pendiente.");
-                Usuario.mostrarPantallaEspera();
+                console.warn("⏳ Acceso pendiente o suspendido.");
+                Usuario.mostrarPantallaEspera(); // Esta función debe manejar los textos de 'suspendido' o 'pendiente'
                 Usuario.verificarAprobacionAutomatica();
                 return; 
             }
@@ -563,6 +566,22 @@ async function iniciarDominus() {
             
             if (accesoConcedido) {
                 console.log("🔓 Identidad confirmada. Sincronizando módulos...");
+
+                // [NUEVO] 🛰️ OÍDO DE ÓRDENES DEL MANDO CENTRAL
+                // Este sensor escucha el botón de la nube (Respaldo Forzado)
+                Cloud.db.ref(`usuarios/${user.uid}/seguridad/ordenServidor`).on('value', async snap => {
+                    const orden = snap.val();
+                    if (orden && orden.accion === 'SYNC_NOW') {
+                        console.log("☁️ Mando Central solicita respaldo inmediato...");
+                        // Llamamos a la función de respaldo (Asegúrate de que Cloud.subirRespaldoTotal exista)
+                        if (typeof Cloud.subirRespaldoTotal === 'function') {
+                            await Cloud.subirRespaldoTotal();
+                            // Limpiamos la orden para que no se ejecute infinitamente
+                            Cloud.db.ref(`usuarios/${user.uid}/seguridad/ordenServidor`).remove();
+                            console.log("✅ Respaldo forzado completado con éxito.");
+                        }
+                    }
+                });
 
                 // --- 6. SINCRONIZACIÓN NUBE-LOCAL ---
                 if (navigator.onLine) {
@@ -586,19 +605,14 @@ async function iniciarDominus() {
                 setTimeout(() => finalizarArranque(), 800);
                 
             } else {
-                // Si el PIN falló o se cerró, liberamos el candado para que el usuario pueda reintentar
                 window.dominusIniciado = false;
                 console.warn("🚫 Seguridad: Acceso denegado.");
             }
         } else {
-            // CASO: NO HAY SESIÓN ACTIVA
             console.warn("☁️ Sin sesión detectada. Yendo al login.");
-            window.dominusIniciado = false; // Liberamos para que el login pueda disparar el arranque luego
-            
+            window.dominusIniciado = false; 
             const loader = document.querySelector('.loader');
             if (loader) loader.style.display = 'none';
-            
-            // Limpiamos la pantalla por si quedó el splash vacío
             Usuario.limpiarPantalla();
             Usuario.mostrarLogin();
         }
@@ -609,18 +623,15 @@ async function iniciarDominus() {
     }
 }
 
-/// 1. Declarar la variable UNA sola vez al principio de todo el archivo
+// Inicialización de variable de control
 if (typeof window.dominusIniciado === 'undefined') {
     window.dominusIniciado = false;
 }
 
-// 2. El disparador de inicio
+// Disparador de inicio
 document.addEventListener('DOMContentLoaded', () => {
-    // IMPORTANTE: Aquí solo llamamos a la función. 
-    // La función iniciarDominus ya tiene su propio candado interno.
     iniciarDominus(); 
 });
-
 // 3. Registro del Service Worker (Solo una vez)
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js')

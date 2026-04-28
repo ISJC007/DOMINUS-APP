@@ -20,14 +20,23 @@
     <link rel="icon" type="image/png" sizes="192x192" href="IMG/icon-192.png">
     <link rel="apple-touch-icon" href="IMG/icon-192.png">
 
-   <style>
-    /* Evita el flash blanco inicial antes de cargar el CSS externo */
-    body { background-color: #050505; margin: 0; padding: 0; }
+ <style>
+    /* IMPORTANTE: No uses colores fijos como #050505 aquí, 
+       porque eso bloquea el cambio al modo claro. 
+    */
+    body { 
+        background-color: var(--bg-dark, #0a0a0a); 
+        margin: 0; 
+        padding: 0; 
+        transition: background-color 0.5s ease; /* Para que el inicio sea suave */
+    }
+
     .splash {
         position: fixed;
         top: 0; left: 0;
         width: 100%; height: 100%;
-        background: #050505;
+        /* El splash siempre debe ser oscuro para que el Dorado destaque al cargar */
+        background: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -101,9 +110,9 @@
                         <h4 class="settings-card-title">💰 Mensajería Inteligente</h4>
                         
                         <div class="time-selector-group">
-                            <button id="btn-msj-mañana" class="btn-time active" onclick="Usuario.cambiarFranjaMensaje('mañana')">☀️ DÍA</button>
-                            <button id="btn-msj-tarde" class="btn-time" onclick="Usuario.cambiarFranjaMensaje('tarde')">⛅ TARDE</button>
-                            <button id="btn-msj-noche" class="btn-time" onclick="Usuario.cambiarFranjaMensaje('noche')">🌙 NOCHE</button>
+                            <button id="btn-msj-mañana" class="btn-time active" onclick="GestorMensajes.cambiarFranjaMensaje('mañana')">☀️ DÍA</button>
+                            <button id="btn-msj-tarde" class="btn-time" onclick="GestorMensajes.cambiarFranjaMensaje('tarde')">⛅ TARDE</button>
+                            <button id="btn-msj-noche" class="btn-time" onclick="GestorMensajes.cambiarFranjaMensaje('noche')">🌙 NOCHE</button>
                         </div>
 
                         <div class="textarea-group">
@@ -111,8 +120,8 @@
                             <textarea id="cfg-msj-maestro" class="main-textarea" placeholder="Escribe tu mensaje..." onblur="Usuario.guardarPlantilla()"></textarea>
                             
                             <div class="textarea-actions">
-                                <button class="btn-secondary-outline" onclick="Usuario.restablecerPlantilla()">⚠️ Restablecer</button>
-                                <button class="btn-primary-outline" onclick="Usuario.mostrarEjemplo()">👁️ Ver Ejemplo</button>
+                                <button class="btn-secondary-outline" onclick="GestorMensajes.restablecerPlantilla()">⚠️ Restablecer</button>
+                                <button class="btn-primary-outline" onclick="GestorMensajes.mostrarEjemplo()">👁️ Ver Ejemplo</button>
                             </div>
                         </div>
 
@@ -151,7 +160,7 @@
                             <small class="ajuste-desc">Mostrar opción de servicios en ventas</small>
                         </div>
                         <label class="switch">
-                            <input type="checkbox" id="check-modo-punto" onchange="Controlador.toggleModoPunto(this.checked)">
+                            <input type="checkbox" id="btn-modo-punto" onchange="Controlador.toggleModoPunto(this.checked)">
                             <span class="slider round"></span>
                         </label>
                     </div>
@@ -166,7 +175,7 @@
 
                     <hr class="ajuste-divider">
                     
-                    <button type="button" class="btn-danger-full" onclick="Main.resetTotal()">
+                    <button type="button" class="btn-danger-full" onclick="DOMINUS.resetTotal()">
                         🗑️ Limpiar Toda la App
                     </button>
                 </div> </div> </div> </div> </div> 
@@ -272,7 +281,7 @@
 
         <div id="contenedor-grafica" class="chart-container dashboard-card" onclick="Controlador.rotarGrafica()">
             <div class="chart-header">
-                <span id="chart-label" class="chart-indicator">Ventas de la semana</span>
+                <span id="chart-label" class="chart-indicator">Registros del día</span>
                 <span class="chart-hint">Toca para cambiar 🔄</span>
             </div>
             <canvas id="graficaVentas"></canvas>
@@ -514,7 +523,7 @@
             </button>
         </div>
 
-        <button type="button" class="btn-main" onclick="Controlador.guardarEnInventario()">
+        <button type="button" class="btn-main-success" onclick="Controlador.guardarEnInventario()">
             Cargar Producto
         </button>
     </div>
@@ -586,6 +595,7 @@
     <script src="JS/Teclado.js"></script>
 
     <script src="JS/Controlador.js"></script> 
+    <script src="JS/Herramientas.js"></script>
     <script src="JS/Main.js"></script>
 </main>
 

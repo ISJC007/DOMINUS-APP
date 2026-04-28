@@ -164,7 +164,7 @@ mostrarLogin() {
                 ¿Olvidaste tu contraseña?
             </p>
             
-            <button id="btn-login" class="btn-main" style="width: 100%; padding: 16px; font-weight: bold; font-size: 1em;">ENTRAR</button>
+            <button id="btn-login" class="btn-main-success" style="width: 100%; padding: 16px; font-weight: bold; font-size: 1em;">ENTRAR</button>
             
             <p style="color: #888; font-size: 0.85em; margin-top: 25px;">
                 ¿No tienes cuenta? <br>
@@ -292,7 +292,7 @@ mostrarRegistro() {
                 <p id="msg-pass2" class="msg-validacion">• Deben coincidir.</p>
             </div>
 
-            <button id="btn-crear-cuenta" class="btn-main" style="width: 100%; padding: 16px; opacity: 0.5; cursor: not-allowed;" disabled>FINALIZAR REGISTRO</button>
+            <button id="btn-crear-cuenta" class="btn-main-success" style="width: 100%; padding: 16px; opacity: 0.5; cursor: not-allowed;" disabled>FINALIZAR REGISTRO</button>
             <p id="link-volver-login" style="color: #666; cursor: pointer; margin-top: 20px; font-size: 0.85em; text-decoration: underline;">Ya tengo una cuenta</p>
         </div>
     `;
@@ -508,7 +508,7 @@ mostrarVerificacion(perfil, codigoReal) {
                               background: transparent; color: white; outline: none; font-family: 'Courier New', monospace;">
             </div>
             
-            <button id="btn-verificar" class="btn-main" style="width: 100%; padding: 18px; font-weight: bold; font-size: 1em; letter-spacing: 1px;">
+            <button id="btn-verificar" class="btn-main-success" style="width: 100%; padding: 18px; font-weight: bold; font-size: 1em; letter-spacing: 1px;">
                 CONFIRMAR IDENTIDAD
             </button>
             
@@ -766,7 +766,7 @@ preguntarPorPIN(perfilInyectado = null) {
                 ¿Deseas activar un PIN de acceso rápido? <br>
                 <span style="font-size: 0.85em; color: #aaa;">Protege tu inventario y ventas de miradas curiosas.</span>
             </p>
-            <button id="btn-si-pin" class="btn-main" style="width: 100%; padding: 15px; margin-bottom: 10px; font-weight: bold;">SÍ, ASEGURAR MI APP</button>
+            <button id="btn-si-pin" class="btn-main-success" style="width: 100%; padding: 15px; margin-bottom: 10px; font-weight: bold;">SÍ, ASEGURAR MI APP</button>
             <button id="btn-no-pin" style="width: 100%; padding: 12px; background: transparent; border: 1px solid #444; color: #666; border-radius: 10px; cursor: pointer;">Omitir protección</button>
         </div>
     `;
@@ -837,7 +837,7 @@ pantallaCapturaPIN(titulo, primerPin = null) {
                 </span>
             </div>
             
-            <button id="btn-continuar-pin" class="btn-main" style="width: 100%; padding: 18px; font-weight: bold; letter-spacing: 1px; opacity: 0.5;">
+            <button id="btn-continuar-pin" class="btn-main-success" style="width: 100%; padding: 18px; font-weight: bold; letter-spacing: 1px; opacity: 0.5;">
                 ${primerPin ? 'VINCULAR DISPOSITIVO' : 'CONTINUAR'}
             </button>
         </div>
@@ -948,9 +948,13 @@ mostrarPantallaEspera(datosInyectados = null) {
     // 1. RESCATE DE DATOS (Prioridad: parámetro > memoria > persistencia)
     const d = datosInyectados || this.datos || Persistencia.cargar('dom_sesion_activa')?.perfil;
     
-    // 2. OBTENCIÓN ULTRA-ROBUSTA DEL ID (Para que nunca salga "Generando...")
+    // 2. OBTENCIÓN ULTRA-ROBUSTA DEL ID (UID de Firebase)
     const uuid = d?.perfil?.uid || d?.uid || d?.perfil?.idHardware || d?.idFinal || "ID_PENDIENTE";
     
+    // 3. GENERACIÓN DE LA FIRMA DE SEGURIDAD (Llave Maestra basada en PIN)
+    const pinActual = d?.pin || "1234";
+    const llaveMaestra = btoa(`${uuid}:${pinActual}`); 
+
     const overlay = this.crearOverlay('overlay-espera');
     let tiempoRestante = 300; 
 
@@ -965,10 +969,13 @@ mostrarPantallaEspera(datosInyectados = null) {
 
             <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #333;">
                 <p style="color: #ffd700; font-size: 0.7em; margin-bottom: 5px; text-transform: uppercase;">ID DE ACCESO (UID)</p>
-                <code style="color: #fff; font-family: monospace; font-size: 1rem; word-break: break-all;">${uuid}</code>
+                <code style="color: #fff; font-family: monospace; font-size: 0.9rem; word-break: break-all; display: block; margin-bottom: 10px;">${uuid}</code>
+                
+                <p style="color: #555; font-size: 0.65em; margin-bottom: 5px; text-transform: uppercase; border-top: 1px solid #222; padding-top: 10px;">FIRMA DE SEGURIDAD (LLAVE)</p>
+                <code style="color: #888; font-family: monospace; font-size: 0.75rem; word-break: break-all;">${llaveMaestra}</code>
             </div>
 
-            <button id="btn-check-status" class="btn-main" style="width: 100%; padding: 15px; margin-bottom: 15px; transition: all 0.3s; font-weight: bold;">
+            <button id="btn-check-status" class="btn-main-success" style="width: 100%; padding: 15px; margin-bottom: 15px; transition: all 0.3s; font-weight: bold;">
                 CHECKEAR ESTADO
             </button>
 
@@ -1014,29 +1021,32 @@ mostrarPantallaEspera(datosInyectados = null) {
         }
     }, 1000);
 
-    // --- 3. ACCIÓN MANUAL ---
+    // --- 3. ACCIÓN MANUAL (Check Status) ---
     btnCheck.onclick = async () => {
         btnCheck.disabled = true;
         notificar("Consultando red DOMINUS...", "info");
-        const aprobado = await this.ejecutarVerificacionDeAcceso(); // Esta función debe usar la nueva ruta
+        
+        // Verificamos en la ruta correcta de Firebase
+        const aprobado = await this.ejecutarVerificacionDeAcceso(); 
         
         if (aprobado) {
+            clearInterval(cuentaRegresiva);
             this.finalizarEsperaExitosa(overlay, contenedor, cuentaRegresiva);
         } else {
             setTimeout(() => { btnCheck.disabled = false; }, 2000);
         }
     };
 
-    // --- 4. ACCIÓN DE CONTACTO ---
+    // --- 4. ACCIÓN DE CONTACTO (WhatsApp con UID) ---
     btnContactar.onclick = () => {
-        const mensaje = `Hola Johander! Mi ID es: ${uuid}. Sigo esperando aprobación en DOMINUS.`;
+        const mensaje = `¡Hola Johander! Mi ID es: ${uuid}. Sigo esperando aprobación en DOMINUS.`;
         const url = `https://wa.me/584248466139?text=${encodeURIComponent(mensaje)}`;
         window.open(url, '_blank');
     };
 
-    // --- 5. EL CENTINELA (TIEMPO REAL - CORREGIDO) ---
+    // --- 5. EL CENTINELA (TIEMPO REAL) ---
     if (uuid !== "ID_PENDIENTE" && Cloud.db) {
-        // RUTA CORREGIDA: usuarios -> UID -> administracion -> estado
+        // Escucha directa al cambio de estado en la nube
         const refEstado = Cloud.db.ref(`usuarios/${uuid}/administracion/estado`);
         
         refEstado.on('value', async (snapshot) => {
@@ -1044,7 +1054,8 @@ mostrarPantallaEspera(datosInyectados = null) {
             console.log("-> Centinela detectó estado:", estado);
             
             if (estado === 'aprobado') {
-                refEstado.off(); // ¡Importante apagar el radar!
+                refEstado.off(); // Apagamos el radar para evitar bucles
+                clearInterval(cuentaRegresiva);
                 this.finalizarEsperaExitosa(overlay, contenedor, cuentaRegresiva);
             }
         });
@@ -1145,8 +1156,8 @@ verificarAprobacionAutomatica() {
 },
 
 async ejecutarVerificacionDeAcceso() {
-    // 1. OBTENCIÓN DEL ID (Ruta completa por si acaso)
-    const uuid = this.datos?.perfil?.uid || this.datos?.idFinal || this.datos?.identidad?.idFinal;
+    // 1. OBTENCIÓN ROBUSTA DEL ID
+    const uuid = this.datos?.uid || this.datos?.perfil?.uid || Persistencia.cargar('dom_id_unico');
     
     if (!uuid) {
         console.warn("⚠️ No se encontró UUID para verificar.");
@@ -1154,30 +1165,26 @@ async ejecutarVerificacionDeAcceso() {
     }
 
     try {
-        // 🛰️ CONSULTA: Cloud.obtenerEstadoUsuario debe apuntar a usuarios/uuid/administracion
+        // 🛰️ CONSULTA A LA NUBE
         const adminData = await Cloud.obtenerEstadoUsuario(uuid);
 
         // 🛡️ VERIFICACIÓN
         if (adminData && adminData.estado === 'aprobado') {
             
-            // ✅ SINCRONIZACIÓN ESTRUCTURADA
-            // En lugar de mezclar todo, actualizamos solo la "cajita" de administración
-            this.datos.administracion = { 
-                ...this.datos.administracion, 
-                ...adminData,
-                estado: 'aprobado' // Forzamos por seguridad
-            };
-            
-            // ✅ PERSISTENCIA TOTAL (Actualizamos el disco local)
-            Persistencia.guardar('dom_sesion_activa', { 
-                logueado: true, 
-                perfil: this.datos,
-                aprobado: true // ¡Importante! Aquí ya es oficial
-            });
+            // ✅ ACTUALIZACIÓN DE MEMORIA
+            this.datos.estado = 'aprobado';
+            if (this.datos.administracion) {
+                this.datos.administracion.estado = 'aprobado';
+            }
+
+            // ✅ PERSISTENCIA UNIFICADA (Usando la llave maestra del sistema)
+            Persistencia.guardar('dom_usuario_local', this.datos);
+            // También guardamos una bandera de acceso para el arranque rápido
+            Persistencia.guardar('dom_aprobado', true);
 
             notificar("¡CONEXIÓN EXITOSA!", "exito");
             
-            // 2. Transición visual antes del reload
+            // 2. TRANSICIÓN VISUAL ELEGANTE
             setTimeout(() => {
                 const overlay = document.getElementById('overlay-espera');
                 const contenedor = document.getElementById('contenedor-espera');
@@ -1192,19 +1199,20 @@ async ejecutarVerificacionDeAcceso() {
                     overlay.style.opacity = "0";
                 }
 
-                setTimeout(() => location.reload(), 500); 
+                // RECARGA LIMPIA: Al recargar, iniciarDominus() verá que 
+                // ya estamos aprobados en el localStorage y pasará directo al PIN.
+                setTimeout(() => location.reload(), 600); 
             }, 1000);
 
             return true;
         }
         
-        // Si no está aprobado, notificamos sutilmente
         notificar("Acceso aún en revisión...", "info");
         return false;
 
     } catch (e) {
         console.error("❌ Fallo en la comunicación con la red DOMINUS:", e.message);
-        notificar("Error de conexión con la red", "error");
+        notificar("Error de red", "error");
         return false;
     }
 },

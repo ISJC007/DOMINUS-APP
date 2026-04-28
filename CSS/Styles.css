@@ -1,30 +1,74 @@
 /* ============================================================
    BLOQUE 0: CIMENTACIÓN (Root y Body)
    ============================================================ */
+/* ============================================================
+    SISTEMA DE COLORES DINÁMICO DOMINUS
+   ============================================================ */
 :root {
+    /* Identidad Inmutable (No cambia nunca) */
     --primary: #ffd700;       /* Dorado Dominus */
-    --bg-dark: #0a0a0a;       /* Negro Profundo para el fondo */
-    --glass: rgba(255, 255, 255, 0.05); /* Cristal base */
-    --glass-border: rgba(255, 255, 255, 0.1); /* Borde de cristal */
-    --text: #ffffff;
 }
 
+/* 🌙 MODO OSCURO (Estado por defecto o con clase) */
+:root, body.dark-mode {
+    --bg-dark: #0a0a0a;       /* Negro Profundo */
+    --glass: rgba(255, 255, 255, 0.05); 
+    --glass-border: rgba(255, 255, 255, 0.1); 
+    --text: #ffffff;
+    --text-dim: rgba(255, 255, 255, 0.6);
+    --card-bg: #141414;
+}
+
+/* ⚪ MODO PLATINO (Cuando NO tiene la clase dark-mode) */
+body:not(.dark-mode) {
+    --bg-dark: #f5f5f7;       /* Gris blanquecino Apple Style */
+    --glass: rgba(0, 0, 0, 0.03); 
+    --glass-border: rgba(0, 0, 0, 0.08); 
+    --text: #1d1d1f;          /* Negro suave premium */
+    --text-dim: #86868b;
+    --card-bg: #ffffff;
+}
+
+/* ============================================================
+    ESTILOS BASE
+   ============================================================ */
 * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
 }
 
 body {
-    background-color: var(--bg-dark);
+    background-color: var(--bg-dark) !important; /* El !important asegura que pise el estilo del HTML */
     color: var(--text);
     font-family: 'Inter', sans-serif;
     margin: 0;
     padding: 0;
     overflow-x: hidden;
-    /* Añade esto para que no se pueda arrastrar la pantalla hacia abajo en móviles */
     overscroll-behavior-y: contain; 
     height: 100vh;
     width: 100vw;
+    
+    /* Transición suave para una experiencia Premium */
+    transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+body {
+    -webkit-user-select: none; /* Evita selección de texto en móvil */
+    user-select: none;
+}
+
+/* Pero permite que los inputs sí funcionen */
+input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* Ajuste para que las tarjetas también cambien de fondo */
+.card, .card-fiao, .card-mini, .splash-content {
+    background-color: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text);
+    transition: all 0.5s ease;
 }
 
 /* ============================================================
@@ -77,14 +121,20 @@ body {
 
 /* Loader Moderno */
 .loader {
-    width: 50px;
-    height: 50px;
-    border: 3px solid rgba(255, 255, 255, 0.1);
-    border-top: 3px solid var(--primary);
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    margin: 30px auto;
-    animation: spin 1s linear infinite;
+    display: block;
+    margin: 40px auto;
+    position: relative;
+    color: var(--primary); 
+    /* El punto central es el fondo, los otros dos son sombras */
+    background: currentColor;
+    box-shadow: -24px 0 currentColor, 24px 0 currentColor; 
+    animation: spin 1.5s infinite linear;
 }
+
+
 
 /* Sabiduría (Frases) */
 .wisdom-container {
@@ -116,11 +166,25 @@ body {
     50% { transform: translateY(-10px); }
 }
 
+/* Animación de los puntos (Efecto de pulso/onda) */
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        background: var(--primary);
+        box-shadow: -24px 0 rgba(255, 215, 0, 0.2), 24px 0 rgba(255, 215, 0, 0.2);
+    }
+    33% {
+        background: rgba(255, 215, 0, 0.2);
+        box-shadow: -24px 0 var(--primary), 24px 0 rgba(255, 215, 0, 0.2);
+    }
+    66% {
+        background: rgba(255, 215, 0, 0.2);
+        box-shadow: -24px 0 rgba(255, 215, 0, 0.2), 24px 0 var(--primary);
+    }
+    100% {
+        background: var(--primary);
+        box-shadow: -24px 0 rgba(255, 215, 0, 0.2), 24px 0 rgba(255, 215, 0, 0.2);
+    }
 }
-
 /* ============================================================
    BLOQUE 2: AJUSTES (Moderno & 3D)
    ============================================================ */
@@ -1055,24 +1119,26 @@ input:checked + .slider:before {
    ============================================================ */
 .main-header {
     width: 100%;
-    position: fixed; /* Cambiamos a fixed para que no empuje el contenido */
+    position: fixed; 
     top: 0;
     z-index: 1000;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease, opacity 0.3s ease;
     background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(15px);
 }
 
-/* LA MAGIA: Cuando el usuario baja, el header sube y desaparece */
+/* Reutilizamos tu clase .hidden para el Long Press */
 .main-header.hidden {
     transform: translateY(-100%);
     box-shadow: none;
+    opacity: 0;
+    pointer-events: none; /* Importante: para que no estorbe oculto */
 }
 
 /* Ajuste para PC */
 @media (min-width: 1024px) {
     .main-header {
-        max-width: 100%; /* O el ancho de tu viewport de PC */
+        max-width: 100%; 
         border-radius: 0 0 20px 20px;
         margin: 0 auto;
         left: 0;
@@ -1085,6 +1151,13 @@ input:checked + .slider:before {
     align-items: center; 
     justify-content: space-between; 
     padding: 12px 20px;
+}
+
+/* Aseguramos que las tarjetas sean la "palanca" del switch */
+.dashboard-cards {
+    cursor: pointer;
+    user-select: none; /* Evita que se seleccione texto al dejar presionado */
+    -webkit-user-select: none;
 }
 
 .avatar-trigger {
@@ -1280,22 +1353,23 @@ input:checked + .slider:before {
     color: rgba(255, 255, 255, 0.4);
     margin-bottom: 6px;
 }
-
+/* Cantidad principal (Bolívares) */
 .card-amount {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: #fff;
-    letter-spacing: -0.5px;
+    display: block;
+    font-size: 1.4em;
+    font-weight: 900;
+    color: #2ecc71; /* Verde Esmeralda vibrante */
+    text-shadow: 0 0 10px rgba(46, 204, 113, 0.2);
+    margin: 4px 0;
 }
 
+/* Cantidad secundaria (Dólares) */
 .card-sub-amount {
-    font-size: 0.7rem;
-    color: var(--primary);
+    display: block;
+    font-size: 0.9em;
     font-weight: 600;
-    margin-top: 4px;
-    background: rgba(255, 215, 0, 0.1);
-    padding: 2px 8px;
-    border-radius: 20px;
+    color: #27ae60; /* Verde un poco más oscuro para jerarquía */
+    opacity: 0.9;
 }
 
 /* Colores de Estado Modernos */
@@ -2403,6 +2477,47 @@ label {
     margin-left: 8px;
 }
 
+.inv-select-glass {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--glass);
+    color: var(--text);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    font-size: 1em;
+    font-family: inherit;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    appearance: none; /* Quita la flecha por defecto */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ffd700' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 18px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+/* Enfoque (Focus) */
+.inv-select-glass:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+}
+
+/* Estilo para las opciones (El menú que despliega) */
+.inv-select-glass option {
+    background-color: var(--bg-dark); /* Se adapta al modo oscuro/claro */
+    color: var(--text);
+    padding: 10px;
+}
+
+.inv-row-align {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+}
+
 /* Input de Código: El Sensor Principal */
 .inv-input-highlight {
     width: 100%;
@@ -3106,22 +3221,53 @@ label {
     background: #128C7E !important;
     transform: translateY(-2px);
 }
-
-.btn-pdf {
-    background: #FF5252 !important;
-    color: white !important;
-    font-weight: 800;
+.btn-whatsapp-cierre, .btn-pdf {
+    width: 100%;             /* Los hace largos */
+    padding: 16px;           /* Más espacio para el dedo en móvil */
+    margin-bottom: 12px;     /* Separación entre ellos */
+    border-radius: 14px;     /* Bordes suavizados, no circulares */
+    border: none;
+    font-weight: 700;
+    font-size: 1em;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    border: none;
-    box-shadow: 0 4px 15px rgba(255, 82, 82, 0.3);
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* --- ESTILO ESPECÍFICO: WHATSAPP --- */
+.btn-whatsapp-cierre {
+    background: #25D366 !important;
+    color: white !important;
+    box-shadow: 0 6px 20px rgba(37, 211, 102, 0.25);
+}
+
+.btn-whatsapp-cierre:hover {
+    background: #128C7E !important;
+    transform: scale(1.02);
+    box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+}
+
+/* --- ESTILO ESPECÍFICO: PDF --- */
+.btn-pdf {
+    background: #FF5252 !important;
+    color: white !important;
+    box-shadow: 0 6px 20px rgba(255, 82, 82, 0.25);
 }
 
 .btn-pdf:hover {
     background: #D32F2F !important;
-    transform: translateY(-2px);
+    transform: scale(1.02);
+    box-shadow: 0 8px 25px rgba(255, 82, 82, 0.4);
+}
+
+/* Efecto de pulsación para ambos */
+.btn-whatsapp-cierre:active, .btn-pdf:active {
+    transform: scale(0.98);
 }
 
 /* Contenedor del Reporte en Pantalla (Si decides mostrarlo) */

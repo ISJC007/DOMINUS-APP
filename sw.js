@@ -1,6 +1,6 @@
 
 
-const CACHE_NAME = 'DOMINUS-8.6.7.9'; 
+const CACHE_NAME = 'DOMINUS-1.0.0.0'; 
 
 const ASSETS = [
   './', 
@@ -8,31 +8,39 @@ const ASSETS = [
   'manifest.json',
   'CSS/Styles.css',
   
-  // --- LIBRERÍAS EXTERNAS (CDNs) ---
+  // --- LIBRERÍAS EXTERNAS (CDNs) - Imprescindibles para que funcionen offline ---
+  'https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js',
+  'https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js',
+  'https://www.gstatic.com/firebasejs/9.15.0/firebase-storage-compat.js',
+  'https://www.gstatic.com/firebasejs/9.15.0/firebase-messaging-compat.js',
   'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
   'https://cdn.jsdelivr.net/npm/chart.js',
-  'https://cdn.rawgit.com/serratus/quaggaJS/0420d5e/dist/quagga.min.js',
+  'https://unpkg.com/html5-qrcode',
+  'https://cdn.jsdelivr.net/npm/eruda',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap',
 
-  // --- TUS SCRIPTS ---
-  'JS/Cloud.js',          // 👈 NUEVO
-  'JS/Usuario.js',        // 👈 NUEVO
-  'JS/Notificaciones.js', // 👈 NUEVO
-  'JS/Teclado.js',        // 👈 NUEVO
+  // --- TUS SCRIPTS (En el orden de carga) ---
+  'JS/Cloud.js',
+  'JS/Offline.js', 
+  'JS/Usuario.js',
+  'JS/Seguridad.js', 
+  'JS/Centinela.js',     // 👈 NUEVO: El guardián de DOMINUS
+  'JS/Audio.js',
   'JS/frases.js',
-  'JS/Offline.js',     
-  'JS/Seguridad.js',
-  'JS/Servicios.js',
-  'JS/Audio.js',       // 👈 ¡No olvides registrar tu nuevo módulo!
+  'JS/Interfaz.js', 
   'JS/Conversor.js',
+  'JS/Servicios.js',
   'JS/Inventario.js',
-  'JS/Controlador.js',
-  'JS/scaner.js',
-  'JS/Ventas.js',
+  'JS/Ventas.js', 
+  'JS/Notificaciones.js',
+  'JS/scaner.js', 
+  'JS/Teclado.js',
+  'JS/Controlador.js', 
+  'JS/Herramientas.js', // 👈 NUEVO: Modo Inmersivo y Dark Mode
   'JS/Main.js',
-  'JS/Interfaz.js',    // 👈 Asegúrate de que esté aquí si lo usas
 
-  // --- 🔊 CARPETA DE AUDIO (Imprescindible para el Offline) ---
+  // --- AUDIO ---
   'AUDIO/add.mp3',
   'AUDIO/success.mp3',
   'AUDIO/error.mp3',
@@ -44,10 +52,10 @@ const ASSETS = [
   'AUDIO/stock_bajo.mp3',
   'AUDIO/base_datos.mp3',
 
-  // --- RECURSOS VISUALES ---
-  '/IMG/icon-192.png',
-  '/IMG/icon-512.png',
-  '/IMG/screenshot.png'
+  // --- IMÁGENES ---
+  'IMG/icon-192.png',
+  'IMG/icon-512.png',
+  'IMG/screenshot.png'
 ];
 
 // 1. INSTALACIÓN

@@ -1,51 +1,63 @@
 const Seguridad = {
 
-    intentosFallidos: 0,
+  intentosFallidos: 0,
 
-    // 1. GESTIÓN DE CLAVES (Persistencia)
+// 1. GESTIÓN DE CLAVES
+intentosFallidos: 0,
+
+// 1. GESTIÓN DE CLAVES
 getClave() {
     const uuid = Persistencia.cargar('dom_id_unico') || 'DOMINUS-CORE';
     let raw = Persistencia.cargar('dom_seguridad_pin');
 
     if (!raw) return '1234';
 
-    // 🚩 EL PARCHE: Si viene con comillas de JSON, las quitamos
-    if (typeof raw === 'string') {
-        raw = raw.replace(/^"|"$/g, ''); 
-    }
+    // Limpieza ultra-rápida de residuos de JSON
+    if (typeof raw === 'string') raw = raw.replace(/^"|"$/g, ''); 
 
     try {
-        const decodificado = atob(raw);
-        if (decodificado.startsWith(uuid)) {
-            return decodificado.replace(uuid, "");
+        const decodificado = atob(raw); // Decodificamos la firma Base64
+        
+        // Verificamos si existe nuestro separador de seguridad ':'
+        if (decodificado.includes(':')) {
+            const [idEnFirma, pinExtraido] = decodificado.split(':');
+            
+            // Solo devolvemos el PIN si el ID de la firma coincide con este equipo
+            if (idEnFirma === uuid) return pinExtraido;
         }
-        return raw; // Caso de PIN viejo
+        
+        // Si no tiene el formato nuevo, intentamos limpiar el UUID del string (compatibilidad)
+        return decodificado.replace(uuid, ""); 
     } catch (e) {
-        return raw; // Caso de texto plano
+        return raw; // Caso de texto plano o error de formato
     }
 },
 
-    setClave(nuevoPin) {
-        const uuid = Persistencia.cargar('dom_id_unico') || 'DOMINUS-CORE';
-        
-        // CREAMOS LA FIRMA ÚNICA
-        const firma = btoa(uuid + nuevoPin);
-        
-        // GUARDAMOS
-        Persistencia.guardar('dom_seguridad_pin', firma);
-        
-        // LIMPIEZA DE SEGURIDAD: Borramos cualquier rastro del PIN viejo si existiera
-        // (Asegúrate de que no haya otra variable 'pin' flotando)
-        
-        console.log("🔐 Seguridad: PIN actualizado y firmado para este equipo.");
-        notificar("PIN Guardado correctamente", "exito");
-    },
+setClave(nuevoPin) {
+    // Validación de seguridad básica
+    if (!nuevoPin || nuevoPin.length < 4) {
+        notificar("El PIN debe tener al menos 4 dígitos", "error");
+        return false;
+    }
 
-    vibrar(patron = [200, 100, 200]) {
-        if ("vibrate" in navigator) {
-            navigator.vibrate(patron);
-        }
-    },
+    const uuid = Persistencia.cargar('dom_id_unico') || 'DOMINUS-CORE';
+    
+    // FIRMA ESTRUCTURADA: [ID DEL EQUIPO]:[PIN]
+    // Esto asegura que la firma sea única para este usuario y equipo.
+    const firma = btoa(`${uuid}:${nuevoPin}`);
+    
+    Persistencia.guardar('dom_seguridad_pin', firma);
+    
+    console.log("🔐 Seguridad: PIN actualizado y firmado estructuralmente.");
+    notificar("PIN Guardado correctamente", "exito");
+    return true;
+},
+
+vibrar(patron = [200, 100, 200]) {
+    if ("vibrate" in navigator) {
+        navigator.vibrate(patron);
+    }
+},
 
     // 2. LÓGICA DE INICIO (Con control de tiempo)
    async iniciarProteccion() {
