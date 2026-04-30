@@ -449,6 +449,104 @@ input, textarea {
     box-shadow: 0 0 12px #ff4757 !important; 
 }
 
+/* --- ESTILOS PREMIUM PARA MANTENIMIENTO DOMINUS (REFRESCADO) --- */
+
+.mantenimiento-sistema-container {
+    padding: 20px;
+    background: var(--glass); /* Uso de tu variable dinámica */
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+    margin-bottom: 25px;
+    box-shadow: var(--shadow-3d); /* Asumiendo la sombra que manejas en profile-card */
+    transition: all 0.3s ease;
+}
+
+.mantenimiento-sistema-container:hover {
+    border-color: rgba(255, 215, 0, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.ajuste-info-premium {
+    margin-bottom: 15px;
+    border-left: 3px solid var(--primary); /* Acento dorado lateral */
+    padding-left: 12px;
+}
+
+.ajuste-label-gold {
+    display: block;
+    color: var(--primary); /* Uso de variable global */
+    font-size: 0.8rem;
+    font-weight: 900;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.ajuste-desc-premium {
+    color: var(--text-dim);
+    font-size: 0.7rem;
+    line-height: 1.4;
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+.btn-reinstalar-dominus {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px dashed var(--primary);
+    color: var(--primary);
+    padding: 14px;
+    border-radius: 14px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Efecto táctil para móvil y feedback visual */
+.btn-reinstalar-dominus:active {
+    background: rgba(255, 215, 0, 0.15);
+    transform: scale(0.96);
+    border-style: solid;
+}
+
+.btn-reinstalar-dominus .icon-spin {
+    font-size: 1.1rem;
+    filter: drop-shadow(0 0 5px var(--primary));
+}
+
+.ajuste-divider-gold {
+    border: 0;
+    height: 1px;
+    /* Degradado más elegante que nace del centro */
+    background: linear-gradient(to right, transparent, var(--primary), transparent);
+    margin: 25px 0;
+    opacity: 0.4;
+}
+
+/* Animación sutil para Desktop */
+@media (min-width: 1024px) {
+    .btn-reinstalar-dominus:hover {
+        background: var(--primary);
+        color: #000;
+        border-style: solid;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    }
+    
+    .btn-reinstalar-dominus:hover .icon-spin {
+        filter: none;
+    }
+}
+
 /* ============================================================
    BLOQUE: EDICIÓN DE PERFIL (Feedback & 3D)
    ============================================================ */

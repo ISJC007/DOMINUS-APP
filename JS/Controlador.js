@@ -187,6 +187,42 @@ const InterfazDevoluciones = {
 };
 
 const Controlador = {
+
+    async forzarReinstalacion() {
+    // Usamos tu función personalizada para el modal estilizado
+    Interfaz.confirmarAccion(
+        "Reiniciar Sistema",
+        "Se forzará la descarga de la última versión de DOMINUS para corregir errores o actualizar módulos. ¿Continuar?",
+        async () => {
+            if ('serviceWorker' in navigator) {
+                try {
+                    // Eliminamos el registro actual para forzar la reinstalación
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let reg of registrations) {
+                        await reg.unregister();
+                    }
+
+                    // Limpiamos caché manualmente antes de recargar
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map(key => caches.delete(key)));
+
+                    console.log("Sistema purgado. Recargando...");
+                    // Recarga forzada desde el servidor
+                    window.location.reload(true); 
+                } catch (err) {
+                    console.error("Error en reinstalación:", err);
+                    window.location.reload(true);
+                }
+            } else {
+                window.location.reload(true);
+            }
+        },
+        null,
+        "SÍ, REINSTALAR",
+        "CANCELAR",
+        true // esPeligroso = true para activar el color rojo y el icono ⚠️
+    );
+},
 // Dentro de Controlador.js
 // --- REEMPLAZA ESTA FUNCIÓN EN Controlador.js ---
 

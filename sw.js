@@ -1,14 +1,13 @@
+const CACHE_NAME = 'DOMINUS-1.2.1.0'; 
 
-
-const CACHE_NAME = 'DOMINUS-1.1.1.0'; 
-
+// Lista completa de recursos (Assets)
 const ASSETS = [
   './', 
   'index.html',
   'manifest.json',
   'CSS/Styles.css',
   
-  // --- LIBRERÍAS EXTERNAS (CDNs) - Imprescindibles para que funcionen offline ---
+  // --- LIBRERÍAS EXTERNAS (CDNs) ---
   'https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/9.15.0/firebase-database-compat.js',
   'https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js',
@@ -20,12 +19,12 @@ const ASSETS = [
   'https://cdn.jsdelivr.net/npm/eruda',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap',
 
-  // --- TUS SCRIPTS (En el orden de carga) ---
+  // --- SCRIPTS LOCALES (Orden de carga lógico) ---
   'JS/Cloud.js',
   'JS/Offline.js', 
   'JS/Usuario.js',
   'JS/Seguridad.js', 
-  'JS/Centinela.js',     // 👈 NUEVO: El guardián de DOMINUS
+  'JS/Centinela.js',
   'JS/Audio.js',
   'JS/frases.js',
   'JS/Interfaz.js', 
@@ -37,10 +36,10 @@ const ASSETS = [
   'JS/scaner.js', 
   'JS/Teclado.js',
   'JS/Controlador.js', 
-  'JS/Herramientas.js', // 👈 NUEVO: Modo Inmersivo y Dark Mode
+  'JS/Herramientas.js',
   'JS/Main.js',
 
-  // --- AUDIO ---
+  // --- AUDIO & MULTIMEDIA ---
   'AUDIO/add.mp3',
   'AUDIO/success.mp3',
   'AUDIO/error.mp3',
@@ -51,27 +50,25 @@ const ASSETS = [
   'AUDIO/resumen_ventas.mp3',
   'AUDIO/stock_bajo.mp3',
   'AUDIO/base_datos.mp3',
-
-  // --- IMÁGENES ---
   'IMG/icon-192.png',
   'IMG/icon-512.png',
   'IMG/screenshot.png'
 ];
 
-// 1. INSTALACIÓN
+// 1. INSTALACIÓN: Almacena todo en caché
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      console.log('Dominus: Sincronizando módulos de seguridad y ventas...');
+      console.log('DOMINUS: Sincronizando ecosistema offline...');
       return Promise.allSettled(
-        ASSETS.map(url => cache.add(url).catch(err => console.error(`Fallo en: ${url}`, err)))
+        ASSETS.map(url => cache.add(url).catch(err => console.error(`Error cargando ${url}:`, err)))
       );
     })
   );
-  self.skipWaiting();
+  self.skipWaiting(); // Fuerza a que el SW nuevo sea el que mande
 });
 
-// 2. ACTIVACIÓN
+// 2. ACTIVACIÓN: Limpia cachés viejos
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys => {
@@ -80,20 +77,22 @@ self.addEventListener('activate', e => {
       );
     })
   );
+  self.clients.claim(); // Toma control de las pestañas abiertas de inmediato
 });
 
-// 3. FETCH (OPTIMIZADO PARA OFFLINE)
+// 3. FETCH: Estrategia Cache-First (Velocidad Dominus)
 self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request).then(response => {
-      // Si está en caché, lo entregamos (Scripts, CSS, HTML, Imágenes)
+      // Si está en caché, devuélvelo (Ahorra datos en Venezuela)
       if (response) return response;
 
-      // Si no está (como la API), vamos a internet
+      // Si no, búscalo en la red
       return fetch(e.request).catch(() => {
-        // En lugar de solo un log, devolvemos una respuesta de error controlada
-        // Esto silencia el error "Failed to convert value to Response"
-        console.log("☁️ Dominus: Recurso de red no disponible (Modo Offline).");
+        // Si no hay red y es una página (HTML), podrías devolver index.html
+        if (e.request.mode === 'navigate') {
+          return caches.match('index.html');
+        }
         return new Response(null, { status: 404, statusText: 'Offline' });
       });
     })
