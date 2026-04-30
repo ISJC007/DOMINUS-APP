@@ -292,19 +292,35 @@ confirmarAccion(titulo, mensaje, onConfirmar, onCancelar = null, textoConfirmar 
     const icono = esPeligroso ? "⚠️" : "❓";
 
     const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay active'; // Usando el estándar de DOMINUS
+    overlay.className = 'modal-overlay active';
+
+    // 🎨 Estilos dinámicos para garantizar visibilidad y estética Glassmorphism
+    Object.assign(overlay.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: '10000',
+        backdropFilter: 'blur(8px)',
+        webkitBackdropFilter: 'blur(8px)'
+    });
 
     overlay.innerHTML = `
-        <div class="card glass modal-alert-shake" style="max-width:320px; width:90%; border:1px solid ${colorPrimario}; text-align:center;">
-            <div style="font-size:3.5em; margin-bottom:10px; filter: drop-shadow(0 0 10px ${colorPrimario}44);">${icono}</div>
-            <h3 style="color:#ffffff; margin-bottom:10px; letter-spacing:1px;">${titulo}</h3>
-            <p style="color:rgba(255,255,255,0.8); margin-bottom:25px; line-height:1.4;">${mensaje}</p>
+        <div class="card glass modal-alert-shake" style="max-width:350px; width:90%; border:1px solid ${colorPrimario}; text-align:center; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="font-size:3.5em; margin-bottom:10px; filter: drop-shadow(0 0 12px ${colorPrimario}66);">${icono}</div>
+            <h3 style="color:#ffffff; margin-bottom:10px; letter-spacing:1px; font-family: sans-serif;">${titulo}</h3>
+            <p style="color:rgba(255,255,255,0.9); margin-bottom:25px; line-height:1.5; font-size: 0.95em;">${mensaje}</p>
             
-            <div class="modal-confirm-btns">
-                <button id="${btnAbortarId}" class="btn-confirm-cancel">
+            <div class="modal-confirm-btns" style="display: flex; gap: 10px; justify-content: center;">
+                <button id="${btnAbortarId}" class="btn-confirm-cancel" style="padding: 10px 20px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; cursor: pointer;">
                     ${textoCancelar}
                 </button>
-                <button id="${btnProcederId}" class="btn-confirm-proceder" style="background:${colorPrimario};">
+                <button id="${btnProcederId}" class="btn-confirm-proceder" style="padding: 10px 20px; border-radius: 8px; border: none; background: ${colorPrimario}; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px ${colorPrimario}44;">
                     ${textoConfirmar}
                 </button>
             </div>
@@ -313,14 +329,30 @@ confirmarAccion(titulo, mensaje, onConfirmar, onCancelar = null, textoConfirmar 
 
     document.body.appendChild(overlay);
 
-    // Lógica de cierre y ejecución
+    // Lógica de cierre y ejecución con limpieza de DOM
     const cerrarYEjecutar = (callback) => {
-        overlay.remove(); // 🗑️ Limpiamos el DOM primero
-        if (callback) callback();
+        overlay.style.opacity = '0';
+        overlay.style.transition = 'opacity 0.2s ease';
+        setTimeout(() => {
+            overlay.remove(); 
+            if (callback) callback();
+        }, 200);
     };
 
-    document.getElementById(btnAbortarId).onclick = () => cerrarYEjecutar(onCancelar);
-    document.getElementById(btnProcederId).onclick = () => cerrarYEjecutar(onConfirmar);
+    // Asignación de eventos
+    const btnAbortar = document.getElementById(btnAbortarId);
+    const btnProceder = document.getElementById(btnProcederId);
+
+    if (btnAbortar) {
+        btnAbortar.onclick = () => cerrarYEjecutar(onCancelar);
+    }
+
+    if (btnProceder) {
+        btnProceder.onclick = () => {
+            console.log("Acción confirmada en Interfaz.");
+            cerrarYEjecutar(onConfirmar);
+        };
+    }
 },
 
 
@@ -521,15 +553,15 @@ actualizarDashboard() {
     const v = Persistencia.cargar('dom_ventas') || [];
     const g = Persistencia.cargar('dom_gastos') || [];
     const f = Persistencia.cargar('dom_fiaos') || [];
-    const t = (Conversor.tasaActual > 0) ? Conversor.tasaActual : 1;
+    // 🛡️ Blindaje de tasa para evitar división por cero
+    const t = (Number(Conversor.tasaActual) > 0) ? Conversor.tasaActual : 1;
     const hoy = new Date().toLocaleDateString('es-VE');
 
-    // 1. Filtramos por fecha
+    // 1. Filtramos por fecha (Ventas y Gastos)
     const vHoy = v.filter(vent => vent.fecha === hoy);
     const gHoy = g.filter(gas => gas.fecha === hoy);
 
-    // 2. Sumamos ventas del día (SOLO las que NO son devoluciones)
-    // Usamos el flag 'devuelta' para ignorar el dinero que salió por reembolso
+    // 2. Sumamos ventas del día (Ignorando devoluciones)
     const totalV = vHoy.reduce((acc, i) => {
         return i.devuelta ? acc : acc + (parseFloat(i.montoBs) || 0);
     }, 0);
@@ -537,23 +569,24 @@ actualizarDashboard() {
     // 3. Sumamos gastos del día
     const totalG = gHoy.reduce((acc, i) => acc + (parseFloat(i.montoBs) || 0), 0);
 
-    // Ingreso Total Bruto Real (Ventas efectivas)
-    const netoBs = totalV; 
+    // 🛡️ Cálculo Neto: Evitamos NaN si no hay ventas
+    const netoBs = totalV || 0; 
     const netoConvertido = netoBs / t;
 
     // --- ACTUALIZACIÓN DE INTERFAZ ---
     
     // Caja en Bs
     const elCaja = document.getElementById('total-caja');
-    if(elCaja) elCaja.innerText = `${(netoBs || 0).toLocaleString('es-VE')} Bs`;
+    if(elCaja) elCaja.innerText = `${netoBs.toLocaleString('es-VE')} Bs`;
     
     // Caja en USD
     const elUsd = document.getElementById('total-usd');
-    if(elUsd) elUsd.innerText = `$ ${(netoConvertido || 0).toFixed(2)}`;
+    if(elUsd) elUsd.innerText = `$ ${netoConvertido.toFixed(2)}`;
     
     // FIAOS: Basado en USD para protección contra devaluación
     const elFiaos = document.getElementById('total-fiaos');
     if(elFiaos) {
+        // 🛡️ Usamos montoUSD de la tabla de fiaos para mayor precisión
         const totalFiaosUSD = f.reduce((acc, i) => acc + (parseFloat(i.montoUSD) || 0), 0);
         const totalFiaosBs = totalFiaosUSD * t;
         elFiaos.innerText = `${(totalFiaosBs || 0).toLocaleString('es-VE')} Bs`;
@@ -563,12 +596,17 @@ actualizarDashboard() {
     const elGastos = document.getElementById('total-gastos');
     if(elGastos) elGastos.innerText = `${(totalG || 0).toLocaleString('es-VE')} Bs`;
     
-    // Sincronizar tasa
+    // Sincronizar tasa en el Input
     const elTasa = document.getElementById('tasa-global');
     if(elTasa) elTasa.value = t;
 
-    if (typeof Controlador !== 'undefined' && Controlador.renderizarGrafica) {
-        Controlador.renderizarGrafica();
+    // 🛡️ Lanzamiento seguro de la gráfica
+    if (typeof Controlador !== 'undefined' && typeof Controlador.renderizarGrafica === 'function') {
+        try {
+            Controlador.renderizarGrafica();
+        } catch (err) {
+            console.warn("⚠️ La gráfica no pudo renderizarse aún:", err);
+        }
     }
 },
 

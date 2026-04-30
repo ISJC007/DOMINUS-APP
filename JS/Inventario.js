@@ -156,20 +156,20 @@ devolver(nombre, cantidad, tallaElegida = null) {
 },
 
 // Método para chequear salud del stock
-chequearSaludStock(producto, cantidadASumarAlCalculo = 0) {
-    if (!producto) return "ok";
+chequearSaludStock(producto, cantidadASumarAlCalculo = 0, esSilencioso = false) {
+    if (!producto || !producto.nombre) return "ok";
     
     const nombreKey = producto.nombre.toLowerCase().trim();
     const stockReal = parseFloat(producto.cantidad) || 0;
-    // 🚩 CLAVE: Calculamos el stock "proyectado" (como si ya hubiéramos restado lo que está en el carrito)
     const stockProyectado = stockReal - cantidadASumarAlCalculo;
     
     const unidad = producto.unidad || 'Und';
+    // 🛡️ Blindaje: Si no hay stock mínimo definido, usamos valores lógicos por unidad
     const min = parseFloat(producto.stockMinimo) || (unidad === 'Kg' || unidad === 'Lts' ? 1.5 : 3);
 
-    // 1. AGOTADO (O se va a agotar con esta venta)
+    // 1. AGOTADO
     if (stockProyectado <= 0) {
-        if (registrosSilencio[nombreKey] !== 'agotado_avisado') {
+        if (!esSilencioso && registrosSilencio[nombreKey] !== 'agotado_avisado') {
             notificar(`🚨 AGOTADO: ${producto.nombre}`, "error");
             registrosSilencio[nombreKey] = 'agotado_avisado';
         }
@@ -178,9 +178,10 @@ chequearSaludStock(producto, cantidadASumarAlCalculo = 0) {
 
     // 2. STOCK BAJO
     if (stockProyectado <= min) {
-        if (registrosSilencio[nombreKey] === 'bajo_avisado' || registrosSilencio[nombreKey] === 'agotado_avisado') {
+        if (esSilencioso || registrosSilencio[nombreKey] === 'bajo_avisado' || registrosSilencio[nombreKey] === 'agotado_avisado') {
             return "bajo"; 
         }
+        
         const cantFormato = (unidad === 'Kg' || unidad === 'Lts') ? stockProyectado.toFixed(2) : Math.round(stockProyectado);
         notificar(`⚠️ QUEDARÁ POCO: ${producto.nombre} (${cantFormato} ${unidad})`, "stock");
         

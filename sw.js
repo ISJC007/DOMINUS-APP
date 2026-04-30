@@ -1,6 +1,6 @@
 
 
-const CACHE_NAME = 'DOMINUS-1.0.0.0'; 
+const CACHE_NAME = 'DOMINUS-1.1.1.0'; 
 
 const ASSETS = [
   './', 

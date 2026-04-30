@@ -490,8 +490,19 @@ async function iniciarDominus() {
         }
 
         // --- 2. CONFIGURACIÓN VISUAL INICIAL ---
+        // A. Modo Oscuro
         const isDark = Persistencia.cargar('dom_dark_mode');
         if (isDark) document.body.classList.add('dark-mode');
+
+        // B. [ANEXADO] Preferencia Modo Punto
+        const modoPuntoGuardado = Persistencia.cargar('dom_pref_modo_punto') || false;
+        const checkPunto = document.getElementById('check-modo-punto');
+        if (checkPunto) checkPunto.checked = modoPuntoGuardado;
+        
+        // Ejecutamos el controlador para ocultar/mostrar según la preferencia guardada
+        if (typeof Controlador !== 'undefined' && typeof Controlador.toggleModoPunto === 'function') {
+            Controlador.toggleModoPunto(modoPuntoGuardado);
+        }
 
         // --- 3. CONEXIÓN Y SESIÓN (Sincronización Real con Firebase) ---
         const user = await new Promise(res => {
@@ -556,7 +567,7 @@ async function iniciarDominus() {
             // A. ¿Estado del usuario aprobado?
             if (Usuario.datos.estado !== 'aprobado') {
                 console.warn("⏳ Acceso pendiente o suspendido.");
-                Usuario.mostrarPantallaEspera(); // Esta función debe manejar los textos de 'suspendido' o 'pendiente'
+                Usuario.mostrarPantallaEspera(); 
                 Usuario.verificarAprobacionAutomatica();
                 return; 
             }
@@ -567,16 +578,22 @@ async function iniciarDominus() {
             if (accesoConcedido) {
                 console.log("🔓 Identidad confirmada. Sincronizando módulos...");
 
-                // [NUEVO] 🛰️ OÍDO DE ÓRDENES DEL MANDO CENTRAL
-                // Este sensor escucha el botón de la nube (Respaldo Forzado)
+                // [ANEXADO] 🛰️ OÍDO DE ÓRDENES DEL MANDO CENTRAL Y NOTIFICACIONES
+                if (typeof Notificaciones !== 'undefined') {
+                    // 1. Iniciamos el sistema de alertas (Stock, Cierre, Tips)
+                    Notificaciones.init(); 
+                    
+                    // 2. Activamos la escucha de órdenes remotas (Sync, Mensajes)
+                    Notificaciones.escucharMandoCentral(user.uid); 
+                }
+
+                // [NUEVO] 📡 Sincronización de Respaldo Forzado
                 Cloud.db.ref(`usuarios/${user.uid}/seguridad/ordenServidor`).on('value', async snap => {
                     const orden = snap.val();
                     if (orden && orden.accion === 'SYNC_NOW') {
                         console.log("☁️ Mando Central solicita respaldo inmediato...");
-                        // Llamamos a la función de respaldo (Asegúrate de que Cloud.subirRespaldoTotal exista)
                         if (typeof Cloud.subirRespaldoTotal === 'function') {
                             await Cloud.subirRespaldoTotal();
-                            // Limpiamos la orden para que no se ejecute infinitamente
                             Cloud.db.ref(`usuarios/${user.uid}/seguridad/ordenServidor`).remove();
                             console.log("✅ Respaldo forzado completado con éxito.");
                         }
@@ -597,7 +614,6 @@ async function iniciarDominus() {
                 window.DOMINUS.historial = Persistencia.cargar('dom_ventas') || [];
                 window.DOMINUS.deudas = Persistencia.cargar('dom_fiaos') || [];
 
-                if (typeof Notificaciones !== 'undefined') Notificaciones.init();
                 if (typeof Inventario !== 'undefined') Inventario.init();
 
                 // --- 8. LANZAMIENTO ---

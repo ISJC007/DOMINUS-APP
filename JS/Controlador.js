@@ -589,7 +589,7 @@ ejecutarCobroFinal() {
         if (typeof this.limpiarSeleccionVenta === 'function') {
             this.limpiarSeleccionVenta();
         }
-        this.renderCarrito(); 
+        this.renderCarrito()
 
         // --- 🔊 FEEDBACK AUDITIVO (Caja Registradora) ---
         if (typeof DominusAudio !== 'undefined') {
@@ -602,9 +602,14 @@ ejecutarCobroFinal() {
         
         notificar("✅ ¡Venta Cobrada con Éxito!", "exito");
 
-        // --- 🛡️ INYECCIÓN CENTINELA DOMINUS ---
-        // Después de cobrar, actualizamos todas las notificaciones (Burbujas de Stock, Fiaos y Cierre)
+        // --- 🛡️ INYECCIÓN CENTINELA DOMINUS (SISTEMA DE NOTIFICACIONES) ---
+        // Forzamos la actualización de las burbujas tras el cobro.
         if (typeof Notificaciones !== 'undefined') {
+            // 1. Reseteamos el estado de 'visto' para que las burbujas vuelvan a aparecer
+            Notificaciones.vistoStock = false;
+            Notificaciones.vistoFiaos = false;
+            
+            // 2. Ejecutamos el recuento de Stock, Deudas y Alerta de Cierre
             Notificaciones.revisarTodo();
         }
 
@@ -612,6 +617,43 @@ ejecutarCobroFinal() {
         if (typeof DominusAudio !== 'undefined') DominusAudio.play('error');
         notificar("❌ Error: No se pudo procesar el cobro", "error");
     }
+},
+
+eliminarDeuda(nombreCliente) {
+    // 1. Invocamos tu función de confirmación personalizada
+    Interfaz.confirmarAccion(
+        "Liquidar Cuenta", 
+        `¿Estás seguro de que deseas eliminar todas las deudas de <strong>${nombreCliente.toUpperCase()}</strong>? Esta acción no se puede deshacer.`,
+        () => {
+            // --- LOGICA DE ELIMINACIÓN (Se ejecuta al confirmar) ---
+            
+            // 2. Cargamos los datos actuales de la persistencia
+            let fiaos = Persistencia.cargar('dom_fiaos') || [];
+            
+            // 3. Normalizamos el nombre para evitar errores por espacios o mayúsculas
+            const nombreBusqueda = nombreCliente.trim().toLowerCase();
+            
+            // 4. Filtramos el array: mantenemos todo lo que NO sea de este cliente
+            const nuevosFiaos = fiaos.filter(f => 
+                f.cliente.trim().toLowerCase() !== nombreBusqueda
+            );
+
+            // 5. Guardamos la lista actualizada
+            Persistencia.guardar('dom_fiaos', nuevosFiaos);
+            
+            // 6. Refrescamos la vista para que el cambio sea instantáneo
+            Interfaz.renderFiaos();
+
+            // Opcional: Si tienes un sistema de notificaciones tipo Toast
+            // Interfaz.notificar(`Cuenta de ${nombreCliente} liquidada`, "success");
+            
+            console.log(`Deuda de ${nombreCliente} eliminada con éxito.`);
+        },
+        null, // onCancelar (no hace falta hacer nada si cancela)
+        "SÍ, LIQUIDAR", 
+        "VOLVER", 
+        true // esPeligroso = true para que el modal use tonos rojos (alerta)
+    );
 },
 
  liquidarServicioManual(idVenta) {
@@ -1308,21 +1350,25 @@ toggleDarkMode(activo) {
     console.log("DOMINUS Theme - Modo oscuro:", activo);
 },
 
-    // Dentro del objeto Controlador = { ... }
+
 
 toggleModoPunto(activado) {
-    const btnPunto = document.getElementById('btn-modo-punto');
+    // Apuntamos al ID correcto de la interfaz de ventas
+    const elSeccionPunto = document.getElementById('seccion-modo-punto');
     
-    if (btnPunto) {
-        // 1. Aplicamos el cambio visual inmediato
-        btnPunto.style.display = activado ? 'block' : 'none';
+    if (elSeccionPunto) {
+        // Usamos clase 'hidden' o style.display según tu sistema global
+        if (activado) {
+            elSeccionPunto.classList.remove('hidden');
+            elSeccionPunto.style.display = 'block'; 
+        } else {
+            elSeccionPunto.classList.add('hidden');
+            elSeccionPunto.style.display = 'none';
+        }
         
-        // 2. Guardamos la preferencia (Persistencia)
+        // Persistencia
         Persistencia.guardar('dom_pref_modo_punto', activado);
-        
-        // 3. Notificación rápida de UX
-        const msj = activado ? "Modo Punto Activado" : "Modo Punto Oculto";
-        console.log(`🏧 DOMINUS: ${msj}`);
+        console.log(`🏧 DOMINUS: Modo Punto ${activado ? 'Visible' : 'Oculto'}`);
     }
 },
 
@@ -1350,6 +1396,7 @@ verificarPreferenciaPunto() {
 generarCierre: function() { 
     if (document.getElementById('modal-dinamico')) return;
 
+    // 1. OBTENCIÓN DE DATOS (Sincronizado con tu motor de ventas)
     const r = Ventas.finalizarJornada(); 
 
     // --- 🚀 INYECCIÓN CENTINELA DOMINUS ---
@@ -1360,34 +1407,63 @@ generarCierre: function() {
     }
 
     const hoy = new Date().toLocaleDateString('es-VE');
+    const balanceBs = parseFloat(r.balanceNeto) || 0;
     const totalVentas = r.conteoVentas || 0;
     const ticketPromedioBs = totalVentas > 0 ? (r.balanceNeto / totalVentas).toFixed(2) : 0;
 
-    // Construcción del reporte
+    // --- 🛡️ MEJORA: DETECCIÓN DE PRODUCTOS CRÍTICOS ---
+    // Usamos tu propia función chequearSaludStock para el reporte
+    let listaReposicion = "";
+    if (typeof Inventario !== 'undefined' && Inventario.lista) {
+        const criticos = Inventario.lista.filter(p => {
+            const salud = this.chequearSaludStock(p, 0); 
+            return salud === "bajo" || salud === "agotado";
+        });
+
+        if (criticos.length > 0) {
+            listaReposicion = `\n📦 *REPOSICIÓN SUGERIDA:* \n`;
+            criticos.forEach(p => {
+                const unidad = p.unidad || 'Und';
+                listaReposicion += `• ${p.nombre} (${p.cantidad} ${unidad})\n`;
+            });
+        }
+    }
+
+    // 2. CONSTRUCCIÓN DEL REPORTE OPTIMIZADO[cite: 2, 5]
     let texto = `📊 *REPORTE DOMINUS - ${hoy}*\n`;
     texto += `━━━━━━━━━━━━━━━━━━\n\n`;
+    
     texto += `🛍️ *ACTIVIDAD:* \n`;
-    texto += `• Ventas realizadas: ${totalVentas}\n`;
+    texto += `• Ventas hoy: ${totalVentas}\n`;
     texto += `• Ticket Promedio: ${ticketPromedioBs} Bs\n\n`;
-    texto += `💵 *EFECTIVO EN CAJA:* \n`;
-    texto += `• Bolívares: ${r.efectivoBS.toLocaleString('es-VE')} Bs\n`;
-    texto += `• Dólares: ${r.efectivoUSD} $\n\n`;
+    
+    texto += `💵 *FLUJO DE CAJA:* \n`;
+    texto += `• Efectivo $: ${r.efectivoUSD} $\n`;
+    texto += `• Efectivo Bs: ${r.efectivoBS.toLocaleString('es-VE')} Bs\n`;
+    texto += `• Gastos Aplicados: -${r.gastos.toLocaleString('es-VE')} Bs\n\n`;
+
     texto += `📱 *DINERO DIGITAL:* \n`;
     texto += `• Pago Móvil: ${r.detalle.pagoMovil.toLocaleString('es-VE')} Bs\n`;
+    // Unificamos Biopago y Punto según tu selector
     texto += `• Punto/Biopago: ${(r.detalle.punto + r.detalle.biopago).toLocaleString('es-VE')} Bs\n`;
     texto += `• Total Digital: ${r.digital.toLocaleString('es-VE')} Bs\n\n`;
-    texto += `📉 *EGRESOS:* \n`;
-    texto += `• Gastos Hoy: ${r.gastos.toLocaleString('es-VE')} Bs\n`;
-    texto += `• Comisiones: ${r.detalle.comisiones.toLocaleString('es-VE')} Bs\n\n`;
-    texto += `━━━━━━━━━━━━━━━━━━\n`;
+
+    texto += `📉 *SALDOS Y COMISIONES:* \n`;
+    texto += `• Créditos (Fiao): ${r.detalle.fiao.toLocaleString('es-VE')} Bs\n`;
+    texto += `• Comisión Padre: ${r.detalle.comisiones.toLocaleString('es-VE')} Bs\n`;
+    
+    // Inyectamos la lista de stock si hay productos bajos[cite: 2]
+    texto += listaReposicion;
+
+    texto += `\n━━━━━━━━━━━━━━━━━━\n`;
     texto += `✅ *TOTAL NETO DEL DÍA:* \n`;
     texto += `💰 *${r.balanceNeto.toLocaleString('es-VE')} Bs*`;
 
-    // SVG Logos
+    // 3. SVG LOGOS (Tus originales)[cite: 2]
     const logoWS = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.06 3.973L0 16l4.14-1.086A7.98 7.98 0 0 0 7.994 16h.004c4.367 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg>`;
     const logoPDF = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/><path d="M4.603 12.087a.81.81 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.68 7.68 0 0 1 1.487-.64c.21-.075.408-.139.605-.192a3.323 3.323 0 0 1 .12-.367 1.92 1.92 0 0 1 .116-.277c.18-.328.375-.677.582-.999.253-.393.51-.762.754-1.017.242-.252.432-.359.584-.406.309-.095.646-.01.91.137.357.198.557.569.579.927.015.233-.051.5-.165.723-.121.238-.321.407-.51.523-.351.213-.761.306-1.162.356-.369.046-.73.042-1.036.027a19.12 19.12 0 0 1-1.527-.145 11.91 11.91 0 0 1-1.315 1.833 5.1 5.1 0 0 1-1.059 1.13c-.15.115-.313.208-.474.269.04.03.078.06.115.09.11.088.196.162.243.213.06.064.06.115.043.153-.024.053-.131.066-.255.034-.143-.037-.306-.118-.465-.234z"/></svg>`;
 
-    // Abrimos el modal con los botones estéticos
+    // 4. MODAL DE ELECCIÓN[cite: 2]
     modalEleccion.abrir({
         titulo: "📊 Finalizar Jornada",
         mensaje: "¿Cómo deseas exportar el reporte detallado?",
@@ -1413,30 +1489,52 @@ generarCierre: function() {
 },
 
 preguntarLimpieza: function() {
+    // 🛡️ Evita duplicidad de modales
+    if (document.getElementById('modal-dinamico')) return;
+
     modalEleccion.abrir({
-        titulo: "🗑️ ¿Borrar Datos?",
-        mensaje: "Se limpiarán ventas, gastos e historial de devoluciones. El inventario NO se verá afectado.",
-        // Añadimos una clase de animación al contenedor del modal si tu modalEleccion lo permite
+        titulo: "🗑️ ¿BORRAR DATOS DE JORNADA?",
+        mensaje: "Esta acción limpiará ventas, gastos e historial de devoluciones del día. El inventario NO se verá afectado.",
+        // Clase para feedback visual de advertencia
         claseModal: "modal-alert-shake", 
         botones: [
             { 
                 texto: "SÍ, REINICIAR TODO", 
                 clase: "btn-danger-destructivo", 
                 accion: () => { 
-                    Ventas.limpiarJornada();
-                    
-                    // 🚀 Lógica de persistencia centralizada
-                    Persistencia.guardar('dom_historial_ventas', []);
-                    console.log("✅ DOMINUS: Historial permanente liberado.");
+                    try {
+                        // 1. Limpieza lógica en memoria activa
+                        if (typeof Ventas !== 'undefined' && Ventas.limpiarJornada) {
+                            Ventas.limpiarJornada();
+                        }
 
-                    location.reload(); 
+                        // 2. Limpieza de persistencia local
+                        // Vaciamos los contenedores de la jornada actual
+                        Persistencia.guardar('dom_ventas', []); 
+                        Persistencia.guardar('dom_gastos', []);
+                        Persistencia.guardar('dom_historial_ventas', []);
+                        
+                        console.log("✅ DOMINUS: Datos de jornada liberados localmente.");
+
+                        // 3. Reinicio de Interfaz
+                        // El reload asegura que todos los objetos globales (como el contador de ventas)
+                        // vuelvan a su estado inicial limpios.
+                        location.reload(); 
+                    } catch (error) {
+                        console.error("❌ Error en limpieza:", error);
+                        if (typeof notificar === 'function') {
+                            notificar("Error al limpiar datos", "error");
+                        }
+                    }
                 } 
             },
             { 
                 texto: "MANTENER DATOS", 
                 clase: "btn-mantener-datos", 
                 accion: () => { 
-                    notificar("Datos protegidos", "exito"); 
+                    if (typeof notificar === 'function') {
+                        notificar("Datos protegidos", "exito"); 
+                    }
                 } 
             }
         ]
@@ -1450,135 +1548,152 @@ generarPDF() {
     const horaId = `${ahora.getHours()}-${ahora.getMinutes()}`;
     const nombreArchivo = `Dominus_Cierre_${hoy.replace(/\//g, '-')}_${horaId}.pdf`;
     
-    const ventasHoy = Ventas.historial.filter(v => v.fecha === hoy);
+    const ventasHoy = Ventas.historial.filter(v => v.fecha && v.fecha.includes(hoy));
     const canvas = document.getElementById('graficaVentas');
+    // Forzamos fondo blanco en la captura de la gráfica para que se vea en el PDF
     const graficaImg = canvas ? canvas.toDataURL('image/png') : null;
-    const totalConConvertido = r.efectivoBS + r.digital - r.gastos + (r.efectivoUSD * Conversor.tasaActual);
+    
+    const tasa = Conversor.tasaActual || 1;
+    const totalConConvertido = r.balanceNeto + (r.efectivoUSD * tasa);
 
-    // --- CONFIGURACIÓN DE ESTILOS (Paleta Dominus) ---
-    const C_PRIMARIO = "#ffd700"; // Dorado
+    const C_PRIMARIO = "#ffd700"; 
     const C_FONDO_DARK = "#1a1a1a";
     const C_TEXTO = "#333";
     const C_BORDE = "#eee";
 
-    // 1. LÓGICA DE SERVICIOS PENDIENTES (Dinero Ajeno)
+    // 1. BLOQUE STOCK CRÍTICO (Optimizado)
+    let bloqueStockHTML = '';
+    if (typeof Inventario !== 'undefined' && Inventario.lista) {
+        const criticos = Inventario.lista.filter(p => {
+            // Asumiendo que esta función existe en tu objeto Inventario/Ventas
+            const salud = this.chequearSaludStock ? this.chequearSaludStock(p, 0) : (p.cantidad <= 2 ? "bajo" : "ok"); 
+            return salud === "bajo" || salud === "agotado" || p.cantidad <= 0;
+        });
+
+        if (criticos.length > 0) {
+            const filasStock = criticos.map(p => `
+                <tr style="border-bottom: 1px solid #ffeeba;">
+                    <td style="padding: 6px; font-size: 10px;">${p.nombre.toUpperCase()}</td>
+                    <td style="padding: 6px; text-align: right; font-size: 10px; font-weight: bold; color: ${p.cantidad <= 0 ? '#d32f2f' : '#856404'};">
+                        ${p.cantidad} ${p.unidad || 'Und'}
+                    </td>
+                </tr>`).join('');
+
+            bloqueStockHTML = `
+                <div style="border: 1px solid #ffeeba; border-radius: 8px; background: #fffcf0; padding: 10px;">
+                    <h4 style="margin: 0 0 5px 0; color: #856404; font-size: 11px; text-align: center;">📦 REPOSICIÓN</h4>
+                    <table style="width: 100%; border-collapse: collapse;">${filasStock}</table>
+                </div>`;
+        }
+    }
+
+    // 2. BLOQUE SERVICIOS (Dinero ajeno)
     const serviciosPendientes = ventasHoy.filter(v => v.esServicio && !v.pagado);
     let tablaServiciosHTML = '';
-
     if (serviciosPendientes.length > 0) {
         const filasServicios = serviciosPendientes.map(s => `
             <tr style="border-bottom: 1px dotted #ccc;">
-                <td style="padding: 10px; font-size: 11px;">${s.producto.replace('PUNTO: ', '')}</td>
-                <td style="padding: 10px; text-align: right; font-size: 11px;">${Number(s.montoBs).toLocaleString('es-VE')} Bs</td>
-                <td style="padding: 10px; text-align: right; color: #d32f2f; font-size: 11px;">-${Number(s.comision).toLocaleString('es-VE')} Bs</td>
-                <td style="padding: 10px; text-align: right; font-weight: bold; color: #2e7d32; font-size: 11px;">${Number(s.aEntregar).toLocaleString('es-VE')} Bs</td>
+                <td style="padding: 6px; font-size: 10px;">${s.producto.replace('PUNTO: ', '')}</td>
+                <td style="padding: 6px; text-align: right; font-size: 10px; font-weight: bold; color: #2e7d32;">
+                    ${Number(s.aEntregar).toLocaleString('es-VE')} Bs
+                </td>
             </tr>`).join('');
 
         tablaServiciosHTML = `
-            <div style="margin-top: 20px; border: 2px solid ${C_PRIMARIO}; padding: 15px; border-radius: 12px; background: #fffdf0;">
-                <h4 style="margin: 0 0 10px 0; color: #b8860b; font-size: 14px; text-align: center; letter-spacing: 1px;">📋 PENDIENTES POR ENTREGAR (DINERO AJENO)</h4>
+            <div style="border: 1px solid ${C_PRIMARIO}; padding: 10px; border-radius: 8px; background: #fffdf0;">
+                <h4 style="margin: 0 0 5px 0; color: #b8860b; font-size: 11px; text-align: center;">📋 PENDIENTES</h4>
                 <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="border-bottom: 1px solid ${C_PRIMARIO}; color: #666; font-size: 10px;">
-                            <th style="text-align: left; padding: 5px;">A QUIÉN</th>
-                            <th style="text-align: right; padding: 5px;">TOTAL</th>
-                            <th style="text-align: right; padding: 5px;">COMISIÓN</th>
-                            <th style="text-align: right; padding: 5px;">A ENTREGAR</th>
-                        </tr>
-                    </thead>
                     <tbody>${filasServicios}</tbody>
                 </table>
-                <div style="text-align: right; margin-top: 10px; font-size: 13px; font-weight: bold; color: #d32f2f;">
-                    TOTAL POR PAGAR: ${serviciosPendientes.reduce((acc, s) => acc + s.aEntregar, 0).toLocaleString('es-VE')} Bs
-                </div>
             </div>`;
     }
 
-    // 2. LÓGICA DE DETALLE DE VENTAS
+    // 3. AUDITORÍA DETALLADA (Con cantidades y totalización clara)
     const filasVentas = ventasHoy.map(v => {
         const esDolar = v.metodo.includes('$') || v.moneda === 'USD';
         const montoTexto = esDolar 
-            ? `$ ${Number(v.montoUSD || (v.montoBs / Conversor.tasaActual)).toFixed(2)}` 
-            : `${Number(v.montoBs).toLocaleString('es-VE')} Bs`;
+            ? `<span style="color: #2e7d32;">$ ${Number(v.montoUSD || (v.montoBs / tasa)).toFixed(2)}</span>` 
+            : `<span>${Number(v.montoBs).toLocaleString('es-VE')} Bs</span>`;
 
         return `
             <tr style="border-bottom: 1px solid ${C_BORDE};">
-                <td style="padding: 12px; font-size: 12px;">
-                    <span style="color: #999; font-size: 10px;">${v.hora}</span><br>
+                <td style="padding: 10px; font-size: 11px;">
+                    <span style="color: #999; font-size: 9px;">${v.hora}</span><br>
                     <b style="color: #000;">${v.producto.toUpperCase()}</b>
+                    ${v.cantidad > 1 ? `<br><small style="color: #666;">Cant: ${v.cantidad}</small>` : ''}
                 </td>
-                <td style="padding: 12px; font-size: 12px; text-align: center; color: #666;">${v.metodo}</td>
-                <td style="padding: 12px; font-size: 13px; text-align: right; font-weight: bold;">${montoTexto}</td>
+                <td style="padding: 10px; font-size: 10px; text-align: center; color: #666;">${v.metodo}</td>
+                <td style="padding: 10px; font-size: 11px; text-align: right; font-weight: bold;">${montoTexto}</td>
             </tr>`;
     }).join('');
 
-    // 3. CONSTRUCCIÓN DEL DOCUMENTO FINAL
     const contenidoHTML = `
-        <div style="font-family: 'Helvetica', Arial, sans-serif; padding: 40px; color: ${C_TEXTO}; background: white;">
+        <div style="font-family: Arial, sans-serif; padding: 25px; color: ${C_TEXTO}; background: white;">
             
-            <div style="height: 920px;"> 
-                <div style="display: flex; justify-content: space-between; border-bottom: 3px solid ${C_PRIMARIO}; padding-bottom: 15px; margin-bottom: 25px;">
-                    <div>
-                        <h1 style="margin: 0; letter-spacing: 4px; font-size: 32px; color: #000;">DOMINUS</h1>
-                        <p style="margin: 0; font-style: italic; color: #888; font-size: 12px;">Domina tu negocio, Domina tu vida</p>
-                    </div>
-                    <div style="text-align: right;">
-                        <h3 style="margin: 0; color: #555;">Reporte de Cierre</h3>
-                        <p style="margin: 0; font-weight: bold; font-size: 16px;">${hoy}</p>
-                        <p style="margin: 0; font-size: 12px; color: #aaa;">Tasa: ${Conversor.tasaActual} Bs</p>
-                    </div>
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; border-bottom: 3px solid ${C_PRIMARIO}; padding-bottom: 10px; margin-bottom: 20px;">
+                <div>
+                    <h1 style="margin: 0; letter-spacing: 3px; font-size: 24px; color: #000;">DOMINUS</h1>
+                    <p style="margin: 0; font-style: italic; color: #888; font-size: 10px;">Gestión de Inventario y Ventas</p>
                 </div>
-
-                ${graficaImg ? `<div style="text-align: center; margin-bottom: 30px; border: 1px solid ${C_BORDE}; border-radius: 8px; padding: 10px;"><img src="${graficaImg}" style="width: 100%; max-height: 230px;"></div>` : ''}
-
-                <div style="background: ${C_FONDO_DARK}; color: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px; opacity: 0.9;">
-                        <span>Efectivo Bolívares:</span>
-                        <span>${r.efectivoBS.toLocaleString('es-VE')} Bs</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                        <span>Efectivo Dólares:</span>
-                        <span style="color: #4caf50; font-weight: bold;">$ ${Number(r.efectivoUSD).toFixed(2)}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 12px; opacity: 0.9;">
-                        <span>Ventas Digitales:</span>
-                        <span>${r.digital.toLocaleString('es-VE')} Bs</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 25px; color: #ff5252;">
-                        <span>Gastos del Día:</span>
-                        <span>-${r.gastos.toLocaleString('es-VE')} Bs</span>
-                    </div>
-                    <div style="border-top: 1px solid #444; padding-top: 20px; text-align: right;">
-                        <p style="margin: 0; font-size: 11px; color: ${C_PRIMARIO}; text-transform: uppercase; letter-spacing: 1px;">Balance Neto Total</p>
-                        <h2 style="margin: 0; color: ${C_PRIMARIO}; font-size: 40px;">${totalConConvertido.toLocaleString('es-VE')} Bs</h2>
-                    </div>
+                <div style="text-align: right;">
+                    <h3 style="margin: 0; color: #555; font-size: 14px;">CIERRE DE CAJA</h3>
+                    <p style="margin: 0; font-weight: bold; font-size: 12px;">${hoy}</p>
                 </div>
-
-                ${tablaServiciosHTML}
-
-                <p style="text-align: center; margin-top: 50px; color: #bbb; font-size: 11px; letter-spacing: 1px;">SISTEMA DE GESTIÓN DOMINUS © 2026</p>
             </div>
 
-            <div style="page-break-before: always; padding-top: 20px;">
-                <h4 style="color: #555; margin-bottom: 15px; border-bottom: 2px solid ${C_BORDE}; padding-bottom: 10px; letter-spacing: 1px;">AUDITORÍA DE OPERACIONES</h4>
+            <!-- Gráfica -->
+            ${graficaImg ? `
+                <div style="text-align: center; margin-bottom: 20px; background: #fcfcfc; border: 1px solid ${C_BORDE}; padding: 10px; border-radius: 8px;">
+                    <img src="${graficaImg}" style="width: 100%; max-height: 180px; object-fit: contain;">
+                </div>` : ''}
+
+            <!-- Resumen Financiero -->
+            <div style="background: ${C_FONDO_DARK}; color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                <table style="width: 100%; font-size: 13px;">
+                    <tr><td>Efectivo Bolívares:</td><td style="text-align: right;">${r.efectivoBS.toLocaleString('es-VE')} Bs</td></tr>
+                    <tr style="color: #4caf50;"><td>Efectivo Dólares:</td><td style="text-align: right;">$ ${Number(r.efectivoUSD).toFixed(2)}</td></tr>
+                    <tr style="color: #ff5252;"><td>Gastos/Comisiones:</td><td style="text-align: right;">-${(r.gastos + r.detalle.comisiones).toLocaleString('es-VE')} Bs</td></tr>
+                    <tr><td colspan="2" style="border-top: 1px solid #444; padding-top: 10px; margin-top: 10px;"></td></tr>
+                    <tr>
+                        <td style="color: ${C_PRIMARIO}; font-weight: bold; font-size: 16px;">TOTAL NETO:</td>
+                        <td style="text-align: right; color: ${C_PRIMARIO}; font-size: 28px; font-weight: bold;">
+                            ${totalConConvertido.toLocaleString('es-VE')} Bs
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Grid de Alertas -->
+            ${(tablaServiciosHTML || bloqueStockHTML) ? `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px;">
+                ${tablaServiciosHTML}
+                ${bloqueStockHTML}
+            </div>` : ''}
+
+            <!-- Auditoría en Nueva Página o Continuación -->
+            <div style="border-top: 2px solid ${C_BORDE}; padding-top: 15px;">
+                <h4 style="margin: 0 0 10px 0; color: #555; font-size: 12px; letter-spacing: 1px;">HISTORIAL DE OPERACIONES</h4>
                 <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="background: #fcfcfc;">
-                        <tr style="color: #999; font-size: 10px; text-transform: uppercase;">
-                            <th style="padding: 12px; text-align: left; border-bottom: 2px solid ${C_BORDE};">Producto / Hora</th>
-                            <th style="padding: 12px; text-align: center; border-bottom: 2px solid ${C_BORDE};">Método</th>
-                            <th style="padding: 12px; text-align: right; border-bottom: 2px solid ${C_BORDE};">Monto</th>
+                    <thead style="background: #f5f5f5;">
+                        <tr>
+                            <th style="text-align: left; padding: 8px; font-size: 10px;">PRODUCTO</th>
+                            <th style="text-align: center; padding: 8px; font-size: 10px;">MÉTODO</th>
+                            <th style="text-align: right; padding: 8px; font-size: 10px;">MONTO</th>
                         </tr>
                     </thead>
                     <tbody>${filasVentas}</tbody>
                 </table>
             </div>
+
+            <p style="text-align: center; margin-top: 30px; color: #bbb; font-size: 9px; letter-spacing: 2px;">DOMINUS SYSTEM • ${ahora.getFullYear()}</p>
         </div>`;
 
     const opciones = {
         margin: 0,
         filename: nombreArchivo,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        html2canvas: { scale: 3, useCORS: true, letterRendering: true }, // Subimos escala a 3 para máxima nitidez
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
     };
 
@@ -1602,13 +1717,12 @@ renderizarGrafica() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const hoy = new Date().toLocaleDateString('es-VE');
-    const t = Conversor.tasaActual || 1;
+    const t = (Number(Conversor.tasaActual) > 0) ? Conversor.tasaActual : 1;
 
-    // --- CONFIGURACIÓN DINÁMICA ---
     const MODOS = {
-        0: { key: 'dom_ventas', color: '#ffd700', titulo: 'Ventas Hoy (Bs)' }, // Dorado
-        1: { key: 'dom_gastos', color: '#ff4444', titulo: 'Gastos Hoy (Bs)' }, // Rojo
-        2: { key: 'dom_fiaos',  color: '#ffa500', titulo: 'Fiaos Hoy (Bs)' }   // Naranja
+        0: { key: 'dom_ventas', color: '#09ff00', titulo: 'Ventas Hoy (Bs)' },
+        1: { key: 'dom_gastos', color: '#ff4444', titulo: 'Gastos Hoy (Bs)' },
+        2: { key: 'dom_fiaos', color: '#ffa500', titulo: 'Fiaos Hoy (Bs)' } // 🛡️ Corregido: Ahora apunta a la persistencia de fiaos
     };
 
     const configActual = MODOS[modoGraficaActual] || MODOS[0];
@@ -1616,28 +1730,49 @@ renderizarGrafica() {
     const color = configActual.color;
     const titulo = configActual.titulo;
 
-    // --- PROCESAMIENTO DE DATOS (Optimizado) ---
     const datosHoy = fuente.filter(i => i.fecha === hoy);
     const datosPorHora = new Array(24).fill(0);
 
     datosHoy.forEach(item => {
         if (item.hora) {
             const h = parseInt(item.hora.split(':')[0]);
-            const monto = (modoGraficaActual === 2) 
-                ? (parseFloat(item.montoUSD) * t || 0) 
-                : (parseFloat(item.montoBs) || 0);
+            
+            // 🛡️ Lógica de montos diferenciada por fuente
+            let monto = 0;
+            if (modoGraficaActual === 2) {
+                // Para fiaos usamos montoUSD * tasa para normalizar a Bs en la gráfica
+                monto = (parseFloat(item.montoUSD) || 0) * t;
+            } else {
+                // Para ventas (0) y gastos (1) usamos montoBs
+                monto = (parseFloat(item.montoBs) || 0);
+                
+                // Evitar sumar ventas devueltas en el modo de ventas
+                if (modoGraficaActual === 0 && item.devuelta) return;
+            }
+
             datosPorHora[h] += monto;
         }
     });
 
-    if (miGrafica) miGrafica.destroy();
+    if (window.miGrafica) window.miGrafica.destroy();
 
-    // Gradiente moderno (Dinamizado por el color del modo)
+    const hexToRgba = (hex, alpha) => {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+
     const gradient = ctx.createLinearGradient(0, 0, 0, 250);
-    gradient.addColorStop(0, color + '66'); // 40% de opacidad arriba
-    gradient.addColorStop(1, color + '00'); // Transparente abajo
+    try {
+        gradient.addColorStop(0, hexToRgba(color, 0.4));
+        gradient.addColorStop(1, hexToRgba(color, 0));
+    } catch (e) {
+        console.error("Error en gradiente", e);
+        gradient = color;
+    }
 
-    miGrafica = new Chart(ctx, {
+    window.miGrafica = new Chart(ctx, {
         type: 'line',
         data: {
             labels: Array.from({length: 24}, (_, i) => `${i}h`),
@@ -1647,8 +1782,8 @@ renderizarGrafica() {
                 borderColor: color,
                 backgroundColor: gradient,
                 fill: true,
-                tension: 0.45, // Curvas más suaves
-                pointRadius: 0,
+                tension: 0.4,
+                pointRadius: 2,
                 pointHoverRadius: 6,
                 pointHoverBackgroundColor: color,
                 borderWidth: 3
@@ -1663,34 +1798,30 @@ renderizarGrafica() {
                     display: true,
                     text: titulo.toUpperCase(),
                     color: color,
-                    font: { size: 12, weight: '900', family: 'Arial' },
+                    font: { size: 12, weight: '900' },
                     padding: { bottom: 20 }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    backgroundColor: 'rgba(0,0,0,0.9)',
                     titleColor: color,
-                    bodyFont: { size: 14, weight: 'bold' },
-                    displayColors: false,
                     callbacks: {
-                        label: (context) => ` Total: ${context.parsed.y.toLocaleString('es-VE')} Bs`
+                        label: (context) => ` Total: ${Number(context.parsed.y).toLocaleString('es-VE')} Bs`
                     }
                 }
             },
             scales: {
                 y: { 
                     beginAtZero: true, 
-                    grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
-                    ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 } }
-                },
-                x: { 
-                    grid: { display: false }, 
+                    grid: { color: 'rgba(255,255,255,0.05)' },
                     ticks: { 
                         color: 'rgba(255,255,255,0.3)', 
                         font: { size: 10 },
-                        maxRotation: 0,
-                        autoSkip: true,
-                        maxTicksLimit: 8 // Solo muestra algunas horas para no saturar
-                    } 
+                        callback: (value) => `${value.toLocaleString('es-VE')}`
+                    }
+                },
+                x: { 
+                    grid: { display: false }, 
+                    ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 }, maxTicksLimit: 12 } 
                 }
             }
         }

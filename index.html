@@ -240,8 +240,8 @@
     <button type="button" class="nav-btn active" onclick="Interfaz.show('dashboard')">
         <span class="nav-icon">🏠</span>
         <span class="nav-text">Inicio</span>
-        <div id="badge-inicio" class="badge-notif"></div>
-    </button>
+<div id="badge-inicio" class="badge-notificacion"></div> 
+   </button>
 
     <button type="button" class="nav-btn" onclick="Interfaz.show('ventas')">
         <span class="nav-icon">💰</span>
@@ -256,13 +256,13 @@
     <button type="button" class="nav-btn" onclick="Interfaz.show('fiaos-list')">
         <span class="nav-icon">🤝</span>
         <span class="nav-text">Créditos</span>
-        <div id="badge-fiaos" class="badge-notif"></div>
+<div id="badge-fiaos" class="badge-notificacion"></div>
     </button>
 
     <button type="button" class="nav-btn" onclick="Interfaz.show('inventario')">
         <span class="nav-icon">📦</span>
         <span class="nav-text">Stock</span>
-        <div id="badge-stock" class="badge-notif danger"></div>
+<div id="badge-stock" class="badge-notificacion"></div>
     </button>
 </nav>
 
@@ -302,9 +302,9 @@
                 📷 Escanear
             </button>
             
-            <button type="button" class="btn-refund locked" onclick="Interfaz.notificarProximamente()">
-                🔄 Devolución 🔒
-            </button>
+        <button type="button" class="btn-refund" onclick="console.log('Clic detectado'); Interfaz.notificarProximamente('Devolución')">
+    🔄 Devolución 🔒
+</button>
         </div>
 
         <h3 class="section-title">Nueva Venta</h3>
@@ -312,9 +312,9 @@
 
         
 
-       <button type="button" id="btn-modo-punto" class="btn-service-toggle glass" onclick="Interfaz.alternarModoPunto()">
-        🏦 ¿Es Servicio de Punto?
-    </button>
+      <button type="button" id="seccion-modo-punto" class="btn-service-toggle glass hidden" onclick="Interfaz.alternarModoPunto()">
+    🏦 ¿Es Servicio de Punto?
+</button>
 
     <div id="wrapper-comision" class="commission-wrapper hidden">
         <label for="v-comision" class="input-label">Comisión %:</label>
@@ -344,7 +344,18 @@
 
 <label for="v-producto">Producto:</label>
 <input type="text" id="v-producto" name="v-producto" list="sugerencias-ventas" 
-       class="input-venta-full" oninput="Interfaz.actualizarSelectorTallas(this.value)" 
+       class="input-venta-full" 
+       oninput="
+          Interfaz.actualizarSelectorTallas(this.value); 
+          const p = Inventario.buscarPrecioMemoria(this.value);
+          const inputM = document.getElementById('v-monto');
+          if (p !== null && inputM) { 
+              inputM.value = p; 
+              inputM.classList.remove('monto-animado'); // Reinicia si ya estaba
+              void inputM.offsetWidth; // Truco para forzar el reinicio de la animación
+              inputM.classList.add('monto-animado');
+          }
+       " 
        placeholder="(Ej: Pollo)" autocomplete="off">
 <datalist id="sugerencias-ventas"></datalist>
 
@@ -352,6 +363,7 @@
 <input type="number" id="v-cantidad" name="v-cantidad" value="1" 
        class="input-venta-full" placeholder="Cantidad" autocomplete="off">
 
+<!-- Selector de Medidas (Se muestra dinámicamente) -->
 <div id="contenedor-talla" class="hidden container-campo">
     <div class="flex-between">
         <label for="v-talla" class="label-especial">Seleccione Medida:</label>
@@ -362,6 +374,7 @@
     </select>
 </div>
 
+<!-- Fila de Monto y Moneda -->
 <div class="input-group-row">
     <div class="flex-2">
         <label for="v-monto">Monto:</label>

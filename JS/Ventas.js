@@ -634,14 +634,15 @@ finalizarJornada() {
     let efecUSD = 0;
     let digital = 0;
     
+    // 🛡️ CORRECCIÓN: Inicializamos 'fiao' para evitar undefined en el Controlador
     let detalleMetodos = {
         pagoMovil: 0,
         biopago: 0,
         punto: 0,
-        comisiones: 0
+        comisiones: 0,
+        fiao: 0 
     };
 
-    // 🚀 LÓGICA DE TICKETS: Usamos un Set para contar clientes reales
     const ticketsUnicos = new Set();
 
     vHoy.forEach(v => {
@@ -649,11 +650,10 @@ finalizarJornada() {
         const mUsd = Number(v.montoUSD) || 0;
         detalleMetodos.comisiones += (Number(v.comision) || 0);
 
-        // Agregamos la llave del ticket (idTransaccion o la combinación hora-cliente)
         const idTicket = v.idTransaccion || `${v.fecha}-${v.hora}-${v.cliente}`;
         ticketsUnicos.add(idTicket);
 
-        // Clasificación de dinero
+        // Clasificación de flujo de caja
         if (v.monedaOriginal === 'USD') {
             efecUSD += mUsd;
         } else if (v.metodo === 'Pago Móvil') {
@@ -665,26 +665,31 @@ finalizarJornada() {
         } else if (v.metodo === 'Punto') {
             digital += mBs;
             detalleMetodos.punto += mBs;
-        } else if (v.metodo !== 'Fiao') {
+        } else if (v.metodo === 'Fiao') {
+            // 🛡️ CORRECCIÓN: Sumamos los créditos al detalle correspondiente
+            detalleMetodos.fiao += mBs;
+        } else {
+            // Dinero líquido en Bolívares (Efectivo)
             efecBS += mBs;
         }
     });
 
     const totalGastos = gastos.filter(g => g.fecha === hoy)
-                              .reduce((acc, g) => acc + (Number(g.montoBs) || 0), 0);
+                             .reduce((acc, g) => acc + (Number(g.montoBs) || 0), 0);
 
-    const usdConvertidos = efecUSD * (Conversor.tasaActual || 0);
+    // 🛡️ SEGURIDAD: Si la tasa es 0, el balance neto no se rompe, solo ignora el USD temporalmente
+    const tasa = Conversor.tasaActual || 0;
+    const usdConvertidos = efecUSD * tasa;
 
-    // 🛡️ BLINDAJE 2: Balance exacto con redondeo
+    // 🛡️ BLINDAJE 2: Balance exacto con redondeo y retorno de objeto íntegro
     return {
-        efectivoBS: Number(efecBS.toFixed(2)),
-        efectivoUSD: Number(efecUSD.toFixed(2)),
-        digital: Number(digital.toFixed(2)),
-        gastos: Number(totalGastos.toFixed(2)), 
+        efectivoBS: Number(efecBS.toFixed(2)) || 0,
+        efectivoUSD: Number(efecUSD.toFixed(2)) || 0,
+        digital: Number(digital.toFixed(2)) || 0,
+        gastos: Number(totalGastos.toFixed(2)) || 0, 
         detalle: detalleMetodos, 
-        balanceNeto: Number((efecBS + digital + usdConvertidos).toFixed(2)),
-        // 🏁 Representa la cantidad de clientes/tickets del día
-        conteoVentas: ticketsUnicos.size 
+        balanceNeto: Number((efecBS + digital + usdConvertidos).toFixed(2)) || 0,
+        conteoVentas: ticketsUnicos.size || 0
     };
 },
 

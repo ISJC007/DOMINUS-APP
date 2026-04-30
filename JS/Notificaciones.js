@@ -311,16 +311,16 @@ escucharMandoCentral(uuid) {
 
     console.log("📡 Radar de Notificaciones: Sincronizado.");
 
-    // 1. ESCUCHAR MENSAJES PRIVADOS (Mando -> Usuario)
-    DA_Cloud.db.ref(`usuarios/${uuid}/comunicacion/mensajeDirecto`).on('value', (snap) => {
+    // 1. ESCUCHAR MENSAJES PRIVADOS 
+    Cloud.db.ref(`usuarios/${uuid}/comunicacion/mensajeDirecto`).on('value', (snap) => {
         const data = snap.val();
         if (data && !data.leido) {
             this.lanzarAnuncioVisual("✉️ MENSAJE PRIVADO", data.texto, "var(--accent)");
         }
     });
 
-    // 2. ESCUCHAR ANUNCIOS GLOBALES (Broadcast)
-    DA_Cloud.db.ref('config_global/anuncio').on('value', (snap) => {
+    // 2. ESCUCHAR ANUNCIOS GLOBALES 
+    Cloud.db.ref('config_global/anuncio').on('value', (snap) => {
         const anuncio = snap.val();
         if (anuncio && anuncio.mensaje) {
             const esReciente = (Date.now() - anuncio.timestamp) < (24 * 60 * 60 * 1000);
@@ -331,7 +331,6 @@ escucharMandoCentral(uuid) {
         }
     });
 },
-
 /**
  * Lanza la interfaz visual táctil para los anuncios.
  */

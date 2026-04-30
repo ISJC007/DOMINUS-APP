@@ -4,24 +4,25 @@ const Conversor = {
     tasaActual: 405.35,
 
     async init() { 
-        // 1. Carga inmediata del teléfono (Seguridad Offline)
+        // 1. Carga inmediata (Seguridad Offline)
         const guardada = Persistencia.cargar('dom_tasa');
         if (guardada) {
-            this.tasaActual = parseFloat(guardada);
+            this.tasaActual = parseFloat(guardada) || 405.35;
         }
 
-        // 2. Intentamos buscar la tasa en internet usando nuestro Servicio
-        const tasaInternet = await Servicios.obtenerTasaBCV();
+        // 2. Intento de actualización silenciosa
+        try {
+            const tasaInternet = await Servicios.obtenerTasaBCV();
 
-        if (tasaInternet) {
-            if (tasaInternet !== this.tasaActual) {
-                notificar(`Tasa BCV detectada: ${tasaInternet}`, 'exito');
-                this.setTasa(tasaInternet);
+            if (tasaInternet && tasaInternet !== this.tasaActual) {
+                // Solo notificamos si el cambio es significativo (evita spam)
+                this.finalizarActualizacionTasa(tasaInternet, true);
             } else {
-                console.log("✅ La tasa ya está actualizada con el BCV.");
+                console.log("✅ Tasa sincronizada.");
             }
-        } else {
-            notificar("Modo Offline: Usando tasa guardada", "stock");
+        } catch (e) {
+            console.warn("⚠️ No se pudo conectar al BCV, usando caché.");
+            if (typeof notificar === 'function') notificar("Modo Offline: Tasa guardada", "stock");
         }
     },
 
@@ -32,56 +33,55 @@ const Conversor = {
 
         const ventasHoy = Persistencia.cargar('dom_ventas') || [];
         
-        // 💡 Lógica de negocio: Verificar si hay ventas y si la tasa cambia
+        // Si hay ventas, pedimos confirmación para no descuadrar el cierre
         if (ventasHoy.length > 0 && num !== this.tasaActual) {
-            
-            // 🚀 INTEGRACIÓN: Usando confirmarAccion personalizado
-            // Asumimos que esta función está en Controlador o Interfaz
             const ejecutor = (typeof Controlador !== 'undefined' && Controlador.confirmarAccion) ? Controlador : Interfaz;
 
-            ejecutor.confirmarAccion(
-                "⚠️ ¿Cambiar Tasa?",
-                `Ya registraste ${ventasHoy.length} ventas hoy. Cambiar la tasa ahora hará que los montos en el cierre no coincidan perfectamente.`,
-                () => {
-                    // --- ACCIÓN SI CONFIRMAN ---
-                    this.finalizarActualizacionTasa(num);
-                },
-                () => {
-                    // --- ACCIÓN SI CANCELAN ---
-                    // 🚨 CORRECCIÓN: Revertimos el valor del input visualmente
-                    const inputTasa = document.getElementById('tasa-global');
-                    if (inputTasa) inputTasa.value = this.tasaActual;
-                    console.log("🚫 Cambio de tasa abortado por el usuario.");
-                },
-                "Sí, cambiar",  // Texto confirmar
-                "Cancelar",     // Texto cancelar
-                true            // esPeligroso = true (Rojo)
-            );
-
+            if (ejecutor && ejecutor.confirmarAccion) {
+                ejecutor.confirmarAccion(
+                    "⚠️ ¿Cambiar Tasa?",
+                    `Ya registraste ${ventasHoy.length} ventas hoy. El cierre podría variar.`,
+                    () => this.finalizarActualizacionTasa(num),
+                    () => {
+                        const inputTasa = document.getElementById('tasa-global');
+                        if (inputTasa) inputTasa.value = this.tasaActual;
+                    },
+                    "Sí, cambiar", 
+                    "Cancelar", 
+                    true 
+                );
+            } else {
+                // Fallback si el modal no está listo
+                this.finalizarActualizacionTasa(num);
+            }
         } else {
-            // --- ACCIÓN DIRECTA (si no hay ventas o es la misma tasa) ---
             this.finalizarActualizacionTasa(num);
         }
     },
 
-    // 🛠️ Función interna para persistir y actualizar la vista
-    finalizarActualizacionTasa(nuevoValor) {
+    finalizarActualizacionTasa(nuevoValor, silencioso = false) {
         this.tasaActual = nuevoValor;
         Persistencia.guardar('dom_tasa', this.tasaActual);
         
-        if (typeof Interfaz !== 'undefined') {
-            Interfaz.actualizarDashboard();
+        // 🛡️ BLINDAJE: Solo actualizamos el Dashboard si la Interfaz está lista
+        // Esto evita el error de renderizado si el DOM aún no carga los colores
+        if (typeof Interfaz !== 'undefined' && typeof Interfaz.actualizarDashboard === 'function') {
+            try {
+                Interfaz.actualizarDashboard();
+            } catch (err) {
+                console.error("❌ Error al refrescar Dashboard tras cambio de tasa:", err);
+            }
         }
         
-        console.log("✅ Tasa actualizada con éxito: " + this.tasaActual);
-        if (typeof notificar === 'function') notificar("Tasa actualizada", "exito");
+        if (!silencioso && typeof notificar === 'function') {
+            notificar(`Tasa: ${this.tasaActual} Bs`, "exito");
+        }
     }
 };
 
-// 🕒 Asegurar que el DOM exista antes de iniciar
+// 🕒 Inicialización segura
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => Conversor.init());
 } else {
-    
     Conversor.init();
 }

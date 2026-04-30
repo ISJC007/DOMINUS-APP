@@ -6,37 +6,76 @@
 const Usuario = {
     datos: null,
     dbSimulada: 'dom_usuarios_db',
-    sesionActual: 'dom_sesion_activa',
+    sesionActual: 'dom_sesion_activa', // <--- LA COMA QUE FALTABA AQUÍ
 
-// En Usuario.js, cambia tu init por algo más pasivo:
-
-init() {
-    console.log("🔐 DOMI: Sistema de identidad listo (Esperando señal de Cloud...)");
-    // Ya no llamamos a mostrarLogin() aquí adentro.
-    // Dejamos que el observador de Firebase en Cloud.js sea el que mande.
+   cerrarSesion() {
+    // Usamos tu confirmarAccion con los parámetros que definiste
+    Interfaz.confirmarAccion(
+        "SISTEMA DE SALIDA",
+        "¿Deseas respaldar tus datos en la nube y cerrar la sesión actual?",
+        async () => {
+            // Animación de feedback antes de salir
+            if (typeof notificar === "function") notificar("Sincronizando con Cloud...", "alerta");
+            
+            await this.ejecutarSalidaFisica();
+        },
+        () => console.log("Salida cancelada"),
+        "SALIR AHORA",
+        "CANCELAR",
+        true // esPeligroso = true para que el icono sea ⚠️ y el botón rojo
+    );
 },
 
-// Creamos esta función para que Cloud la use cuando Firebase confirme quién eres
-configurarSesion(datosNube) {
-    // 1. Mapeamos los datos
-    this.datos = datosNube.perfil || {};
-    this.datos.estado = datosNube.administracion?.estado || 'pendiente';
+    async ejecutarSalidaFisica() {
+        try {
+            const uid = this.datos?.uid || (this.datos?.perfil && this.datos.perfil.uid);
+            
+            // 1. Desconexión de Firebase usando Cloud
+            if (typeof Cloud !== 'undefined') {
+                console.log("☁️ Cerrando sesión en Cloud...");
+                if (uid && Cloud.db) {
+                    Cloud.db.ref(`usuarios/${uid}/comunicacion/mensajeDirecto`).off();
+                    Cloud.db.ref('config_global/anuncio').off();
+                }
+                if (Cloud.auth) await Cloud.auth.signOut();
+            }
 
-    // 2. Filtro de aprobación
-    if (this.datos.estado === 'pendiente') {
-        this.mostrarPantallaEspera();
-        return false;
-    }
+            // 2. Limpieza Local
+            this.datos = null;
+            localStorage.removeItem('dom_sesion');
+            localStorage.removeItem('dom_sesion_activa');
+            localStorage.removeItem('dom_usuario_local');
 
-    // 🚩 CLAVE: Guardamos el ID para que Seguridad.js pueda desencriptar el PIN
-    if (this.datos.uid) {
-        Persistencia.guardar('dom_id_unico', this.datos.uid);
-    }
+            console.log("✅ Salida completada.");
+            window.location.reload();
+        } catch (e) {
+            console.error("Error en Bypass:", e);
+        }
+    }, // <--- LA COMA QUE FALTABA AQUÍ
 
-    // 3. Persistencia para el modo Offline
-    Persistencia.guardar('dom_usuario_local', this.datos);
-    return true; 
-},
+    init() {
+        console.log("🔐 DOMI: Sistema de identidad listo (Esperando señal de Cloud...)");
+    },
+
+    configurarSesion(datosNube) {
+        // 1. Mapeamos los datos
+        this.datos = datosNube.perfil || {};
+        this.datos.estado = datosNube.administracion?.estado || 'pendiente';
+
+        // 2. Filtro de aprobación
+        if (this.datos.estado === 'pendiente') {
+            this.mostrarPantallaEspera();
+            return false;
+        }
+
+        // 3. Guardamos el ID para Seguridad.js
+        if (this.datos.uid && typeof Persistencia !== 'undefined') {
+            Persistencia.guardar('dom_id_unico', this.datos.uid);
+            Persistencia.guardar('dom_usuario_local', this.datos);
+        }
+
+        return true; 
+    },
 
     // --- OPTIMIZACIÓN DE MEDIA (GEMS: NIVEL 2) ---
     async procesarFotoRegistro(archivo) {
@@ -406,16 +445,6 @@ mostrarRegistro() {
     };
 },
 
-cerrarSesion() {
-    // 🔥 IMPORTANTE: Apagar radares para evitar fugas de datos
-    if (Usuario.datos && Usuario.datos.uid) {
-        DA_Cloud.db.ref(`usuarios/${Usuario.datos.uid}/comunicacion/mensajeDirecto`).off();
-        DA_Cloud.db.ref('config_global/anuncio').off();
-    }
-    
-    localStorage.removeItem('dom_sesion'); 
-    location.reload();
-},
 
 
     // ==========================================

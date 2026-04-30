@@ -1504,30 +1504,56 @@ input:checked + .slider:before {
     text-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
 }
 
-.badge-notif {
+/* DISEÑO ÚNICO PARA BURBUJAS */
+.badge-notificacion {
     position: absolute;
-    top: 8px;
-    right: 20%;
-    width: 10px;
-    height: 10px;
-    background: var(--primary);
+    top: -5px;
+    right: 5px; /* Ajustado para que no se salga del botón */
+    background: var(--primary); 
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    min-width: 18px;
+    height: 18px;
+    padding: 2px;
     border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: 2px solid #121212;
-    box-shadow: 0 0 5px var(--primary);
-    z-index: 2;
+    
+    /* Estado inicial: Invisible y pequeño */
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: none;
+    z-index: 10;
 }
 
-/* Animación de pulso para alertas críticas (Stock Bajo) */
-.badge-notif.danger { 
-    background: #ff4d4d; 
-    box-shadow: 0 0 10px #ff4d4d;
+/* Cuando el JS detecta alerta, le pone esta clase */
+.badge-notificacion.active {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Color Amarillo para Stock (Preventivo) */
+#badge-stock.active {
+    background: #ffd700;
+    color: black;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+/* Color Rojo para Fiaos o Alertas Críticas */
+#badge-fiaos.active, .badge-notificacion.danger {
+    background: #ff4444;
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
     animation: pulse-red 2s infinite;
 }
 
 @keyframes pulse-red {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.5); opacity: 0.5; }
-    100% { transform: scale(1); opacity: 1; }
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
 }
 
 .main-content-wrapper {
@@ -1548,6 +1574,77 @@ input:checked + .slider:before {
 @media (min-width: 1024px) {
     .app-section {
         padding-bottom: 150px !important; /* Más aire en PC */
+    }
+}
+
+/* Contenedor de notificaciones */
+.toast-general {
+    position: fixed;
+    top: 25px;
+    right: 25px;
+    z-index: 11000;
+    
+    /* Efecto Glassmorphism */
+    background: rgba(255, 255, 255, 0.08); /* Fondo ultra suave */
+    backdrop-filter: blur(12px) saturate(180%); /* El alma del glass */
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    
+    /* Bordes y Sombra */
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    border-radius: 16px; /* Siguiendo tu estilo de 12-16px */
+    
+    /* Contenido */
+    padding: 15px 22px;
+    color: #ffffff;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 280px;
+    
+    /* Animación Fluida de entrada (desde la derecha con rebote) */
+    opacity: 0;
+    transform: translateX(100%) scale(0.9);
+    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: auto;
+}
+
+/* Estado activo */
+.toast-general.show {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+}
+
+/* Indicador lateral de color (para no perder el contexto del tipo) */
+.toast-general::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    height: 60%;
+    width: 4px;
+    border-radius: 0 4px 4px 0;
+}
+
+/* Colores temáticos integrados con el cristal */
+.toast-exito::before { background: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
+.toast-error::before { background: #e74c3c; box-shadow: 0 0 10px #e74c3c; }
+.toast-alerta::before { background: #f39c12; box-shadow: 0 0 10px #f39c12; }
+.toast-info::before { background: #bb86fc; box-shadow: 0 0 10px #bb86fc; } /* Tono morado DOMINUS */
+
+/* Ajuste móvil fluido */
+@media (max-width: 480px) {
+    .toast-general {
+        top: 15px;
+        right: 15px;
+        left: 15px;
+        min-width: auto;
+        transform: translateY(-50px) scale(0.95);
+    }
+    
+    .toast-general.show {
+        transform: translateY(0) scale(1);
     }
 }
 /* ============================================================
@@ -1786,6 +1883,7 @@ input:checked + .slider:before {
 
 .btn-scan:active { transform: scale(0.95); }
 
+
 /* ============================================================
    BLOQUE: MODO PUNTO (Servicios & Comisiones)
    ============================================================ */
@@ -1951,18 +2049,40 @@ input:checked + .slider:before {
     font-family: sans-serif; /* Placeholder normal, input técnico */
 }
 
+/* Animación de brillo para el autocompletado */
+@keyframes glow-dominus {
+    0% { 
+        box-shadow: 0 0 0px rgba(46, 204, 113, 0);
+        background: rgba(255, 255, 255, 0.08); 
+    }
+    50% { 
+        box-shadow: 0 0 15px rgba(46, 204, 113, 0.4);
+        background: rgba(46, 204, 113, 0.15); 
+        border-color: #2ecc71;
+    }
+    100% { 
+        box-shadow: 0 0 0px rgba(46, 204, 113, 0);
+        background: rgba(255, 255, 255, 0.08); 
+    }
+}
+
+.monto-animado {
+    animation: glow-dominus 0.8s ease-out;
+}
+
 /* ============================================================
    BLOQUE: FORMULARIO DE VENTAS (Inputs & Selects)
    ============================================================ */
 
 /* 1. Campos de Entrada y Selectores (Look de Cristal Oscuro) */
+/* 1. Estilo Base Unificado para Inputs y Selects */
 .input-venta-full, 
 .select-venta-full {
     width: 100%;
-    padding: 15px 18px; /* Un poco más de cuerpo */
-    border-radius: 15px; /* Radio consistente con el resto de la app */
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(0, 0, 0, 0.3); /* Fondo más profundo para resaltar el texto blanco */
+    padding: 15px 18px;
+    border-radius: 15px;
+    border: 1px solid rgba(212, 175, 55, 0.2); /* Usamos el dorado sutil desde el inicio */
+    background: rgba(0, 0, 0, 0.6); /* Fondo más oscuro para asegurar legibilidad */
     color: #fff;
     margin-bottom: 18px;
     box-sizing: border-box;
@@ -1973,29 +2093,35 @@ input:checked + .slider:before {
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
 }
 
-/* Enfoque Dinámico: El campo "cobra vida" */
-.input-venta-full:focus, 
-.select-venta-full:focus {
-    border-color: var(--primary);
-    background: rgba(212, 175, 55, 0.05);
-    box-shadow: 
-        0 0 20px rgba(212, 175, 55, 0.1),
-        inset 0 0 10px rgba(0,0,0,0.5);
-    transform: translateY(-2px); /* Elevación sutil al interactuar */
+/* 2. Arreglo para la lista desplegable (Opciones) */
+/* Esto evita que se vea blanco sobre blanco al abrir el select */
+.select-venta-full option {
+    background-color: #1a1a1a; /* Un gris muy oscuro sólido */
+    color: #fff;
+    padding: 10px;
 }
 
-/* 2. Selectores con Identidad Visual */
+/* 3. Enfoque Dinámico: Elevación y Brillo */
+.input-venta-full:focus, 
+.select-venta-full:focus {
+    border-color: #d4af37; /* El dorado Dominus */
+    background: rgba(212, 175, 55, 0.08);
+    box-shadow: 
+        0 0 20px rgba(212, 175, 55, 0.15),
+        inset 0 0 10px rgba(0,0,0,0.5);
+    transform: translateY(-2px);
+}
+
+/* 4. Especificaciones para el Selector (Flecha y Padding) */
 .select-venta-full {
     appearance: none; 
-    /* Tu icono SVG pero con el dorado exacto de Dominus */
+    -webkit-appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23d4af37' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C2.185 5.355 2.403 5 2.808 5h9.384c.405 0 .623.355.357.658l-4.796 5.482a.5.5 0 0 1-.706 0z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 18px center;
     cursor: pointer;
-    border: 1px solid rgba(212, 175, 55, 0.2);
-    padding-right: 40px; /* Evita que el texto tape la flecha */
+    padding-right: 40px; 
 }
-
 /* 3. Estructura de Filas y Agrupación */
 .input-group-row {
     display: flex; 
@@ -2527,8 +2653,8 @@ label {
     background: rgba(212, 175, 55, 0.03); 
     color: var(--primary);
     font-family: 'Courier New', Courier, monospace; 
-    font-weight: 700;
-    font-size: 1.2rem;
+    font-weight: 500;
+    font-size: 1.0rem;
     box-sizing: border-box;
     text-align: center;
     letter-spacing: 4px;
