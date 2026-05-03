@@ -1536,8 +1536,10 @@ input:checked + .slider:before {
     background: none;
     border: none;
     outline: none;
-    color: rgba(255, 255, 255, 0.2); /* APAGADO: Gris oscuro profundo */
+    color: rgba(255, 255, 255, 0.2);
     cursor: pointer;
+    /* 🛡️ CRÍTICO: El ancla para que el badge sepa dónde ir */
+    position: relative; 
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -1605,33 +1607,37 @@ input:checked + .slider:before {
 /* DISEÑO ÚNICO PARA BURBUJAS */
 .badge-notificacion {
     position: absolute;
-    top: -5px;
-    right: 5px; /* Ajustado para que no se salga del botón */
+    /* 🛡️ Ajuste Senior: Usamos porcentajes o valores fijos 
+       para que no dependan del tamaño del texto */
+    top: 5px; 
+    right: 20%; 
     background: var(--primary); 
     color: white;
-    font-size: 0.7rem;
-    font-weight: bold;
+    font-size: 0.65rem; /* Un pelín más pequeño para que no rompa el círculo */
+    font-weight: 800; 
     min-width: 18px;
     height: 18px;
-    padding: 2px;
+    padding: 0px; /* Evita que el padding deforme el círculo */
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     border: 2px solid #121212;
     
-    /* Estado inicial: Invisible y pequeño */
     opacity: 0;
     transform: scale(0);
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     pointer-events: none;
-    z-index: 10;
+    /* 🛡️ Asegura que esté por encima del resplandor del botón activo */
+    z-index: 20; 
 }
 
-/* Cuando el JS detecta alerta, le pone esta clase */
+/* --- ESTADO ACTIVO DEL BADGE --- */
 .badge-notificacion.active {
     opacity: 1;
     transform: scale(1);
+    /* 🛡️ Añadimos un pequeño brillo propio para que resalte en el fondo oscuro */
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
 
 /* Color Amarillo para Stock (Preventivo) */

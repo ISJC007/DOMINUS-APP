@@ -1,4 +1,4 @@
-const CACHE_NAME = 'DOMINUS-1.2.1.0'; 
+const CACHE_NAME = 'DOMINUS-1.3.1.0'; 
 
 // Lista completa de recursos (Assets)
 const ASSETS = [

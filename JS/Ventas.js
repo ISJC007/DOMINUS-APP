@@ -170,7 +170,7 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
     const precioBase = Number(m) || 0;
     const cantidadVendida = Number(cant) || 0;
 
-    // 🛡️ REGLA DE ORO: Solo tocamos stock si el inventario está activo y no es un servicio (punto)
+    // 🛡️ REGLA DE ORO: Solo tocamos stock si el inventario está activo y no es un servicio
     const debeTocarStock = (typeof Inventario !== 'undefined' && Inventario.activo === true && !esServicio);
 
     // 1. 🔍 LÓGICA DE INVENTARIO Y PESAJE
@@ -213,11 +213,15 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
     const montoComision = (Number(montoBs) * (Number(com) / 100));
     const montoAEntregar = esServicio ? (montoBs - montoComision) : 0;
 
-    // 3. 🎫 ESTRUCTURA DEL OBJETO VENTA
+    // 3. 🎫 ESTRUCTURA DEL OBJETO VENTA (BLINDADA)
     const datosVenta = {
         id: Date.now() + Math.random(),
-        idTransaccion: idTicketRecibido || `T-${Date.now()}`,
-        fecha: new Date().toLocaleDateString('es-VE'),
+        // Agregamos un random pequeño al ticket para evitar colisiones en ventas ultra rápidas
+        idTransaccion: idTicketRecibido || `T-${Date.now()}-${Math.floor(Math.random() * 100)}`,
+        
+        // ✅ PARCHE CRÍTICO: Usamos formato YYYY-MM-DD para que el semáforo de fiaos no de errores
+        fecha: new Date().toISOString().split('T')[0], 
+        
         hora: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
         producto: esServicio ? `PUNTO: ${p}` : (tallaEscogida ? `${p} (${tallaEscogida})` : p),
         productoNombre: p, 
@@ -249,23 +253,18 @@ registrarVenta(p, m, mon, met, cli, com = 0, esServicio = false, cant = 1, talla
 
     // 🛡️ REACCIÓN DEL CENTINELA
     if (typeof Notificaciones !== 'undefined') {
-        
-        // 🚩 NOVEDAD: Resetear el estado de "Visto" si ocurre algo nuevo
         if (met === 'Fiao') {
-            Notificaciones.resetVisto('fiaos'); // Despierta la burbuja de fiaos
+            Notificaciones.resetVisto('fiaos'); 
         }
         
         if (debeTocarStock) {
-            Notificaciones.resetVisto('inventario'); // Despierta la burbuja de stock
+            Notificaciones.resetVisto('inventario'); 
             
-            // Si el stock bajó demasiado, lanzar notificación nativa
             const prodStock = Inventario.productos.find(i => i.nombre.toLowerCase() === p.trim().toLowerCase());
             if (prodStock && prodStock.cantidad <= (prodStock.stockMinimo || 3)) {
                 Notificaciones.enviarNotificacionNativa("Stock Crítico", `El producto ${p} se está agotando.`);
             }
         }
-
-        // Refrescar visualmente los badges
         Notificaciones.revisarTodo();
     }
 
