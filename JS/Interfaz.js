@@ -430,25 +430,35 @@ toggleAjustes: function() {
     const panel = document.getElementById('panelAjustes');
     if (!panel) return;
 
-    panel.classList.toggle('active');
+    const isActive = panel.classList.toggle('active');
 
-    // Bloquear scroll del fondo cuando está abierto para mejorar el foco
-    if (panel.classList.contains('active')) {
+    if (isActive) {
         document.body.style.overflow = 'hidden';
         
-        // Cierre automático al hacer clic fuera del panel
+        // Atributo para que el Teclado.js sepa que debe activar atajos de una letra (O, A, P)
+        panel.setAttribute('data-keyboard-mode', 'ajustes');
+
+        // Foco automático al primer switch (Modo Oscuro) para que pueda usar flechas de inmediato
+        const primerAjuste = panel.querySelector('#checkDarkMode');
+        if (primerAjuste) primerAjuste.focus();
+
         const cerrarAlClickFuera = (e) => {
-            if (!panel.contains(e.target) && !e.target.closest('.btn-ajustes-top')) {
-                panel.classList.remove('active');
-                document.body.style.overflow = 'auto';
+            // Se agregó validación para que el clic en el disparador (avatar) no entre en conflicto
+            if (!panel.contains(e.target) && !e.target.closest('#user-trigger')) {
+                this.toggleAjustes(); // Usamos la misma función para mantener la lógica de limpieza
                 document.removeEventListener('click', cerrarAlClickFuera);
             }
         };
-        // El setTimeout evita que el clic que abre el panel lo cierre inmediatamente
+        
         setTimeout(() => document.addEventListener('click', cerrarAlClickFuera), 100);
         
     } else {
         document.body.style.overflow = 'auto';
+        panel.removeAttribute('data-keyboard-mode');
+        
+        // Devolvemos el foco al botón disparador para que la navegación no se pierda
+        const trigger = document.getElementById('user-trigger');
+        if (trigger) trigger.focus();
     }
 },
 

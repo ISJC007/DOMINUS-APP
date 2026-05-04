@@ -4,62 +4,92 @@ const Teclado = {
         console.log("⌨️ Sistema de Teclado Vinculado a DOMINUS");
     },
 
-  manejadorGlobal(e) {
-        // 1. NAVEGACIÓN GLOBAL (Alt + 1...5 y Flechas)
-        if (e.altKey) {
-            const pestañas = ['dashboard', 'ventas', 'gastos', 'fiaos-list', 'inventario'];
-            const seccionesNum = { 
-                '1': 'dashboard', '2': 'ventas', '3': 'gastos', 
-                '4': 'fiaos-list', '5': 'inventario' 
-            };
+manejadorGlobal(e) {
+    // 0. BLOQUEO SI HAY MODALES O ESCRITURA
+    const modalActivo = document.getElementById('modal-dinamico');
+    const estaEscribiendo = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
 
-            // --- NAVEGACIÓN CON FLECHAS (Alt + Flechas) ---
-            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-                e.preventDefault();
-                let actualIdx = pestañas.findIndex(p => {
-                    const el = document.getElementById(`view-${p}`);
-                    return el && !el.classList.contains('hidden');
-                });
+    // 1. NAVEGACIÓN GLOBAL (Alt + 1...5 y Flechas)
+    if (e.altKey) {
+        const pestañas = ['dashboard', 'ventas', 'gastos', 'fiaos-list', 'inventario'];
+        const seccionesNum = { 
+            '1': 'dashboard', '2': 'ventas', '3': 'gastos', 
+            '4': 'fiaos-list', '5': 'inventario' 
+        };
 
-                if (actualIdx !== -1) {
-                    if (e.key === 'ArrowRight') {
-                        actualIdx = (actualIdx + 1) % pestañas.length;
-                    } else {
-                        actualIdx = (actualIdx - 1 + pestañas.length) % pestañas.length;
-                    }
-                    
-                    const nuevaSeccion = pestañas[actualIdx];
-                    Interfaz.show(nuevaSeccion);
-                    this.aplicarFocoAutomatico(nuevaSeccion); // Foco inteligente con flechas
-                }
-                return;
-            }
-
-            // --- NAVEGACIÓN POR NÚMERO (Alt + 1...5) ---
-            const destino = seccionesNum[e.key];
-            if (destino) {
-                e.preventDefault();
-                Interfaz.show(destino);
-                this.aplicarFocoAutomatico(destino); // Foco inteligente con números
-                return;
-            }
-        }
-
-        // 2. DETECCIÓN DE CONTEXTO (Activa los atajos según la pestaña visible)
-        if (this.visible('view-ventas')) {
-            this.atajosVentas(e);
-        } else if (this.visible('view-gastos')) {
-            this.atajosGastos(e);
-        } else if (this.visible('view-inventario')) {
-            this.atajosInventario(e);
-        }
-
-        // 3. ATAJOS UNIVERSALES
-        if (e.key === 'F2') {
+        // --- NAVEGACIÓN CON FLECHAS (Alt + Flechas) ---
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
             e.preventDefault();
+            let actualIdx = pestañas.findIndex(p => {
+                const el = document.getElementById(`view-${p}`);
+                return el && !el.classList.contains('hidden');
+            });
+
+            if (actualIdx !== -1) {
+                if (e.key === 'ArrowRight') {
+                    actualIdx = (actualIdx + 1) % pestañas.length;
+                } else {
+                    actualIdx = (actualIdx - 1 + pestañas.length) % pestañas.length;
+                }
+                
+                const nuevaSeccion = pestañas[actualIdx];
+                if (typeof Interfaz !== 'undefined') Interfaz.show(nuevaSeccion);
+                this.aplicarFocoAutomatico(nuevaSeccion); 
+            }
+            return;
+        }
+
+        // --- NAVEGACIÓN POR NÚMERO (Alt + 1...5) ---
+        const destino = seccionesNum[e.key];
+        if (destino) {
+            e.preventDefault();
+            if (typeof Interfaz !== 'undefined') Interfaz.show(destino);
+            this.aplicarFocoAutomatico(destino); 
+            return;
+        }
+    }
+
+    // --- 🚀 ATAJOS MAESTROS (Solo si no está escribiendo) ---
+    if (!estaEscribiendo && !modalActivo) {
+        // C - CIERRE DE CAJA
+        if (e.key.toLowerCase() === 'c') {
+            e.preventDefault();
+            if (typeof Controlador !== 'undefined' && Controlador.generarCierre) {
+                Controlador.generarCierre();
+            }
+        }
+        
+        // F - ACTIVAR/DESACTIVAR FIAO
+        if (e.key.toLowerCase() === 'f') {
+            e.preventDefault();
+            const checkFiao = document.getElementById('v-fiao-switch');
+            if (checkFiao) {
+                checkFiao.checked = !checkFiao.checked;
+                checkFiao.dispatchEvent(new Event('change'));
+                if (typeof notificar === 'function') {
+                    notificar(checkFiao.checked ? "Modo Fiao: ACTIVADO" : "Modo Fiao: DESACTIVADO", "info");
+                }
+            }
+        }
+    }
+
+    // 2. DETECCIÓN DE CONTEXTO
+    if (this.visible('view-ventas')) {
+        this.atajosVentas(e);
+    } else if (this.visible('view-gastos')) {
+        this.atajosGastos(e);
+    } else if (this.visible('view-inventario')) {
+        this.atajosInventario(e);
+    }
+
+    // 3. ATAJOS UNIVERSALES
+    if (e.key === 'F2') {
+        e.preventDefault();
+        if (typeof Controlador !== 'undefined') {
             Controlador.ejecutarCobroFinal?.();
         }
-    },
+    }
+},
 
     // Función auxiliar para centralizar el foco en todas las entradas
     aplicarFocoAutomatico(seccion) {
@@ -82,13 +112,15 @@ const Teclado = {
     },
     // --- ATAJOS POR SECCIÓN ---
 
+  // --- ATAJOS POR SECCIÓN ---
+
     atajosVentas(e) {
         const activo = document.activeElement.id;
         if (e.key === 'Tab') e.preventDefault();
 
         if (e.key === 'Enter') {
             e.preventDefault();
-            if (e.shiftKey) { // Retroceder
+            if (e.shiftKey) { // Retroceder con Shift + Enter
                 if (activo === 'v-cliente') this.enfocarYScroll('v-metodo');
                 else if (activo === 'v-metodo') this.enfocarYScroll('v-monto');
                 else if (activo === 'v-monto') this.enfocarYScroll('v-cantidad');
@@ -99,7 +131,10 @@ const Teclado = {
             if (!this.validarInputActual()) return;
 
             switch (activo) {
-                case 'v-producto': this.enfocarYScroll('v-cantidad'); break;
+                case 'v-producto': 
+                    // Si el producto existe, procesarEscaneoVentaRapida ya disparó el sonido 'scan'
+                    this.enfocarYScroll('v-cantidad'); 
+                    break;
                 case 'v-cantidad': this.enfocarYScroll('v-monto'); break;
                 case 'v-monto':    this.enfocarYScroll('v-metodo'); break;
                 case 'v-metodo':
@@ -116,7 +151,7 @@ const Teclado = {
 
         if (e.key === 'Escape') {
             e.preventDefault();
-            Controlador.limpiarSeleccionVenta?.();
+            if (typeof Controlador !== 'undefined') Controlador.limpiarSeleccionVenta?.();
             this.enfocarYScroll('v-producto');
         }
     },
@@ -130,7 +165,10 @@ const Teclado = {
             if (activo === 'g-desc') this.enfocarYScroll('g-monto');
             else if (activo === 'g-monto') this.enfocarYScroll('g-moneda');
             else if (activo === 'g-moneda') {
-                Controlador.ejecutarGasto?.();
+                if (typeof Controlador !== 'undefined') {
+                    Controlador.ejecutarGasto?.();
+                    if (typeof notificar === 'function') notificar("Gasto registrado", "exito");
+                }
                 setTimeout(() => this.enfocarYScroll('g-desc'), 200);
             }
         }
@@ -146,7 +184,11 @@ const Teclado = {
             else if (activo === 'inv-cant') this.enfocarYScroll('inv-precio');
             else if (activo === 'inv-precio') this.enfocarYScroll('inv-unidad');
             else if (activo === 'inv-unidad') {
-                Controlador.guardarEnInventario?.();
+                if (typeof Controlador !== 'undefined') {
+                    Controlador.guardarEnInventario?.();
+                    // El audio de éxito se dispara dentro del controlador o aquí
+                    if (typeof notificar === 'function') notificar("Inventario actualizado", "exito");
+                }
                 setTimeout(() => this.enfocarYScroll('inv-nombre'), 200);
             }
         }

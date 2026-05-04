@@ -26,38 +26,55 @@ const Conversor = {
         }
     },
 
-    setTasa(valor) { 
-        const num = Number(parseFloat(valor).toFixed(2)); 
-        
-        if (isNaN(num) || num <= 0) return;
+   setTasa(valor) { 
+    const num = Number(parseFloat(valor).toFixed(2)); 
+    
+    // Si el valor no es válido, restauramos el input para no dejar datos erróneos
+    if (isNaN(num) || num <= 0) {
+        const inputTasa = document.getElementById('tasa-global');
+        if (inputTasa) inputTasa.value = this.tasaActual;
+        return;
+    }
 
-        const ventasHoy = Persistencia.cargar('dom_ventas') || [];
-        
-        // Si hay ventas, pedimos confirmación para no descuadrar el cierre
-        if (ventasHoy.length > 0 && num !== this.tasaActual) {
-            const ejecutor = (typeof Controlador !== 'undefined' && Controlador.confirmarAccion) ? Controlador : Interfaz;
+    const ventasHoy = Persistencia.cargar('dom_ventas') || [];
+    
+    // Si hay ventas, pedimos confirmación para no descuadrar el cierre
+    if (ventasHoy.length > 0 && num !== this.tasaActual) {
+        const ejecutor = (typeof Controlador !== 'undefined' && Controlador.confirmarAccion) ? Controlador : Interfaz;
 
-            if (ejecutor && ejecutor.confirmarAccion) {
-                ejecutor.confirmarAccion(
-                    "⚠️ ¿Cambiar Tasa?",
-                    `Ya registraste ${ventasHoy.length} ventas hoy. El cierre podría variar.`,
-                    () => this.finalizarActualizacionTasa(num),
-                    () => {
-                        const inputTasa = document.getElementById('tasa-global');
-                        if (inputTasa) inputTasa.value = this.tasaActual;
-                    },
-                    "Sí, cambiar", 
-                    "Cancelar", 
-                    true 
-                );
-            } else {
-                // Fallback si el modal no está listo
-                this.finalizarActualizacionTasa(num);
-            }
+        if (ejecutor && ejecutor.confirmarAccion) {
+            ejecutor.confirmarAccion(
+                "⚠️ ¿Cambiar Tasa?",
+                `Ya registraste ${ventasHoy.length} ventas hoy. El cierre podría variar.`,
+                () => {
+                    this.finalizarActualizacionTasa(num);
+                    // Quitamos el foco del input tras confirmar para que el atajo quede libre
+                    document.activeElement.blur(); 
+                },
+                () => {
+                    const inputTasa = document.getElementById('tasa-global');
+                    if (inputTasa) {
+                        inputTasa.value = this.tasaActual;
+                        inputTasa.blur();
+                    }
+                },
+                "Sí, cambiar", 
+                "Cancelar", 
+                true 
+            );
         } else {
             this.finalizarActualizacionTasa(num);
+            document.activeElement.blur();
         }
-    },
+    } else {
+        this.finalizarActualizacionTasa(num);
+        // Feedback visual rápido de éxito
+        if (typeof notificar === 'function') {
+            notificar(`Tasa actualizada: ${num} Bs`, 'add');
+        }
+        document.activeElement.blur();
+    }
+},
 
     finalizarActualizacionTasa(nuevoValor, silencioso = false) {
         this.tasaActual = nuevoValor;
@@ -74,7 +91,7 @@ const Conversor = {
         }
         
         if (!silencioso && typeof notificar === 'function') {
-            notificar(`Tasa: ${this.tasaActual} Bs`, "exito");
+            notificar(`Tasa: ${this.tasaActual} Bs`, "add");
         }
     }
 };

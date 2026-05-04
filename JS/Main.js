@@ -91,8 +91,25 @@ const notificar = (msj, tipo = 'exito') => {
                 DominusAudio.play('error');
                 break;
             case 'stock':
-                // Mantenemos el silencio de stock para no aturdir
-                console.warn("DOMINUS (Silencio de Stock):", msj);
+                // Ahora usamos el sonido específico de stock bajo
+                DominusAudio.play('stockBajito');
+                break;
+            case 'db':
+                // Para guardados en base de datos o nube
+                DominusAudio.play('db');
+                break;
+            case 'cierre':
+            case 'resumen':
+                // Para el reporte final de ventas
+                DominusAudio.play('resumen');
+                break;
+            case 'scan':
+                // Sonido corto de lectura de código
+                DominusAudio.play('scan');
+                break;
+            case 'exito':
+                // Sonido de confirmación general
+                DominusAudio.play('success');
                 break;
             default:
                 DominusAudio.play('add');
@@ -101,12 +118,10 @@ const notificar = (msj, tipo = 'exito') => {
     }
 
     // 2. Gestión de la interfaz (Toast Superior)
-    // 🛡️ BLINDAJE: Buscamos cualquier toast existente para que no se amontonen arriba
     const toastActivo = document.querySelector('.toast-general');
     if (toastActivo) toastActivo.remove();
 
     const toast = document.createElement('div');
-    // Aplicamos la base para posición y la específica para color
     toast.className = `toast-general toast-${tipo}`; 
     
     const iconos = {
@@ -115,20 +130,21 @@ const notificar = (msj, tipo = 'exito') => {
         stock: '📦',
         fiao: '🤝',
         error: '❌',
-        alerta: '⚠️'
+        alerta: '⚠️',
+        db: '💾',
+        cierre: '📊',
+        scan: '🔍'
     };
 
     toast.innerHTML = `<span>${iconos[tipo] || '✅'}</span> ${msj}`;
     
     document.body.appendChild(toast);
     
-    // Ejecutamos la animación de entrada
     setTimeout(() => toast.classList.add('show'), 10);
     
-    // ⏳ TIEMPO DE VIDA: 3 segundos es el estándar ideal para leer sin estorbar
+    // ⏳ TIEMPO DE VIDA: 3 segundos
     setTimeout(() => {
         toast.classList.remove('show');
-        // Esperamos a que termine la animación de subida para borrarlo del DOM
         setTimeout(() => toast.remove(), 400);
     }, 3000); 
 };
@@ -458,11 +474,11 @@ function finalizarArranque() {
         
         // 🔊 MULTIMEDIA Y BIENVENIDA
         if (typeof DominusAudio !== 'undefined') {
-            DominusAudio.play('success_unlock'); 
+            DominusAudio.play('add'); 
             DominusAudio.saludarSegunHora();
         }
         
-        notificar("Ecosistema Sincronizado", "exito");
+        notificar("Ecosistema Sincronizado", "add");
         
         // Limpieza final del Splash
         setTimeout(() => { if(splash) splash.remove(); }, 1000);
@@ -577,6 +593,11 @@ async function iniciarDominus() {
             
             if (accesoConcedido) {
                 console.log("🔓 Identidad confirmada. Sincronizando módulos...");
+
+                // [ANEXO PERFIL] Sincronizamos la interfaz visual del perfil y ajustes
+                if (typeof Usuario.actualizarInterfazPerfil === 'function') {
+                    Usuario.actualizarInterfazPerfil();
+                }
 
                 // [ANEXADO] 🛰️ OÍDO DE ÓRDENES DEL MANDO CENTRAL Y NOTIFICACIONES
                 if (typeof Notificaciones !== 'undefined') {

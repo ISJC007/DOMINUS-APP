@@ -1340,6 +1340,86 @@ async procesarLogin(usuario, pass) {
     }
 },
 
+actualizarInterfazPerfil() {
+    // 1. Verificación de datos (Prioriza memoria activa, luego local)
+    const datosConfig = this.datos || Persistencia.cargar('dom_usuario_local');
+    if (!datosConfig) return;
+
+    // 2. Referencias a la UI del Dashboard
+    const imgElement = document.getElementById('perfil-avatar-img');
+    const placeholder = document.getElementById('perfil-avatar-placeholder');
+    const nombreNegocio = document.getElementById('perfil-nombre-negocio');
+
+    // --- ACTUALIZACIÓN VISUAL DASHBOARD ---
+    
+    // Foto de Perfil
+    if (datosConfig.foto && imgElement) {
+        imgElement.src = datosConfig.foto;
+        imgElement.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+    }
+
+    // Nombre del Negocio
+    if (datosConfig.negocio && nombreNegocio) {
+        nombreNegocio.innerText = datosConfig.negocio;
+    }
+
+    // --- SINCRONIZACIÓN DE AJUSTES ---
+    // Llamamos a cargarAjustes para que los inputs de configuración 
+    // también tengan la info actualizada de la nube.
+    this.cargarAjustes(); 
+    
+    console.log("🖥️ Interfaz de usuario sincronizada íntegramente.");
+},
+
+async cambiarFoto(input) {
+    const archivo = input.files[0];
+    if (!archivo) return;
+
+    try {
+        // 1. Efecto visual inmediato y sonido de proceso
+        if (typeof notificar === 'function') {
+            notificar("Optimizando imagen...", "alerta");
+        }
+
+        // 2. Procesamos la foto con el Canvas (300px, JPEG 70%)
+        // Usamos la función que ya tienes definida en tu archivo
+        const fotoOptimizada = await this.procesarFotoRegistro(archivo);
+
+        // 3. Actualización Visual Instantánea (Optimismo en UI)
+        const imgElement = document.getElementById('perfil-avatar-img');
+        const placeholder = document.getElementById('perfil-avatar-placeholder');
+        
+        if (imgElement) {
+            imgElement.src = fotoOptimizada;
+            imgElement.style.display = 'block';
+            if (placeholder) placeholder.style.display = 'none';
+        }
+
+        // 4. Persistencia en Memoria y Nube
+        if (this.datos) {
+            this.datos.foto = fotoOptimizada;
+            
+            // Guardamos en LocalStorage para que no se pierda al recargar
+            if (typeof Persistencia !== 'undefined') {
+                Persistencia.guardar('dom_usuario_local', this.datos);
+            }
+
+            // Subida a Firebase (Sync en tiempo real)
+            if (typeof Cloud !== 'undefined' && this.datos.uid) {
+                await Cloud.db.ref(`usuarios/${this.datos.uid}/perfil/foto`).set(fotoOptimizada);
+                notificar("Foto de perfil actualizada", "exito");
+            }
+        }
+
+    } catch (error) {
+        console.error("❌ Error al cambiar la foto:", error);
+        if (typeof notificar === 'function') {
+            notificar("Error al procesar la imagen", "error");
+        }
+    }
+},
+
 // Función auxiliar para desbloquear el botón si algo falla
 resetearBotonLogin() {
     const btn = document.getElementById('btn-login');
@@ -1398,15 +1478,45 @@ crearOverlay(id) {
     overlays.forEach(o => o.remove()); 
 },
 
-guardarNombreNegocio() {
-        const el = document.getElementById('perfil-nombre-negocio');
-        if (el) {
-            const nuevoNombre = el.innerText.trim();
-            // Guardamos en la persistencia global
-            Persistencia.guardar('cfg_nombre_negocio', nuevoNombre);
-            console.log("Nombre del negocio actualizado:", nuevoNombre);
+async guardarNombreNegocio() {
+    const el = document.getElementById('perfil-nombre-negocio');
+    if (!el) return;
+
+    const nuevoNombre = el.innerText.trim();
+
+    // 1. Evitar guardados innecesarios si el nombre está vacío o no cambió
+    if (nuevoNombre === "" || nuevoNombre === this.datos?.negocio) {
+        if (nuevoNombre === "") el.innerText = this.datos?.negocio || "Mi Negocio";
+        return;
+    }
+
+    try {
+        // 2. Actualización de Memoria y LocalStorage
+        if (this.datos) {
+            this.datos.negocio = nuevoNombre;
+            if (typeof Persistencia !== 'undefined') {
+                Persistencia.guardar('dom_usuario_local', this.datos);
+            }
         }
-    },
+
+        // 3. Sincronización con la Nube (Firebase)
+        if (typeof Cloud !== 'undefined' && this.datos?.uid) {
+            await Cloud.db.ref(`usuarios/${this.datos.uid}/perfil/negocio`).set(nuevoNombre);
+            
+            if (typeof notificar === 'function') {
+                notificar("Nombre del negocio actualizado", "exito");
+            }
+        }
+
+        console.log("🚀 Sincronización exitosa:", nuevoNombre);
+
+    } catch (error) {
+        console.error("❌ Error al sincronizar nombre:", error);
+        if (typeof notificar === 'function') {
+            notificar("Error al guardar en la nube", "error");
+        }
+    }
+},
 
     guardarPlantilla() {
         const el = document.getElementById('cfg-msj-maestro');
@@ -1425,20 +1535,40 @@ guardarNombreNegocio() {
     },
 
     // Esta función debe ejecutarse al INICIAR la app (en Main.js o al cargar la pestaña)
-    cargarAjustes() {
-        const nombre = Persistencia.cargar('cfg_nombre_negocio') || "Mi Negocio";
-        const plantilla = Persistencia.cargar('cfg_msj_cobro') || "";
-        const limite = Persistencia.cargar('cfg_limite_dias') || "5";
+   cargarAjustes() {
+    // 1. Priorizamos los datos unificados de la nube, si no, usamos el respaldo local
+    const datosConfig = this.datos || Persistencia.cargar('dom_usuario_local') || {};
 
-        if(document.getElementById('perfil-nombre-negocio')) 
-            document.getElementById('perfil-nombre-negocio').innerText = nombre;
-        
-        if(document.getElementById('cfg-msj-maestro')) 
-            document.getElementById('cfg-msj-maestro').value = plantilla;
+    // 2. Extraemos valores con respaldos por defecto
+    const nombre = datosConfig.negocio || "Mi Negocio";
+    const plantilla = datosConfig.msj_cobro || Persistencia.cargar('cfg_msj_cobro') || "";
+    const limite = datosConfig.limite_dias || Persistencia.cargar('cfg_limite_dias') || "5";
 
-        if(document.getElementById('cfg-limite-confianza')) 
-            document.getElementById('cfg-limite-confianza').value = limite;
-    },
+    // --- 3. ACTUALIZACIÓN DE LA INTERFAZ ---
+
+    // Nombre del Negocio (Dashboard)
+    const elNombre = document.getElementById('perfil-nombre-negocio');
+    if (elNombre) elNombre.innerText = nombre;
+    
+    // Foto de Perfil (Dashboard) - IMPORTANTE AÑADIR ESTO
+    const imgElement = document.getElementById('perfil-avatar-img');
+    const placeholder = document.getElementById('perfil-avatar-placeholder');
+    if (imgElement && datosConfig.foto) {
+        imgElement.src = datosConfig.foto;
+        imgElement.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+    }
+
+    // Plantilla de WhatsApp (Ajustes)
+    const elMsj = document.getElementById('cfg-msj-maestro');
+    if (elMsj) elMsj.value = plantilla;
+
+    // Límite de confianza/días (Ajustes)
+    const elLimite = document.getElementById('cfg-limite-confianza');
+    if (elLimite) elLimite.value = limite;
+
+    console.log("✅ Ajustes cargados y sincronizados con la interfaz.");
+},
 
 };
 

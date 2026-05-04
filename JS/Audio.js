@@ -8,7 +8,6 @@ const DominusAudio = {
         error: new Audio('AUDIO/error.mp3'),
         resumen: new Audio('AUDIO/resumen_ventas.mp3'),
         scan: new Audio('AUDIO/scanner.mp3'),
-        stockBajo: new Audio('AUDIO/stock_bajo.mp3'),
         success: new Audio('AUDIO/success.mp3')
     },
 

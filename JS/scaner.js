@@ -73,10 +73,9 @@ iniciarEscannerCamara: function(callbackProcesar) {
     }
 },
 
-   activarCamaraPura: function(idLector, callback) {
+activarCamaraPura: function(idLector, callback) {
     this.scannerInstancia = new Html5Qrcode(idLector);
     
-    // Propiedad temporal para comparar lecturas
     this.votoPrevio = null; 
 
     const perfilActual = window.PERFIL_DOMINUS || "MEDIO";
@@ -92,44 +91,40 @@ iniciarEscannerCamara: function(callbackProcesar) {
         { facingMode: "environment" }, 
         config,
         (codigo) => {
-            if (this.escaneando) return;
+            // Si ya estamos procesando o el sistema está en pausa, ignoramos
+            if (this.escaneando || window.pausaScanner) return; 
 
-            // --- 🛡️ CERROJO DE SEGURIDAD DOMINUS ---
             const codigoLimpio = codigo.trim();
 
-            // 1. Si el código es muy corto (basura visual), lo ignoramos
             if (codigoLimpio.length < 3) return;
 
-            // 2. Si es diferente al anterior, lo guardamos como "voto" y esperamos
             if (codigoLimpio !== this.votoPrevio) {
                 this.votoPrevio = codigoLimpio;
                 console.log("DOMINUS: Validando código: " + codigoLimpio);
-                return; // No procesamos todavía
+                return; 
             }
             
-            // 3. Si llegamos aquí, es que leyó lo MISMO dos veces seguidas
             this.escaneando = true;
-            this.votoPrevio = null; // Limpiamos para el siguiente producto
-            // --- 🛡️ FIN DEL CERROJO ---
+            this.votoPrevio = null; 
 
-            // Feedback Visual
+            // Feedback Visual (Outline verde de éxito)
             const contenedor = document.getElementById('contenedor-camara');
             if (contenedor) contenedor.style.outline = "8px solid #2ecc71";
             
             if (typeof DominusAudio !== 'undefined') DominusAudio.play('exito');
             
+            // Mostrar botón Deshacer (Atajo: Z)
             const btnUndo = document.getElementById('btn-deshacer-scanner');
             if (btnUndo) btnUndo.style.display = 'flex';
 
-            // ENVIAR AL CONTROLADOR
             if (callback) callback(codigoLimpio);
 
-            // Timer de Ráfaga
+            // Timer de Ráfaga: evita lecturas múltiples accidentales
             setTimeout(() => {
                 this.escaneando = false;
                 const cont = document.getElementById('contenedor-camara');
                 if (cont) cont.style.outline = "none";
-            }, 1000);
+            }, 1200); // Un poco más de tiempo para dar estabilidad al teclado
         }
     ).catch(err => {
         console.error("DOMINUS: Error de hardware", err);
@@ -145,50 +140,68 @@ iniciarEscannerCamara: function(callbackProcesar) {
 asegurarControles: function(contenedor) {
     if (!contenedor) return;
 
-    // 1. Botón Cerrar (X Roja)
+    // 1. Botón Cerrar (X Roja) - Atajo: ESC / X
     if (!document.getElementById('btn-cerrar-scanner')) {
         const btnCerrar = document.createElement('button');
         btnCerrar.id = 'btn-cerrar-scanner';
         btnCerrar.className = 'btn-flotante-scanner';
-        btnCerrar.innerHTML = '✕';
-        btnCerrar.title = "Cerrar Escáner";
+        // Añadimos (X) como pista visual del atajo
+        btnCerrar.innerHTML = '✕ <small style="font-size:10px; display:block</small>';
+        btnCerrar.title = "Cerrar Escáner (Tecla X)";
+        
+        // Inyección para el motor de atajos global
+        btnCerrar.setAttribute('data-shortcut', 'X'); 
         
         btnCerrar.onclick = () => this.detenerYSalir();
         contenedor.appendChild(btnCerrar);
     }
 
-    // 2. Botón Deshacer (⟲ Naranja)
+    // 2. Botón Deshacer (⟲ Naranja) - Atajo: Z
     if (!document.getElementById('btn-deshacer-scanner')) {
         const btnUndo = document.createElement('button');
         btnUndo.id = 'btn-deshacer-scanner';
         btnUndo.className = 'btn-flotante-scanner';
-        btnUndo.innerHTML = '⟲';
-        btnUndo.title = "Deshacer último escaneo";
+        // Añadimos (Z) como pista visual del atajo
+        btnUndo.innerHTML = '⟲ <small style="font-size:10px; display:block;">(Z)</small>';
+        btnUndo.title = "Deshacer último escaneo (Tecla Z)";
+        
+        // Inyección para el motor de atajos global
+        btnUndo.setAttribute('data-shortcut', 'Z');
         
         btnUndo.onclick = () => this.deshacerUltimoEscaneo();
         contenedor.appendChild(btnUndo);
     }
 },
 
-   deshacerUltimoEscaneo: function() {
+deshacerUltimoEscaneo: function() {
     if (typeof Controlador !== 'undefined' && typeof Controlador.eliminarUltimoDelCarrito === 'function') {
         
-        // 1. Ejecutamos la resta/eliminación en el controlador
+        // 1. Feedback Visual del Atajo (Efecto de pulsación)
+        const btnUndo = document.getElementById('btn-deshacer-scanner');
+        if (btnUndo) {
+            btnUndo.style.transform = "scale(0.9)";
+            setTimeout(() => btnUndo.style.transform = "scale(1)", 100);
+        }
+
+        // 2. Ejecutamos la resta/eliminación en el controlador
         Controlador.eliminarUltimoDelCarrito();
         
-        // 2. Notificamos qué se devolvió
-        notificar("Devuelto: " + (window.ultimoNombreBorrado || "Producto"), "error");
+        // 3. Notificamos qué se devolvió
+        // Usamos el nombre guardado para que el usuario esté seguro de qué borró
+        if (typeof notificar === 'function') {
+            notificar("Devuelto: " + (window.ultimoNombreBorrado || "Producto"), "error");
+        }
         
-        // 3. VALIDACIÓN INTELIGENTE DEL BOTÓN
-        // Solo ocultamos el botón si el carrito se quedó vacío
+        // 4. VALIDACIÓN INTELIGENTE DEL BOTÓN
+        // Si el carrito queda vacío, ya no hay nada que deshacer, ocultamos.
         if (typeof Ventas !== 'undefined' && (!Ventas.carrito || Ventas.carrito.length === 0)) {
-            const btnUndo = document.getElementById('btn-deshacer-scanner');
             if (btnUndo) btnUndo.style.display = 'none';
         }
         
-        // Si quieres que el botón desaparezca tras unos segundos de inactividad 
-        // podrías poner un timeout, pero dejarlo visible mientras haya items 
-        // es lo más profesional para una ráfaga.
+        // Feedback Sonoro de retroceso (Opcional si tienes el objeto Audio)
+        if (typeof DominusAudio !== 'undefined') DominusAudio.play('borrar');
+
+        console.log("DOMINUS: Deshacer ejecutado correctamente.");
     }
 },
 
@@ -276,20 +289,15 @@ detenerYSalir: async function() {
 
     // --- 🎛️ MENÚS (Adaptado para usar los nuevos métodos) ---
 prepararMenu: function(esVenta = true) {
-    // El callback es lo que se ejecuta apenas el escáner (láser o cámara) detecta un código
     const callback = (codigo) => {
         if (esVenta) {
             // --- FLUJO DE VENTAS ---
-            // 1. Inyectamos el código en el input real de tu sección de ventas (v-producto)
             const inputVenta = document.getElementById('v-producto');
             if (inputVenta) {
                 inputVenta.value = codigo;
-                // Disparamos el evento input para activar cualquier lógica de búsqueda visual
                 inputVenta.dispatchEvent(new Event('input', { bubbles: true }));
             }
 
-            // 2. Ejecutamos la lógica de venta rápida (Bip -> Registro)
-            // Esta función debe estar definida en tu Controlador
             if (typeof Controlador.procesarEscaneoVentaRapida === 'function') {
                 Controlador.procesarEscaneoVentaRapida(codigo);
             } else {
@@ -298,13 +306,11 @@ prepararMenu: function(esVenta = true) {
 
         } else {
             // --- FLUJO DE INVENTARIO ---
-            // 1. Inyectamos en el input de inventario (inv-codigo)
             const inputInv = document.getElementById('inv-codigo');
             if (inputInv) {
                 inputInv.value = codigo;
                 inputInv.focus();
                 
-                // 2. Cargamos el producto para edición o nuevo registro
                 if (typeof Controlador.prepararEdicionInventario === 'function') {
                     Controlador.prepararEdicionInventario(codigo);
                 }
@@ -312,27 +318,30 @@ prepararMenu: function(esVenta = true) {
         }
     };
 
-    // Abrimos el modal de elección para que el usuario decida el hardware
+    // Abrimos el modal con inyección de atajos numéricos
     modalEleccion.abrir({
         titulo: "🔍 Entrada de Producto",
         mensaje: "¿Cómo registrarás el código?",
         botones: [
             { 
-                texto: "🔦 Láser USB", 
+                texto: "🔦 (1) Láser USB", 
                 clase: "btn-main", 
-                accion: () => this.iniciarBusquedaEscannerLaser(callback) 
+                accion: () => this.iniciarBusquedaEscannerLaser(callback),
+                shortcut: "1" // Para que tu motor de modal lo identifique
             },
             { 
-                texto: "📸 Cámara en Vivo", 
+                texto: "📸 (2) Cámara en Vivo", 
                 clase: "btn-main", 
                 style: "background:#2196F3; margin-top:10px;", 
-                accion: () => this.iniciarEscannerCamara(callback) 
+                accion: () => this.iniciarEscannerCamara(callback),
+                shortcut: "2"
             },
             { 
-                texto: "🖼️ Subir Foto", 
+                texto: "🖼️ (3) Subir Foto", 
                 clase: "btn-main", 
                 style: "background:#9c27b0; margin-top:10px;", 
-                accion: () => this.procesarFoto(callback, () => this.prepararMenu(esVenta)) 
+                accion: () => this.procesarFoto(callback, () => this.prepararMenu(esVenta)),
+                shortcut: "3"
             }
         ]
     });

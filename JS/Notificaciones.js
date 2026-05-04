@@ -233,16 +233,26 @@ solicitarPermisoNativo() {
  * Envía una notificación nativa al sistema (incluso si la app está en segundo plano).
  */
 enviarNotificacionNativa(titulo, mensaje) {
+    // --- 🔊 INYECCIÓN DE AUDIO DOMINUS ---
+    // Si el título menciona "Stock" o "Reposición", disparamos el audio específico
+    if (typeof notificar === 'function') {
+        if (titulo.toLowerCase().includes("stock") || titulo.toLowerCase().includes("reposición")) {
+            notificar(mensaje, "stock"); // Esto activará DominusAudio.play('stockBajito')
+        } else {
+            notificar(mensaje, "alerta"); // Audio de alerta general para otros casos
+        }
+    }
+
     if ("Notification" in window && Notification.permission === "granted") {
         // Usamos el Service Worker para mayor estabilidad en móviles
         navigator.serviceWorker.ready.then(registration => {
             registration.showNotification(`DOMINUS: ${titulo}`, {
                 body: mensaje,
-                icon: 'IMG/icon-512.png',    // Asegúrate de tener estas rutas
-                badge: 'IMG/icon-192.png',   // Icono pequeño para la barra superior
+                icon: 'IMG/icon-512.png',    // Ruta del icono principal
+                badge: 'IMG/icon-192.png',   // Icono para la barra de estado
                 vibrate: [200, 100, 200],    // Patrón de vibración [vibrar, pausa, vibrar]
-                tag: 'dominus-alerta',       // Evita duplicados si llegan varios avisos
-                renotify: true               // Vuelve a notificar aunque tenga el mismo tag
+                tag: 'dominus-alerta',       // Evita duplicados
+                renotify: true               // Fuerza la notificación visual
             });
         });
     }

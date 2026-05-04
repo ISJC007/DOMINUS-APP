@@ -65,20 +65,32 @@
 <div class="app-viewport"> 
 
     <div id="panelAjustes" class="ajustes-sidebar">
-        <div class="ajustes-header">
-            <span class="ajustes-title">DOMINUS CONFIG</span>
-            <button class="btn-close-ajustes" onclick="Interfaz.toggleAjustes()">&times;</button>
-        </div>
+    <div class="ajustes-header">
+        <span class="ajustes-title">DOMINUS CONFIG</span>
+        <!-- Atajo Escape para cerrar, consistente con el resto de la app -->
+        <button class="btn-close-ajustes" 
+                onclick="Interfaz.toggleAjustes()" 
+                data-shortcut="Esc">
+            &times;
+        </button>
+    </div>
 
-        <div class="panel-body">
-            <div class="tabs-nav">
-                <button id="btn-tab-usuario" class="tab-btn active" onclick="Interfaz.cambiarTabAjustes('tab-usuario')">
-                    👤 PERFIL
-                </button>
-                <button id="btn-tab-sistema" class="tab-btn" onclick="Interfaz.cambiarTabAjustes('tab-sistema')">
-                    ⚙️ SISTEMA
-                </button>
-            </div>
+    <div class="panel-body">
+        <div class="tabs-nav">
+            <!-- Usamos 'U' para Usuario y 'S' para Sistema -->
+            <button id="btn-tab-usuario" 
+                    class="tab-btn active" 
+                    onclick="Interfaz.cambiarTabAjustes('tab-usuario')" 
+                    data-shortcut="U">
+                👤 PERFIL
+            </button>
+            <button id="btn-tab-sistema" 
+                    class="tab-btn" 
+                    onclick="Interfaz.cambiarTabAjustes('tab-sistema')" 
+                    data-shortcut="S">
+                ⚙️ SISTEMA
+            </button>
+        </div>
 
             <div class="settings-content">
                 
@@ -137,33 +149,38 @@
                                 <option value="15">15 días</option>
                             </select>
                         </div>
-                    </div> </div> <div id="tab-sistema" class="tab-content">
-                    <div class="ajuste-item">
-                        <span class="ajuste-label">🌙 Modo Oscuro</span>
-                        <label class="switch">
-                            <input type="checkbox" id="checkDarkMode" onchange="Controlador.toggleDarkMode(this.checked)">
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
+                    </div> </div> 
+                    
+                  <div id="tab-sistema" class="tab-content">
+    <!-- Atajo 'O' para Oscuro -->
+    <div class="ajuste-item" data-shortcut="O">
+        <span class="ajuste-label">🌙 Modo Oscuro</span>
+        <label class="switch">
+            <input type="checkbox" id="checkDarkMode" onchange="Controlador.toggleDarkMode(this.checked)">
+            <span class="slider round"></span>
+        </label>
+    </div>
 
-                    <div class="ajuste-item">
-                        <span class="ajuste-label">📦 Control Stock</span>
-                        <label class="switch">
-                            <input type="checkbox" id="check-inv" onchange="Controlador.toggleInv(this.checked)">
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
+    <!-- Atajo 'A' para Almacén/Stock -->
+    <div class="ajuste-item" data-shortcut="A">
+        <span class="ajuste-label">📦 Control Stock</span>
+        <label class="switch">
+            <input type="checkbox" id="check-inv" onchange="Controlador.toggleInv(this.checked)">
+            <span class="slider round"></span>
+        </label>
+    </div>
 
-                    <div class="ajuste-item">
-                        <div class="ajuste-info">
-                            <span class="ajuste-label">🏧 Modo Punto</span>
-                            <small class="ajuste-desc">Mostrar opción de servicios en ventas</small>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" id="btn-modo-punto" onchange="Controlador.toggleModoPunto(this.checked)">
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
+    <!-- Atajo 'P' para Punto -->
+    <div class="ajuste-item" data-shortcut="P">
+        <div class="ajuste-info">
+            <span class="ajuste-label">🏧 Modo Punto</span>
+            <small class="ajuste-desc">Mostrar opción de servicios en ventas</small>
+        </div>
+        <label class="switch">
+            <input type="checkbox" id="btn-modo-punto" onchange="Controlador.toggleModoPunto(this.checked)">
+            <span class="slider round"></span>
+        </label>
+    </div>
 
                     <div class="ajuste-item">
                         <div class="ajuste-info">
@@ -209,8 +226,8 @@
 
 <header class="main-header glass">
     <div class="header-top">
-        
-        <div id="user-trigger" class="avatar-trigger" onclick="Interfaz.toggleAjustes()">
+        <!-- F1 para abrir la configuración/perfil -->
+        <div id="user-trigger" class="avatar-trigger" onclick="Interfaz.toggleAjustes()" data-shortcut="F1">
             
             <span id="nav-icon-default" class="avatar-badge">⚙️</span>
             
@@ -221,7 +238,7 @@
             
         </div>
     
-   <div class="brand-container">
+        <div class="brand-container">
             <h1 class="titulo-app">DOMINUS</h1>
             <p class="slogan">Domina tu negocio, Domina tu vida</p>
         </div>
@@ -229,7 +246,8 @@
         <div class="header-spacer"></div> 
     </div>
     
-    <div class="tasa-control">
+    <!-- F3 para saltar directamente a editar el precio del dólar -->
+    <div class="tasa-control" data-shortcut="F3">
         <span class="tasa-label">Tasa:</span>
         <input type="number" id="tasa-global" class="input-tasa" 
                onchange="Conversor.setTasa(this.value)" step="0.1">
@@ -256,51 +274,61 @@
 
 <main class="main-container"> 
 
-
-   <nav class="bottom-nav glass">
-    <button type="button" class="nav-btn active" onclick="Interfaz.show('dashboard')">
+<nav class="bottom-nav glass">
+    <!-- Alt + 1: Siempre para el Dashboard/Inicio -->
+    <button type="button" class="nav-btn active" onclick="Interfaz.show('dashboard')" data-shortcut="Alt + 1">
         <span class="nav-icon">🏠</span>
         <span class="nav-text">Inicio</span>
-<div id="badge-inicio" class="badge-notificacion"></div> 
-   </button>
+        <div id="badge-inicio" class="badge-notificacion"></div> 
+    </button>
 
-    <button type="button" class="nav-btn" onclick="Interfaz.show('ventas')">
+    <!-- Alt + 2: Módulo principal de ingresos -->
+    <button type="button" class="nav-btn" onclick="Interfaz.show('ventas')" data-shortcut="Alt + 2">
         <span class="nav-icon">💰</span>
         <span class="nav-text">Ventas</span>
     </button>
 
-    <button type="button" class="nav-btn" onclick="Interfaz.show('gastos')">
+    <!-- Alt + 3: Control de flujo de salida -->
+    <button type="button" class="nav-btn" onclick="Interfaz.show('gastos')" data-shortcut="Alt + 3">
         <span class="nav-icon">📉</span>
         <span class="nav-text">Gastos</span>
     </button>
 
-    <button type="button" class="nav-btn" onclick="Interfaz.show('fiaos-list')">
+    <!-- Alt + 4: Gestión de deudores/fiao -->
+    <button type="button" class="nav-btn" onclick="Interfaz.show('fiaos-list')" data-shortcut="Alt + 4">
         <span class="nav-icon">🤝</span>
         <span class="nav-text">Créditos</span>
-<div id="badge-fiaos" class="badge-notificacion"></div>
+        <div id="badge-fiaos" class="badge-notificacion"></div>
     </button>
 
-    <button type="button" class="nav-btn" onclick="Interfaz.show('inventario')">
+    <!-- Alt + 5: Almacén y Stock -->
+    <button type="button" class="nav-btn" onclick="Interfaz.show('inventario')" data-shortcut="Alt + 5">
         <span class="nav-icon">📦</span>
         <span class="nav-text">Stock</span>
-<div id="badge-stock" class="badge-notificacion"></div>
+        <div id="badge-stock" class="badge-notificacion"></div>
     </button>
 </nav>
 
 
    <main id="app-content">
     
-    <section id="view-dashboard" class="app-section">
+<section id="view-dashboard" class="app-section">
         
         <div class="welcome-card dashboard-card">
             <h2 class="welcome-title">Bienvenido</h2>
             <p class="welcome-text">Usa el menú inferior para registrar movimientos.</p>
-            <button type="button" class="btn-action-report" onclick="Controlador.generarCierre()">
+            <!-- F4 para generar el reporte de cierre rápidamente -->
+            <button type="button" class="btn-action-report" 
+                    onclick="Controlador.generarCierre()" 
+                    data-shortcut="F4">
                 📊 Generar Cierre del Día
             </button>
         </div>
 
-        <div id="contenedor-grafica" class="chart-container dashboard-card" onclick="Controlador.rotarGrafica()">
+        <!-- 'G' para rotar entre las gráficas de Ventas/Gastos -->
+        <div id="contenedor-grafica" class="chart-container dashboard-card" 
+             onclick="Controlador.rotarGrafica()" 
+             data-shortcut="G">
             <div class="chart-header">
                 <span id="chart-label" class="chart-indicator">Registros del día</span>
                 <span class="chart-hint">Toca para cambiar 🔄</span>
@@ -311,15 +339,20 @@
     </section>
 
 <section id="view-ventas" class="app-section hidden">
+    <!-- El overlay de cámara ahora responde a la tecla Escape -->
     <div id="contenedor-camara" class="camera-overlay">
         <div id="reader-ventas" class="full-reader"></div>
-        <button class="btn-close-cam" onclick="Scanner.detenerEscanner()">×</button>
+        <button class="btn-close-cam" 
+                onclick="Scanner.detenerEscanner()" 
+                data-shortcut="Esc">×</button>
     </div>
 
     <div class="card glass">
         <div class="ventas-quick-actions">
+            <!-- F2: Acceso rápido al escáner de códigos de barras/QR -->
             <button type="button" class="btn-scan" 
-                onclick="Scanner.iniciarEscannerCamara(codigo => Controlador.procesarEscaneoVentaRapida(codigo))">
+                onclick="Scanner.iniciarEscannerCamara(codigo => Controlador.procesarEscaneoVentaRapida(codigo))"
+                data-shortcut="F2">
                 📷 Escanear
             </button>
             
@@ -364,16 +397,18 @@
 
 
 <label for="v-producto">Producto:</label>
+<!-- F para enfocar el buscador de productos rápidamente -->
 <input type="text" id="v-producto" name="v-producto" list="sugerencias-ventas" 
        class="input-venta-full" 
+       data-shortcut="F"
        oninput="
           Interfaz.actualizarSelectorTallas(this.value); 
           const p = Inventario.buscarPrecioMemoria(this.value);
           const inputM = document.getElementById('v-monto');
           if (p !== null && inputM) { 
               inputM.value = p; 
-              inputM.classList.remove('monto-animado'); // Reinicia si ya estaba
-              void inputM.offsetWidth; // Truco para forzar el reinicio de la animación
+              inputM.classList.remove('monto-animado'); 
+              void inputM.offsetWidth; 
               inputM.classList.add('monto-animado');
           }
        " 
@@ -384,18 +419,19 @@
 <input type="number" id="v-cantidad" name="v-cantidad" value="1" 
        class="input-venta-full" placeholder="Cantidad" autocomplete="off">
 
-<!-- Selector de Medidas (Se muestra dinámicamente) -->
+<!-- Selector de Medidas -->
 <div id="contenedor-talla" class="hidden container-campo">
     <div class="flex-between">
         <label for="v-talla" class="label-especial">Seleccione Medida:</label>
     </div>
+    <!-- T para abrir el selector de talla/medida -->
     <select id="v-talla" name="v-talla" class="select-venta-full glass" 
+            data-shortcut="T"
             onchange="Controlador.mostrarStockDisponible(this.value)"> 
         <option value="">Seleccione Medida...</option>
     </select>
 </div>
 
-<!-- Fila de Monto y Moneda -->
 <div class="input-group-row">
     <div class="flex-2">
         <label for="v-monto">Monto:</label>
@@ -404,7 +440,8 @@
     </div>
     <div class="flex-1">
         <label for="v-moneda">Moneda:</label>
-        <select id="v-moneda" name="v-moneda" class="select-venta-full">
+        <!-- M para alternar entre USD y BS -->
+        <select id="v-moneda" name="v-moneda" class="select-venta-full" data-shortcut="M">
             <option value="USD">$ USD</option>
             <option value="BS">Bs</option>
         </select>
@@ -427,14 +464,13 @@
            placeholder="Nombre del Cliente">
 </div>
 
-
-<button type="button" class="btn-outline-primary" onclick="Controlador.ejecutarVenta()">
+<!-- Enter para añadir el producto actual al carrito -->
+<button type="button" class="btn-outline-primary" onclick="Controlador.ejecutarVenta()" data-shortcut="Enter">
     ➕ Añadir a la Cuenta
 </button>
 
 <div id="contenedor-carrito" class="carrito-container-main">
     <h4 class="carrito-header">🛒 Cuenta Actual</h4>
-
     <div id="lista-carrito-temporal" class="carrito-lista">
         <p class="empty-msg">La cuenta está vacía</p>
     </div>
@@ -447,7 +483,8 @@
         </div>
     </div>
 
-    <button type="button" class="btn-main-success" onclick="Controlador.ejecutarCobroFinal()">
+    <!-- F10: La tecla estándar de sistemas de cobro para finalizar todo -->
+    <button type="button" class="btn-main-success" onclick="Controlador.ejecutarCobroFinal()" data-shortcut="F10">
         ✅ COBRAR TOTAL
     </button>
 </div>
@@ -457,12 +494,14 @@
 
 </section>
 
-      <section id="view-gastos" class="app-section hidden">
+<section id="view-gastos" class="app-section hidden">
     <div class="card glass">
         <h3>Registrar Gasto</h3>
         
         <label for="g-desc" class="label-gasto">Descripción:</label>
-        <input type="text" id="g-desc" name="g-desc" class="input-gasto-full" placeholder="¿En qué gastaste?">
+        <!-- 'D' para enfocar la descripción del gasto -->
+        <input type="text" id="g-desc" name="g-desc" class="input-gasto-full" 
+               placeholder="¿En qué gastaste?" data-shortcut="D">
 
         <div class="input-group-row">
             <div class="flex-2">
@@ -472,14 +511,17 @@
             </div>
             <div class="flex-1">
                 <label for="g-moneda" class="label-gasto">Moneda:</label>
-                <select id="g-moneda" name="g-moneda" class="select-gasto-full">
+                <!-- 'M' para alternar moneda también en gastos -->
+                <select id="g-moneda" name="g-moneda" class="select-gasto-full" data-shortcut="M">
                     <option value="USD">$ USD</option>
                     <option value="BS">Bs</option>
                 </select>
             </div>
         </div>
 
-        <button type="button" class="btn-gasto-final" onclick="Controlador.ejecutarGasto()">
+        <!-- Enter para guardar el gasto una vez completado -->
+        <button type="button" class="btn-gasto-final" 
+                onclick="Controlador.ejecutarGasto()" data-shortcut="Enter">
             Guardar Gasto
         </button>
     </div>
@@ -492,27 +534,33 @@
     <h3>Cuentas por Cobrar (Bs)</h3>
     
     <div class="search-container">
+        <!-- 'B' para enfocar el buscador de deudores -->
         <input type="text" 
                id="search-deudores" 
                placeholder="🔍 Buscar cliente por nombre..." 
                class="input-search-fiao"
+               data-shortcut="B"
                oninput="Interfaz.filtrarFiaos()">
         
+        <!-- 'Esc' para limpiar el filtro de búsqueda rápidamente -->
         <button type="button" 
                 class="btn-clear-search"
+                data-shortcut="Esc"
                 onclick="document.getElementById('search-deudores').value=''; Interfaz.filtrarFiaos();">
             ✕
         </button>
     </div>
 
     <div id="lista-fiaos" class="listado-container">
-        </div>
+        <!-- Aquí se renderizan las tarjetas de deudores -->
+    </div>
 </section>
 
-     <section id="view-inventario" class="app-section hidden">
+   <section id="view-inventario" class="app-section hidden">
     <div class="card glass">
         <h3>📦 Cargar Inventario</h3>
         
+        <!-- El fieldset DEBE envolver al legend y a los inputs -->
         <fieldset class="inv-fieldset">
             <legend class="inv-legend">DATOS DEL PRODUCTO</legend>
             
@@ -522,65 +570,73 @@
                        class="inv-input-highlight" placeholder="Escanea o escribe el código...">
             </div>
 
-            <div class="inv-field-group">
-                <label for="inv-nombre" class="inv-label">Nombre del Producto:</label>
-                <input type="text" id="inv-nombre" name="inv-nombre" 
-                       class="inv-input-dark" placeholder="Ej: Camisa Ovejita...">
-            </div>
+          <div class="inv-field-group">
+        <label for="inv-nombre" class="inv-label">Nombre del Producto:</label>
+        <!-- 'N' para empezar a escribir un Nuevo producto -->
+        <input type="text" id="inv-nombre" name="inv-nombre" 
+               class="inv-input-dark" placeholder="Ej: Camisa Ovejita..."
+               data-shortcut="N">
+    </div>
 
-            <div class="inv-row">
-                <div class="flex-1"> 
-                    <label for="inv-cant" class="inv-label">Stock Inicial:</label>
-                    <input type="number" id="inv-cant" name="inv-cant" 
-                           class="inv-input-dark" placeholder="0" min="0">
-                </div>
-                <div class="flex-1">
-                    <label for="inv-precio" class="inv-label">Precio Venta ($):</label>
-                    <input type="number" id="inv-precio" name="inv-precio" 
-                           class="inv-input-dark" placeholder="0.00" min="0" step="0.01">
-                </div>
-            </div>
-        </fieldset>
-
-        <label for="inv-unidad" class="inv-label">Unidad de Medida / Tipo:</label>
-        <div class="inv-row-align">
-            <select id="inv-unidad" name="inv-unidad" class="inv-select-glass">
-                <option value="Und">Unidad (Und)</option>
-                <option value="Paca">Paca (Paq)</option>
-                <option value="Kg">Kilogramos (Kg)</option>
-                <option value="Lts">Litros (Lts)</option>
-                <option value="Talla">Talla (Ropa/Calzado)</option>
-            </select>
-            
-            <button type="button" class="btn-config" onclick="AbrirGestorTallas()">
-                ⚙️ Desglosar
-            </button>
+    <div class="inv-row">
+        <div class="flex-1"> 
+            <label for="inv-cant" class="inv-label">Stock Inicial:</label>
+            <input type="number" id="inv-cant" name="inv-cant" 
+                   class="inv-input-dark" placeholder="0" min="0">
         </div>
+        <div class="flex-1">
+            <label for="inv-precio" class="inv-label">Precio Venta ($):</label>
+            <input type="number" id="inv-precio" name="inv-precio" 
+                   class="inv-input-dark" placeholder="0.00" min="0" step="0.01">
+        </div>
+    </div>
 
-        <button type="button" class="btn-main-success" onclick="Controlador.guardarEnInventario()">
-            Cargar Producto
+    <label for="inv-unidad" class="inv-label">Unidad de Medida / Tipo:</label>
+    <div class="inv-row-align">
+        <!-- 'U' para cambiar rápidamente el tipo de unidad -->
+        <select id="inv-unidad" name="inv-unidad" class="inv-select-glass" data-shortcut="U">
+            <option value="Und">Unidad (Und)</option>
+            <option value="Paca">Paca (Paq)</option>
+            <option value="Kg">Kilogramos (Kg)</option>
+            <option value="Lts">Litros (Lts)</option>
+            <option value="Talla">Talla (Ropa/Calzado)</option>
+        </select>
+        
+        <button type="button" class="btn-config" onclick="AbrirGestorTallas()">
+            ⚙️ Desglosar
         </button>
     </div>
 
+    <!-- Enter para procesar la carga al inventario -->
+    <button type="button" class="btn-main-success" 
+            onclick="Controlador.guardarEnInventario()" data-shortcut="Enter">
+        Cargar Producto
+    </button>
+</div>
 
-  <div class="inv-header-box"> 
-        <h4 class="flex-between-align">
-            Stock Actual 
-            <button class="btn-scan-inv" 
-                    onclick="Scanner.iniciarEscannerCamara(codigo => Controlador.prepararEdicionInventario(codigo))">
-                📷 Escanear Producto
-            </button>
-        </h4>
+<div class="inv-header-box"> 
+    <h4 class="flex-between-align">
+        Stock Actual 
+        <!-- F2: Consistencia con Ventas para usar la cámara -->
+        <button class="btn-scan-inv" 
+                onclick="Scanner.iniciarEscannerCamara(codigo => Controlador.prepararEdicionInventario(codigo))"
+                data-shortcut="F2">
+            📷 Escanear Producto
+        </button>
+    </h4>
 
-        <div class="search-box-sticky glass">
-            <input type="text" id="busqueda-real-inv" class="input-search-modern" placeholder="🔍 Buscar producto...">
-        </div>
+    <div class="search-box-sticky glass">
+        <!-- 'S' para saltar a la búsqueda del Stock actual -->
+        <input type="text" id="busqueda-real-inv" class="input-search-modern" 
+               placeholder="🔍 Buscar producto..." data-shortcut="S">
     </div>
+</div>
 
-    <div id="contenedor-camara-inv" class="camera-full-overlay">
-        <div id="reader" class="reader-box"></div>
-        <button class="btn-close-generic" onclick="Scanner.detenerEscanner()">Cerrar</button>
-    </div>
+<div id="contenedor-camara-inv" class="camera-full-overlay">
+    <div id="reader" class="reader-box"></div>
+    <!-- Esc para cancelar la operación de escaneo -->
+    <button class="btn-close-generic" onclick="Scanner.detenerEscanner()" data-shortcut="Esc">Cerrar</button>
+</div>
 
     <div id="lista-inventario" class="listado-container inv-list-scroll"></div>
 </section>
@@ -589,11 +645,21 @@
     <div class="modal-content-tallas glass">
         <h3 class="modal-title">⚙️ Desglose Por Tipo</h3>
         
+        <!-- El contenedor se llena dinámicamente, los inputs internos 
+             heredarán el comportamiento de navegación por flechas en el JS -->
         <div id="contenedor-filas-tallas" class="tallas-grid"></div>
         
-        <button type="button" class="btn-main mt-15" onclick="CerrarGestorTallas()">
+        <!-- Enter para confirmar las cantidades y cerrar el modal -->
+        <button type="button" class="btn-main mt-15" 
+                onclick="CerrarGestorTallas()" 
+                data-shortcut="Enter">
             Confirmar Cantidades
         </button>
+
+        <!-- (Opcional visual) X para cerrar con Esc -->
+        <button type="button" class="btn-close-modal" 
+                onclick="CerrarGestorTallas()" 
+                data-shortcut="Esc" style="display:none;"></button>
     </div>
 </div>
 
@@ -635,6 +701,5 @@
 
 </main>
 
-</div>
 </body>
 </html>

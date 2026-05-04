@@ -9,7 +9,12 @@ const modalEleccion = {
         const modalPrevio = document.getElementById('modal-dinamico');
         if (modalPrevio) modalPrevio.remove();
 
-        // 2. HTML Limpio (Las clases CSS hacen el trabajo ahora)
+        // --- 🔊 AUDIO DE APERTURA ---
+        if (typeof notificar === 'function') {
+            notificar(config.titulo, "alerta"); 
+        }
+
+        // 2. HTML Limpio
         const html = `
             <div id="modal-dinamico" class="modal-eleccion">
                 <div class="eleccion-content glass">
@@ -17,31 +22,33 @@ const modalEleccion = {
                     <p>${config.mensaje}</p>
                     <div id="contenedor-inputs-modal"></div>
                     <div id="btns-dinamicos" class="btns-eleccion"></div>
-                    <button class="btn-no" onclick="modalEleccion.cerrar()">Cancelar</button>
+                    <button class="btn-no" onclick="modalEleccion.cerrar()">Cancelar (Esc)</button>
                 </div>
             </div>`;
         
         document.body.insertAdjacentHTML('beforeend', html);
         
-        // Pequeño timeout para asegurar que la animación de entrada (opacity) se ejecute
         setTimeout(() => {
-            document.getElementById('modal-dinamico').classList.add('active');
+            const m = document.getElementById('modal-dinamico');
+            if(m) m.classList.add('active');
         }, 10);
         
         const contenedorBtns = document.getElementById('btns-dinamicos');
 
-        // 3. Generación de botones dinámica
-        config.botones.forEach(btn => {
+        // 3. Generación de botones dinámica con soporte para atajos
+        config.botones.forEach((btn, index) => {
             const b = document.createElement('button');
-            
-            // Clase por defecto 'btn-si' o la que pases en la config
             b.className = btn.clase || 'btn-si'; 
             b.innerHTML = btn.texto;
             
-            // Solo aplicamos style dinámico si es estrictamente necesario (ej: un color de una categoría)
-            if (btn.style) {
-                b.style.cssText = btn.style;
+            // Inyectamos el atributo de atajo para que el Teclado lo reconozca
+            if (btn.extraAttr) {
+                // Si pasaste 'data-shortcut="W"', lo extraemos
+                const match = btn.extraAttr.match(/"([^"]+)"/);
+                if (match) b.setAttribute('data-key', match[1].toLowerCase());
             }
+
+            if (btn.style) b.style.cssText = btn.style;
 
             b.onclick = () => { 
                 btn.accion(); 
@@ -49,14 +56,43 @@ const modalEleccion = {
             };
             
             contenedorBtns.appendChild(b);
+
+            // Foco automático al primer botón para navegación rápida
+            if (index === 0) setTimeout(() => b.focus(), 150);
+        });
+
+        // --- ⌨️ VÍNCULO TEMPORAL DE TECLADO ---
+        this.escuchadorTemporal = (e) => this.manejadorTecladoModal(e, config);
+        window.addEventListener('keydown', this.escuchadorTemporal);
+    },
+
+    // Manejador interno para que el modal responda a teclas específicas
+    manejadorTecladoModal: function(e, config) {
+        if (e.key === 'Escape') {
+            this.cerrar();
+            return;
+        }
+
+        const teclaPresionada = e.key.toLowerCase();
+        const botones = document.querySelectorAll('#btns-dinamicos button');
+        
+        botones.forEach(btn => {
+            const atajoAsignado = btn.getAttribute('data-key');
+            if (atajoAsignado === teclaPresionada) {
+                e.preventDefault();
+                btn.click(); // Ejecuta la acción del botón
+            }
         });
     },
 
     cerrar: function() {
         const m = document.getElementById('modal-dinamico');
+        
+        // Removemos el escuchador para no saturar la memoria
+        window.removeEventListener('keydown', this.escuchadorTemporal);
+
         if(m) {
             m.classList.remove('active');
-            // Esperamos los 300ms de la transición definida en el CSS
             setTimeout(() => {
                 if(m) m.remove();
             }, 300);
@@ -265,7 +301,7 @@ procesarCodigoEscaneado: function(codigo) {
                     Ventas.registrarVenta(
                         producto.nombre, precioSugerido, 'USD', 'Efectivo', 'Anónimo', 0, false, 1, talla
                     );
-                    notificar(`💰 Venta: ${producto.nombre} - $${precioSugerido}`, "success");
+                    notificar(`💰 Venta: ${producto.nombre} - $${precioSugerido}`, "scan");
                     if (typeof Interfaz !== 'undefined') Interfaz.renderVentas();
                 }
 
@@ -365,8 +401,7 @@ procesarEscaneoVentaRapida: function(identificador) {
     console.log("DOMINUS: Procesando identificador:", identificador);
     const idLimpio = String(identificador).trim();
 
-    // 1. Buscamos el producto en el Inventario (Blindaje de tipos de datos)
-    // Usamos doble igual (==) a propósito o String() para comparar códigos que puedan ser números
+    // 1. Buscamos el producto en el Inventario
     const p = Inventario.productos.find(prod => 
         prod.nombre === idLimpio || 
         (prod.codigo && String(prod.codigo).trim() === idLimpio)
@@ -374,17 +409,21 @@ procesarEscaneoVentaRapida: function(identificador) {
 
     // 2. Feedback si NO existe
     if (!p) {
-        // El audio 'error' ya se dispara dentro de notificar(..., 'error')
         const cCod = document.getElementById('v-codigo');
         if (cCod) {
             cCod.value = idLimpio;
-            cCod.focus(); // Ponemos el foco para que el usuario pueda corregir rápido
+            cCod.focus(); 
         }
         return notificar(`No registrado: ${idLimpio}`, "error");
     }
 
+    // --- 🔊 INYECCIÓN DE AUDIO ESCÁNER ---
+    // Disparamos el sonido de escaneo exitoso antes de procesar la lógica pesada
+    if (typeof notificar === 'function') {
+        notificar(`Producto: ${p.nombre}`, "scan");
+    }
+
     // 3. PINTADO VISUAL INICIAL
-    // Llenamos los campos para que el usuario sepa qué se encontró
     const inputCodigo = document.getElementById('v-codigo');
     const inputProducto = document.getElementById('v-producto');
     
@@ -393,12 +432,13 @@ procesarEscaneoVentaRapida: function(identificador) {
     
     // 4. PASAMOS EL CONTROL A LA AUTOMATIZACIÓN
     if (typeof this.finalizarVentaAutomatica === 'function') {
-        // Notificación silenciosa de éxito (sin alert, solo feedback visual si lo deseas)
+        // La notificación ya se dio con el sonido de 'scan'
         this.finalizarVentaAutomatica(p);
     } else {
-        // Backup de seguridad
+        // Backup de seguridad si no hay auto-finalización
         const inputMonto = document.getElementById('v-monto');
         if (inputMonto) inputMonto.value = p.precio;
+        // Solo notificamos éxito si no hay proceso automático para evitar spam
         notificar(`Cargado: ${p.nombre}`, "exito");
     }
 
@@ -478,7 +518,7 @@ ejecutarVenta() {
     } 
     
     const msj = modoLibre ? "🛒 Añadido (Sin descontar inventario)" : "🛒 Añadido a la cuenta";
-    notificar(msj, modoLibre ? "info" : "stock");
+    notificar(msj, modoLibre ? "info" : "");
 },
 
 // Función auxiliar para mantener ejecutarVenta limpia
@@ -561,13 +601,29 @@ renderCarrito() {
 },
 
 // 👇 NUEVA: Permite borrar si se equivocaron
-eliminarDelCarrito(index) {
-    // 🛡️ Verificamos que el índice exista antes de cortar
-    if (Ventas.carrito[index]) {
+eliminarDelCarrito: function(index) {
+    // 🛡️ Verificamos que el índice exista antes de proceder
+    if (Ventas.carrito && Ventas.carrito[index]) {
+        
+        // 🚀 CAPTURA PARA EL ESCÁNER: 
+        // Guardamos el nombre antes de borrarlo para que el "Deshacer" sepa qué decir
+        window.ultimoNombreBorrado = Ventas.carrito[index].nombre || "Producto";
+
+        // 1. Eliminamos el ítem del array
         Ventas.carrito.splice(index, 1);
+        
+        // 2. Refrescamos la interfaz
         this.renderCarrito();
-        // Notificación sutil (opcional)
-        console.log("🗑️ Item removido del carrito.");
+        
+        // 3. Notificación y Logs
+        console.log("🗑️ DOMINUS: Item removido:", window.ultimoNombreBorrado);
+        
+        // 4. Sincronización con el botón de deshacer del escáner
+        // Si el carrito queda vacío, ocultamos el botón de deshacer si existe
+        if (Ventas.carrito.length === 0) {
+            const btnUndo = document.getElementById('btn-deshacer-scanner');
+            if (btnUndo) btnUndo.style.display = 'none';
+        }
     }
 },
 
@@ -629,7 +685,7 @@ ejecutarCobroFinal() {
 
         // --- 🔊 FEEDBACK AUDITIVO (Caja Registradora) ---
         if (typeof DominusAudio !== 'undefined') {
-            DominusAudio.play('exito'); 
+            DominusAudio.play('success'); 
         }
 
         // --- 🎯 FOCO AUTOMÁTICO ---
@@ -1359,51 +1415,69 @@ eliminarInv(id) {
     );
 },
 
-    toggleInv(activo) { //activa y descativa el inventario//
-        Inventario.activo = activo; 
+toggleInv(activo) {
+    Inventario.activo = activo; 
+    
+    const label = document.getElementById('estadoInv');
+    if(label) {
+        label.innerText = activo ? "Inventario ACTIVADO" : "Inventario DESACTIVADO";
+        label.style.color = activo ? "#2e7d32" : "#d32f2f";
         
-        const label = document.getElementById('estadoInv');
-        if(label) {
-            label.innerText = activo ? "Inventario ACTIVADO" : "Inventario DESACTIVADO";
-            label.style.color = activo ? "#2e7d32" : "#d32f2f";
-        }
-        
-        localStorage.setItem('dom_inv_activo', activo);
-        console.log("Inventario está ahora:", activo);
-    },
+        // Efecto visual de confirmación para el usuario de teclado
+        label.classList.add('pulse-confirm');
+        setTimeout(() => label.classList.remove('pulse-confirm'), 500);
+    }
+    
+    localStorage.setItem('dom_inv_activo', activo);
+    
+    // Notificación rápida en pantalla (Toast) para cuando se usa el atajo 'A'
+    notificar(`Almacén: ${activo ? 'ON' : 'OFF'}`, activo ? 'add' : 'info');
+    
+    console.log("Inventario está ahora:", activo);
+},
+
 toggleDarkMode(activo) {
     if (activo) {
         document.body.classList.add('dark-mode');
-        // Cambia la barra superior del móvil a negro
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0a0a0a');
     } else {
         document.body.classList.remove('dark-mode');
-        // Cambia la barra superior del móvil a dorado o gris platino
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#f5f5f7');
     }
     
+    // Guardamos el estado
     Persistencia.guardar('dom_dark_mode', activo);
+    
+    // Notificación visual del cambio de tema para el atajo 'O'
+    notificar(`Modo ${activo ? 'Oscuro' : 'Claro'}`, 'info');
+    
     console.log("DOMINUS Theme - Modo oscuro:", activo);
 },
 
 
-
 toggleModoPunto(activado) {
-    // Apuntamos al ID correcto de la interfaz de ventas
     const elSeccionPunto = document.getElementById('seccion-modo-punto');
     
     if (elSeccionPunto) {
-        // Usamos clase 'hidden' o style.display según tu sistema global
         if (activado) {
             elSeccionPunto.classList.remove('hidden');
-            elSeccionPunto.style.display = 'block'; 
+            elSeccionPunto.style.display = 'block';
+            
+            // Si el panel de ajustes está abierto, le damos un resalte visual
+            elSeccionPunto.classList.add('monto-animado'); 
         } else {
             elSeccionPunto.classList.add('hidden');
             elSeccionPunto.style.display = 'none';
         }
         
-        // Persistencia
+        // Persistencia para que DOMINUS recuerde la preferencia del usuario
         Persistencia.guardar('dom_pref_modo_punto', activado);
+        
+        // Notificación para confirmación del atajo 'P'
+        if (typeof notificar === 'function') {
+            notificar(`Modo Punto: ${activado ? 'ACTIVADO' : 'DESACTIVADO'}`, 'info');
+        }
+
         console.log(`🏧 DOMINUS: Modo Punto ${activado ? 'Visible' : 'Oculto'}`);
     }
 },
@@ -1442,13 +1516,17 @@ generarCierre: function() {
         Notificaciones.revisarTodo(); 
     }
 
+    // 🔊 ACTIVACIÓN DE AUDIO DE CIERRE
+    if (typeof notificar === 'function') {
+        notificar("Generando reporte de cierre...", "cierre");
+    }
+
     const hoy = new Date().toLocaleDateString('es-VE');
     const balanceBs = parseFloat(r.balanceNeto) || 0;
     const totalVentas = r.conteoVentas || 0;
     const ticketPromedioBs = totalVentas > 0 ? (r.balanceNeto / totalVentas).toFixed(2) : 0;
 
-    // --- 🛡️ MEJORA: DETECCIÓN DE PRODUCTOS CRÍTICOS ---
-    // Usamos tu propia función chequearSaludStock para el reporte
+    // --- 🛡️ DETECCIÓN DE PRODUCTOS CRÍTICOS (REPOSICIÓN) ---
     let listaReposicion = "";
     if (typeof Inventario !== 'undefined' && Inventario.lista) {
         const criticos = Inventario.lista.filter(p => {
@@ -1465,7 +1543,7 @@ generarCierre: function() {
         }
     }
 
-    // 2. CONSTRUCCIÓN DEL REPORTE OPTIMIZADO[cite: 2, 5]
+    // 2. CONSTRUCCIÓN DEL REPORTE DETALLADO
     let texto = `📊 *REPORTE DOMINUS - ${hoy}*\n`;
     texto += `━━━━━━━━━━━━━━━━━━\n\n`;
     
@@ -1480,26 +1558,24 @@ generarCierre: function() {
 
     texto += `📱 *DINERO DIGITAL:* \n`;
     texto += `• Pago Móvil: ${r.detalle.pagoMovil.toLocaleString('es-VE')} Bs\n`;
-    // Unificamos Biopago y Punto según tu selector
     texto += `• Punto/Biopago: ${(r.detalle.punto + r.detalle.biopago).toLocaleString('es-VE')} Bs\n`;
     texto += `• Total Digital: ${r.digital.toLocaleString('es-VE')} Bs\n\n`;
 
     texto += `📉 *SALDOS Y COMISIONES:* \n`;
     texto += `• Créditos (Fiao): ${r.detalle.fiao.toLocaleString('es-VE')} Bs\n`;
-    texto += `• Comisión Padre: ${r.detalle.comisiones.toLocaleString('es-VE')} Bs\n`;
+    texto += `• Comisión Padre: ${r.detalle.comisiones.toLocaleString('es-VE')} Bs\n`; //
     
-    // Inyectamos la lista de stock si hay productos bajos[cite: 2]
     texto += listaReposicion;
 
     texto += `\n━━━━━━━━━━━━━━━━━━\n`;
     texto += `✅ *TOTAL NETO DEL DÍA:* \n`;
     texto += `💰 *${r.balanceNeto.toLocaleString('es-VE')} Bs*`;
 
-    // 3. SVG LOGOS (Tus originales)[cite: 2]
+    // 3. SVG LOGOS
     const logoWS = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.06 3.973L0 16l4.14-1.086A7.98 7.98 0 0 0 7.994 16h.004c4.367 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg>`;
     const logoPDF = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/><path d="M4.603 12.087a.81.81 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.68 7.68 0 0 1 1.487-.64c.21-.075.408-.139.605-.192a3.323 3.323 0 0 1 .12-.367 1.92 1.92 0 0 1 .116-.277c.18-.328.375-.677.582-.999.253-.393.51-.762.754-1.017.242-.252.432-.359.584-.406.309-.095.646-.01.91.137.357.198.557.569.579.927.015.233-.051.5-.165.723-.121.238-.321.407-.51.523-.351.213-.761.306-1.162.356-.369.046-.73.042-1.036.027a19.12 19.12 0 0 1-1.527-.145 11.91 11.91 0 0 1-1.315 1.833 5.1 5.1 0 0 1-1.059 1.13c-.15.115-.313.208-.474.269.04.03.078.06.115.09.11.088.196.162.243.213.06.064.06.115.043.153-.024.053-.131.066-.255.034-.143-.037-.306-.118-.465-.234z"/></svg>`;
 
-    // 4. MODAL DE ELECCIÓN[cite: 2]
+    // 4. MODAL DE ELECCIÓN
     modalEleccion.abrir({
         titulo: "📊 Finalizar Jornada",
         mensaje: "¿Cómo deseas exportar el reporte detallado?",
@@ -1507,6 +1583,7 @@ generarCierre: function() {
             { 
                 texto: `${logoWS} WHATSAPP`, 
                 clase: "btn-whatsapp-cierre", 
+                extraAttr: 'data-shortcut="W"', // Atajo
                 accion: () => {
                     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank');
                     setTimeout(() => { this.preguntarLimpieza(); }, 2000);
@@ -1515,6 +1592,7 @@ generarCierre: function() {
             { 
                 texto: `${logoPDF} GENERAR PDF`, 
                 clase: "btn-pdf",
+                extraAttr: 'data-shortcut="P"', // Atajo
                 accion: () => { 
                     this.generarPDF();
                     setTimeout(() => { this.preguntarLimpieza(); }, 1500);
@@ -1522,6 +1600,12 @@ generarCierre: function() {
             }
         ]
     });
+
+    // Foco automático para navegación rápida con teclado
+    setTimeout(() => {
+        const btnWS = document.querySelector('.btn-whatsapp-cierre');
+        if (btnWS) btnWS.focus();
+    }, 150);
 },
 
 preguntarLimpieza: function() {
@@ -1738,14 +1822,28 @@ generarPDF() {
     });
 },
 
-   rotarGrafica() {
+rotarGrafica() {
     // Ciclo infinito: 0 -> 1 -> 2 -> 0...
     modoGraficaActual = (modoGraficaActual + 1) % 3;
     
-    // Feedback táctil para que el usuario sienta el cambio
+    // Feedback táctil original para dispositivos móviles
     if (navigator.vibrate) navigator.vibrate(50);
     
+    // --- 🚀 INYECCIÓN DE FEEDBACK PARA TECLADO ---
+    // Mantenemos los nombres sincronizados con tus 3 modos de visualización
+    const nombresGraficas = ["Ventas Semanales", "Top Productos", "Flujo de Caja"];
+    const modoNombre = nombresGraficas[modoGraficaActual] || "Siguiente Gráfica";
+    
+    // Notificación visual para que tu papá sepa qué cambió sin usar el mouse
+    if (typeof notificar === 'function') {
+        notificar(`Visualizando: ${modoNombre}`, 'info');
+    }
+    
+    // Renderizado original (Llama a Chart.js o tu motor visual)
     this.renderizarGrafica();
+    
+    // Log de auditoría para desarrollo
+    console.log(`📈 DOMINUS: Cambio a modo ${modoNombre}`);
 },
 
 renderizarGrafica() {
